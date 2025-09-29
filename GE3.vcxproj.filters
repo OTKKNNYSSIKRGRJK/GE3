@@ -1,0 +1,353 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Src">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;c++;cppm;ixx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+    <Filter Include="Assets">
+      <UniqueIdentifier>{8d93fb73-beea-435d-b8fd-f6a8ccdb7512}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Assets\Shaders">
+      <UniqueIdentifier>{3592e8bf-5179-4438-9808-eb103e00a535}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="External">
+      <UniqueIdentifier>{b78c138e-8079-4465-8e97-83b4e08e3b7d}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="External\ImGui">
+      <UniqueIdentifier>{83cee975-11b8-4931-9604-ebb0704280d3}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="External\ImGui\Backends">
+      <UniqueIdentifier>{d78a365f-41c5-4fd8-83d0-e2d657429a37}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Assets\ShaderTest">
+      <UniqueIdentifier>{05f16de3-78dc-4b64-a89d-481ee87ebb51}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Src\Test">
+      <UniqueIdentifier>{2655a2a9-0617-47f6-93cd-2ba75b7f3ef7}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Src\AssetManager">
+      <UniqueIdentifier>{17ffc36d-16a9-4211-b085-9bccb97a124e}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Src\Game">
+      <UniqueIdentifier>{b4adbe75-b018-4958-bd53-0a6dc25869cf}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Src\Lumina">
+      <UniqueIdentifier>{8c030308-8a90-4d91-8c37-504d3445c5f0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Src\Lumina\Utils">
+      <UniqueIdentifier>{89491178-ef57-42bc-a4dd-3bcc890e36fc}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Src\Lumina\Container">
+      <UniqueIdentifier>{716d71d3-54cd-4758-ba7d-184b0668850b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Src\Lumina\DX12">
+      <UniqueIdentifier>{f4b1289e-581f-4edd-b0ad-e9bf5815e47f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Src\Lumina\Math">
+      <UniqueIdentifier>{6d39996f-7433-4fea-a8d1-d777951e4d2b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Src\Lumina\WinApp">
+      <UniqueIdentifier>{f5ded392-157d-44e9-a316-19d8a9f8b936}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Src\Lumina\Editor">
+      <UniqueIdentifier>{58f6690d-45fc-4e1c-bfbe-2689e7b40374}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Src\Lumina\Editor\DX12">
+      <UniqueIdentifier>{46770b99-5b6c-4aa1-a916-b469a473047c}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="main.cpp" />
+    <ClCompile Include="External\ImGui\backends\imgui_impl_dx12.cpp">
+      <Filter>External\ImGui\Backends</Filter>
+    </ClCompile>
+    <ClCompile Include="External\ImGui\backends\imgui_impl_win32.cpp">
+      <Filter>External\ImGui\Backends</Filter>
+    </ClCompile>
+    <ClCompile Include="External\ImGui\imgui.cpp">
+      <Filter>External\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="External\ImGui\imgui_demo.cpp">
+      <Filter>External\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="External\ImGui\imgui_draw.cpp">
+      <Filter>External\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="External\ImGui\imgui_tables.cpp">
+      <Filter>External\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="External\ImGui\imgui_widgets.cpp">
+      <Filter>External\ImGui</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Test\GPUParticle.ixx">
+      <Filter>Src\Test</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Test\PerlinNoiseTest.ixx">
+      <Filter>Src\Test</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Test\ProceduralTerrain.ixx">
+      <Filter>Src\Test</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Test\BitonicSort.ixx">
+      <Filter>Src\Test</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\AssetManager.ixx">
+      <Filter>Src\AssetManager</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\AssetManager.Audio.ixx">
+      <Filter>Src\AssetManager</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\AssetManager.Graphics.ixx">
+      <Filter>Src\AssetManager</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\Mixins.ixx">
+      <Filter>Src\Lumina</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\Container\Container.List.ixx">
+      <Filter>Src\Lumina\Container</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\Container\Container.Bitset.ixx">
+      <Filter>Src\Lumina\Container</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\Math\Math.Numerics.ixx">
+      <Filter>Src\Lumina\Math</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\Math\Math.PerlinNoise.ixx">
+      <Filter>Src\Lumina\Math</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\Math\Math.Quaternion.ixx">
+      <Filter>Src\Lumina\Math</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\Math\Math.Random.ixx">
+      <Filter>Src\Lumina\Math</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\Math\Math.Vector.ixx">
+      <Filter>Src\Lumina\Math</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\Math\Math.VoronoiDiagram.ixx">
+      <Filter>Src\Lumina\Math</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\Math\Math.FractalBrownianMotion.ixx">
+      <Filter>Src\Lumina\Math</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\Math\Math.ixx">
+      <Filter>Src\Lumina\Math</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\Math\Math.Matrix.ixx">
+      <Filter>Src\Lumina\Math</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\DX12\DX12.Aux.ixx">
+      <Filter>Src\Lumina\DX12</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\DX12\DX12.Aux.RenderTextureEX.ixx">
+      <Filter>Src\Lumina\DX12</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\DX12\DX12.Aux.View.ixx">
+      <Filter>Src\Lumina\DX12</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\DX12\DX12.Command.ixx">
+      <Filter>Src\Lumina\DX12</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\DX12\DX12.Context.ixx">
+      <Filter>Src\Lumina\DX12</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\DX12\DX12.Debug.ixx">
+      <Filter>Src\Lumina\DX12</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\DX12\DX12.Descriptor.ixx">
+      <Filter>Src\Lumina\DX12</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\DX12\DX12.FrameBufferSwapChain.ixx">
+      <Filter>Src\Lumina\DX12</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\DX12\DX12.GraphicsDevice.ixx">
+      <Filter>Src\Lumina\DX12</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\DX12\DX12.ixx">
+      <Filter>Src\Lumina\DX12</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\DX12\DX12.PipelineState.ixx">
+      <Filter>Src\Lumina\DX12</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\DX12\DX12.Resource.ixx">
+      <Filter>Src\Lumina\DX12</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\DX12\DX12.RootSignature.ixx">
+      <Filter>Src\Lumina\DX12</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\DX12\DX12.Shader.ixx">
+      <Filter>Src\Lumina\DX12</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\DX12\DX12.Texture.ixx">
+      <Filter>Src\Lumina\DX12</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\DX12\DX12.Wrapper.ixx">
+      <Filter>Src\Lumina\DX12</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\DX12\DX12.Resource.Commons.ixx">
+      <Filter>Src\Lumina\DX12</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\DX12\DX12.Resource.Texture2D.ixx">
+      <Filter>Src\Lumina\DX12</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\DX12\DX12.Resource.Buffer.ixx">
+      <Filter>Src\Lumina\DX12</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\WinApp\WinApp.Context.cpp">
+      <Filter>Src\Lumina\WinApp</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\WinApp\WinApp.Context.ixx">
+      <Filter>Src\Lumina\WinApp</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\WinApp\WinApp.ixx">
+      <Filter>Src\Lumina\WinApp</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\WinApp\WinApp.RawInput.ixx">
+      <Filter>Src\Lumina\WinApp</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\Utils\Utils.Color.ixx">
+      <Filter>Src\Lumina\Utils</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\Utils\Utils.Data.ixx">
+      <Filter>Src\Lumina\Utils</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\Utils\Utils.Data.Model.ixx">
+      <Filter>Src\Lumina\Utils</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\Utils\Utils.Debug.ixx">
+      <Filter>Src\Lumina\Utils</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\Utils\Utils.ImGui.ixx">
+      <Filter>Src\Lumina\Utils</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\Utils\Utils.ixx">
+      <Filter>Src\Lumina\Utils</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\Utils\Utils.String.ixx">
+      <Filter>Src\Lumina\Utils</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\Utils\Utils.Debug.Exception.cpp">
+      <Filter>Src\Lumina\Utils</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\Utils\Utils.Debug.Logger.cpp">
+      <Filter>Src\Lumina\Utils</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\Utils\Utils.Debug.Logger.ixx">
+      <Filter>Src\Lumina\Utils</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\Utils\Utils.Time.ixx">
+      <Filter>Src\Lumina\Utils</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\Utils\Utils.Debug.Exception.ixx">
+      <Filter>Src\Lumina\Utils</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\PipelineEditor.ixx">
+      <Filter>Src</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\RootSignatureEditor.ixx">
+      <Filter>Src</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Editor.DX12.ixx">
+      <Filter>Src\Lumina\Editor</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\Editor\Editor.ixx">
+      <Filter>Src\Lumina\Editor</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Editor.DX12.RootSignature.cpp">
+      <Filter>Src\Lumina\Editor\DX12</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\Editor\DX12\Editor.DX12.RootTable.ixx">
+      <Filter>Src\Lumina\Editor\DX12</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\Editor\Editor.Lexicon.ixx">
+      <Filter>Src\Lumina\Editor</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\Editor\DX12\Editor.DX12.RootSignature.ixx">
+      <Filter>Src\Lumina\Editor\DX12</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\Editor\DX12\Editor.DX12.RootTable.cpp">
+      <Filter>Src\Lumina\Editor\DX12</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\Editor\DX12\Editor.DX12.cpp">
+      <Filter>Src\Lumina\Editor\DX12</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\Editor\DX12\Editor.DX12.ModuleName.ixx">
+      <Filter>Src\Lumina\Editor\DX12</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\Editor\DX12\Editor.DX12.RootParameter.ixx">
+      <Filter>Src\Lumina\Editor\DX12</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\Editor\DX12\Editor.DX12.RootParameter.cpp">
+      <Filter>Src\Lumina\Editor\DX12</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include=".editorconfig" />
+    <None Include=".gitignore" />
+    <None Include="Assets\Shaders\Basic.hlsli">
+      <Filter>Assets\Shaders</Filter>
+    </None>
+    <None Include="config.json" />
+    <None Include="TerrainConfig.json" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="External\ImGui\backends\imgui_impl_dx12.h">
+      <Filter>External\ImGui\Backends</Filter>
+    </ClInclude>
+    <ClInclude Include="External\ImGui\backends\imgui_impl_win32.h">
+      <Filter>External\ImGui\Backends</Filter>
+    </ClInclude>
+    <ClInclude Include="External\ImGui\imconfig.h">
+      <Filter>External\ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="External\ImGui\imgui.h">
+      <Filter>External\ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="External\ImGui\imgui_internal.h">
+      <Filter>External\ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="External\ImGui\imstb_rectpack.h">
+      <Filter>External\ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="External\ImGui\imstb_textedit.h">
+      <Filter>External\ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="External\ImGui\imstb_truetype.h">
+      <Filter>External\ImGui</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <FxCompile Include="Assets\Shaders\Basic.VS.hlsl">
+      <Filter>Assets\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Assets\Shaders\Basic.PS.hlsl">
+      <Filter>Assets\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Assets\Shaders\Test.CS.hlsl">
+      <Filter>Assets\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="Assets\ShaderTest\ParticleVS.hlsl">
+      <Filter>Assets\ShaderTest</Filter>
+    </FxCompile>
+    <FxCompile Include="Assets\ShaderTest\ParticlePS.hlsl">
+      <Filter>Assets\ShaderTest</Filter>
+    </FxCompile>
+    <FxCompile Include="ParticleCS.hlsl" />
+    <FxCompile Include="Src\Test\PerlinNoise.hlsl">
+      <Filter>Src\Test</Filter>
+    </FxCompile>
+    <FxCompile Include="Assets\ShaderTest\TerrainVS.hlsl">
+      <Filter>Assets\ShaderTest</Filter>
+    </FxCompile>
+    <FxCompile Include="Assets\ShaderTest\TerrainPS.hlsl">
+      <Filter>Assets\ShaderTest</Filter>
+    </FxCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="External\ImGui\LICENSE.txt">
+      <Filter>External\ImGui</Filter>
+    </Text>
+    <Text Include="GPUParticleConfig.json" />
+  </ItemGroup>
+</Project>
