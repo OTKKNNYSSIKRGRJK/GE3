@@ -332,7 +332,7 @@ namespace Lumina {
 
 		//----	------	------	------	------	----//
 
-		NLohmannJSON config{ Utils::LoadFromFile<NLohmannJSON>("TerrainConfig.json") };
+		NLohmannJSON config{ Utils::LoadFromFile<NLohmannJSON>("Assets/Configs/TerrainConfig.json") };
 		auto&& renderRSSetup{ DX12::LoadRootSignatureSetup(config.at("Terrain Render RS")) };
 		RenderRS_.Initialize(device, renderRSSetup, "RenderRS@Terrain");
 		dxContext_.Compile(

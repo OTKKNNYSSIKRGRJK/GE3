@@ -189,7 +189,7 @@ int32_t WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	//----	------	------	------	------	----//
 
-	auto config{ LU::LoadFromFile<NLohmannJSON>("config.json") };
+	auto config{ LU::LoadFromFile<NLohmannJSON>("Assets/Configs/config.json") };
 
 	//----	------	------	------	------	----//
 

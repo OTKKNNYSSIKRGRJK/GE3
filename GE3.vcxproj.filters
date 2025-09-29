@@ -288,8 +288,6 @@
     <None Include="Assets\Shaders\Basic.hlsli">
       <Filter>Assets\Shaders</Filter>
     </None>
-    <None Include="config.json" />
-    <None Include="TerrainConfig.json" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="External\ImGui\backends\imgui_impl_dx12.h">
@@ -333,7 +331,6 @@
     <FxCompile Include="Assets\ShaderTest\ParticlePS.hlsl">
       <Filter>Assets\ShaderTest</Filter>
     </FxCompile>
-    <FxCompile Include="ParticleCS.hlsl" />
     <FxCompile Include="Src\Test\PerlinNoise.hlsl">
       <Filter>Src\Test</Filter>
     </FxCompile>
@@ -348,6 +345,5 @@
     <Text Include="External\ImGui\LICENSE.txt">
       <Filter>External\ImGui</Filter>
     </Text>
-    <Text Include="GPUParticleConfig.json" />
   </ItemGroup>
 </Project>

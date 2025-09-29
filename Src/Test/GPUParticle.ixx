@@ -339,7 +339,7 @@ export namespace Lumina::Test {
 		EnvVars_.Time = 0.0f;
 		for (auto& accelFieldCoef : EnvVars_.AccelFieldCoefs) { accelFieldCoef = 0.0f; }
 
-		NLohmannJSON config{ Utils::LoadFromFile<NLohmannJSON>("GPUParticleConfig.json") };
+		NLohmannJSON config{ Utils::LoadFromFile<NLohmannJSON>("Assets/Configs/GPUParticleConfig.json") };
 		auto&& rsSetup{ DX12::LoadRootSignatureSetup(config.at("GPUParticle RS")) };
 		RS_.Initialize(device_, rsSetup);
 
