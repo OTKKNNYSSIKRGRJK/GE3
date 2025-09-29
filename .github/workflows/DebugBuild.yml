@@ -1,0 +1,33 @@
+name: DebugBuild
+
+jobs:
+  # User-defined job ID
+  build:
+    runs-on: windows-2022
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        
+      - name: Add MSBuild to PATH
+        uses: microsoft/setup-msbuild@v2
+        with:
+          msbuild-architecture: x64
+
+      - name: Build
+        run: |
+          msbuild ${{env.SOLUTION_FILE_PATH}} |
+          /p:Platform=x64,Configuration=${{env.CONFIGURATION}}
+    
+# Triggers
+on:
+  push:
+    branches:
+      - master
+
+# Environment variables
+env:
+  # Solotion file path relative to the root directory of the repository
+  SOLUTION_FILE_PATH: Project/GE3.sln
+  # Visual Studio configuration
+  CONFIGURATION: Debug
