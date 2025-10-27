@@ -15,6 +15,7 @@ import <cstdint>;
 import <memory>;
 import <functional>;
 
+import <array>;
 import <unordered_map>;
 
 import <string>;
@@ -170,7 +171,7 @@ namespace Lumina::WinApp {
 
 		RAWKEYBOARD const& keyboard{ rawInput_.data.keyboard };
 
-		bool isKeyPressed{ (keyboard.Flags & 0x01U) == RI_KEY_MAKE };
+		bool const isKeyPressed{ (keyboard.Flags & 0x01U) == RI_KEY_MAKE };
 		KEY key{ static_cast<KEY>(keyboard.VKey) };
 
 		if (key == KEY::SHIFT) {
@@ -375,8 +376,8 @@ namespace Lumina::WinApp {
 		//====	======	======	======	======	====//
 
 	public:
-		constexpr auto const& Keyboard() const noexcept;
-		constexpr auto const& Mouse() const noexcept;
+		inline auto const& Keyboard() const noexcept;
+		inline auto const& Mouse() const noexcept;
 
 		//----	------	------	------	------	----//
 
@@ -412,18 +413,18 @@ namespace Lumina::WinApp {
 
 		std::unordered_map<Message, MessageProcessor> MessageProcessors_{};
 
-		RawKeyboard* Keyboard_{ nullptr };
-		RawMouse* Mouse_{ nullptr };
+		std::unique_ptr<RawKeyboard> Keyboard_{ nullptr };
+		std::unique_ptr<RawMouse> Mouse_{ nullptr };
 
-		__declspec(align(4U)) byte* Buffer_{};
+		__declspec(align(4U)) std::array<byte, 256LLU> Buffer_{};
 	};
 
 	//----	------	------	------	------	----//
 	//	Implementation							//
 	//----	------	------	------	------	----//
 
-	constexpr auto const& RawInput::Keyboard() const noexcept { return *Keyboard_; }
-	constexpr auto const& RawInput::Mouse() const noexcept { return *Mouse_; }
+	inline auto const& RawInput::Keyboard() const noexcept { return *Keyboard_; }
+	inline auto const& RawInput::Mouse() const noexcept { return *Mouse_; }
 
 	//----	------	------	------	------	----//
 
@@ -439,9 +440,9 @@ namespace Lumina::WinApp {
 		// Obtains the size of the raw input data.
 		::GetRawInputData(hndl, RID_INPUT, nullptr, &dataSize, sizeof(RAWINPUTHEADER));
 		// Obtains the raw input data.
-		::GetRawInputData(hndl, RID_INPUT, Buffer_, &dataSize, sizeof(RAWINPUTHEADER));
+		::GetRawInputData(hndl, RID_INPUT, Buffer_.data(), &dataSize, sizeof(RAWINPUTHEADER));
 
-		auto const& rawInputData{ *reinterpret_cast<RAWINPUT const*>(Buffer_) };
+		auto const& rawInputData{ *reinterpret_cast<RAWINPUT const*>(Buffer_.data()) };
 		Keyboard_->OnInput(rawInputData);
 		Mouse_->OnInput(rawInputData);
 	}
@@ -483,16 +484,12 @@ namespace Lumina::WinApp {
 
 	void RawInput::Initialize(HWND hWnd_) {
 		if (Keyboard_ == nullptr) {
-			Keyboard_ = new RawKeyboard{};
+			Keyboard_.reset(new RawKeyboard{});
 			Keyboard_->Initialize(hWnd_);
 		}
 		if (Mouse_ == nullptr) {
-			Mouse_ = new RawMouse{};
+			Mouse_.reset(new RawMouse{});
 			Mouse_->Initialize(hWnd_);
-		}
-
-		if (Buffer_ == nullptr) {
-			Buffer_ = new byte[256U];
 		}
 
 		Callback_ =
@@ -512,18 +509,9 @@ namespace Lumina::WinApp {
 	void RawInput::Finalize() noexcept {
 		if (Keyboard_ != nullptr) {
 			Keyboard_->Finalize();
-			delete Keyboard_;
-			Keyboard_ = nullptr;
 		}
 		if (Mouse_ != nullptr) {
 			Mouse_->Finalize();
-			delete Mouse_;
-			Mouse_ = nullptr;
-		}
-
-		if (Buffer_ != nullptr) {
-			delete Buffer_;
-			Buffer_ = nullptr;
 		}
 	}
 

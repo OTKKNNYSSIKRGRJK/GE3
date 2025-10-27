@@ -23,9 +23,6 @@
     <Filter Include="Assets\ShaderTest">
       <UniqueIdentifier>{05f16de3-78dc-4b64-a89d-481ee87ebb51}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Src\Test">
-      <UniqueIdentifier>{2655a2a9-0617-47f6-93cd-2ba75b7f3ef7}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Src\AssetManager">
       <UniqueIdentifier>{17ffc36d-16a9-4211-b085-9bccb97a124e}</UniqueIdentifier>
     </Filter>
@@ -79,18 +76,6 @@
     </ClCompile>
     <ClCompile Include="External\ImGui\imgui_widgets.cpp">
       <Filter>External\ImGui</Filter>
-    </ClCompile>
-    <ClCompile Include="Src\Test\GPUParticle.ixx">
-      <Filter>Src\Test</Filter>
-    </ClCompile>
-    <ClCompile Include="Src\Test\PerlinNoiseTest.ixx">
-      <Filter>Src\Test</Filter>
-    </ClCompile>
-    <ClCompile Include="Src\Test\ProceduralTerrain.ixx">
-      <Filter>Src\Test</Filter>
-    </ClCompile>
-    <ClCompile Include="Src\Test\BitonicSort.ixx">
-      <Filter>Src\Test</Filter>
     </ClCompile>
     <ClCompile Include="Src\AssetManager.ixx">
       <Filter>Src\AssetManager</Filter>
@@ -330,9 +315,6 @@
     </FxCompile>
     <FxCompile Include="Assets\ShaderTest\ParticlePS.hlsl">
       <Filter>Assets\ShaderTest</Filter>
-    </FxCompile>
-    <FxCompile Include="Src\Test\PerlinNoise.hlsl">
-      <Filter>Src\Test</Filter>
     </FxCompile>
     <FxCompile Include="Assets\ShaderTest\TerrainVS.hlsl">
       <Filter>Assets\ShaderTest</Filter>
