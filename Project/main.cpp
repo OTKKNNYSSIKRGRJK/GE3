@@ -33,11 +33,6 @@ import Lumina.DX12.Aux;
 
 import Lumina.AssetManager;
 
-//import Lumina.BitonicSort;
-//import Lumina.GPUParticle;
-//import Lumina.PerlinNoiseTest;
-import Lumina.ProceduralTerrain;
-
 import Lumina.Utils.ImGui;
 
 import Lumina.Utils.Time;
@@ -447,7 +442,6 @@ int32_t WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		ImGui::Begin("Raw Input Test");
 
 		ImGui::SeparatorText("Keyboard");
-		ImGui::BulletText("L SHIFT = %d", keyboard.IsPressed(Lumina::WinApp::KEY::SHIFT_LEFT));
 		ImGui::BulletText("R SHIFT = %d", keyboard.IsPressed(Lumina::WinApp::KEY::SHIFT_RIGHT));
 		ImGui::BulletText("L CTRL = %d", keyboard.IsPressed(Lumina::WinApp::KEY::CTRL_LEFT));
 		ImGui::BulletText("R CTRL = %d", keyboard.IsPressed(Lumina::WinApp::KEY::CTRL_RIGHT));
