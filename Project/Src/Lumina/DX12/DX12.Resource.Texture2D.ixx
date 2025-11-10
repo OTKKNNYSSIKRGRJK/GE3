@@ -41,7 +41,7 @@ namespace Lumina::DX12 {
 	class DefaultTexture2D;
 	class RenderTexture2D;
 	class ComputeTexture2D;
-	class DepthStencilTexture2D;
+	class DepthTexture2D;
 }
 
 //****	******	******	******	******	****//
@@ -530,7 +530,7 @@ namespace Lumina::DX12 {
 
 
 //////	//////	//////	//////	//////	//////
-//	DepthStencilTexture2D					//
+//	DepthTexture2D							//
 //////	//////	//////	//////	//////	//////
 
 namespace Lumina::DX12 {
@@ -540,7 +540,7 @@ namespace Lumina::DX12 {
 	//----	------	------	------	------	----//
 
 	namespace {
-		constexpr ResourceSettings DepthStencilTexture2DSettings{
+		constexpr ResourceSettings DepthTexture2DSettings{
 			.HeapProperties{ .Type{ D3D12_HEAP_TYPE_DEFAULT }, },
 			.ResourceFlags{ D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL },
 			.InitialState{ D3D12_RESOURCE_STATE_DEPTH_WRITE },
@@ -553,9 +553,9 @@ namespace Lumina::DX12 {
 	//	Declaration								//
 	//----	------	------	------	------	----//
 
-	export class DepthStencilTexture2D :
-		public CommonTexture2D<DepthStencilTexture2DSettings> {
-		using ParentType = CommonTexture2D<DepthStencilTexture2DSettings>;
+	export class DepthTexture2D :
+		public CommonTexture2D<DepthTexture2DSettings> {
+		using ParentType = CommonTexture2D<DepthTexture2DSettings>;
 
 		//====	======	======	======	======	====//
 
@@ -579,15 +579,15 @@ namespace Lumina::DX12 {
 		//----	------	------	------	------	----//
 
 	public:
-		constexpr DepthStencilTexture2D() noexcept = default;
-		constexpr virtual ~DepthStencilTexture2D() noexcept = default;
+		constexpr DepthTexture2D() noexcept = default;
+		constexpr virtual ~DepthTexture2D() noexcept = default;
 	};
 
 	//----	------	------	------	------	----//
 	//	Implementation							//
 	//----	------	------	------	------	----//
 
-	auto DepthStencilTexture2D::CreateD3D12Resource(
+	auto DepthTexture2D::CreateD3D12Resource(
 		GraphicsDevice const& device_,
 		D3D12_RESOURCE_DESC const& resDesc_,
 		std::string_view debugName_
@@ -600,16 +600,16 @@ namespace Lumina::DX12 {
 		};
 
 		device_->CreateCommittedResource(
-			&DepthStencilTexture2DSettings.HeapProperties,
+			&DepthTexture2DSettings.HeapProperties,
 			D3D12_HEAP_FLAG_NONE,
 			&resDesc_,
-			DepthStencilTexture2DSettings.InitialState,
+			DepthTexture2DSettings.InitialState,
 			&clearValue,
 			IID_PPV_ARGS(GetAddressOf())
 		) ||
 		Utils::Debug::ThrowIfFailed{
 			std::format(
-				"<DX12.DepthStencilTexture2D> Failed to create {}!\n",
+				"<DX12.DepthTexture2D> Failed to create {}!\n",
 				debugName_
 			)
 		};
@@ -617,7 +617,7 @@ namespace Lumina::DX12 {
 
 	//----	------	------	------	------	----//
 
-	void DepthStencilTexture2D::Initialize(
+	void DepthTexture2D::Initialize(
 		GraphicsDevice const& device_,
 		uint32_t width_,
 		uint32_t height_,

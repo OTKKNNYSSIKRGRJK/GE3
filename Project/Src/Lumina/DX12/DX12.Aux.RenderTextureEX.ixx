@@ -64,7 +64,7 @@ namespace Lumina::DX12 {
 
 		float ClearColor_[4]{};
 
-		DepthStencilTexture2D DSTexture_{};
+		DepthTexture2D DSTexture_{};
 	};
 
 	void RenderTextureEX::Initialize(

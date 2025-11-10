@@ -269,10 +269,10 @@
   </ItemGroup>
   <ItemGroup>
     <None Include=".editorconfig" />
-    <None Include=".gitignore" />
     <None Include="Assets\Shaders\Basic.hlsli">
       <Filter>Assets\Shaders</Filter>
     </None>
+    <None Include="..\.gitignore" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="External\ImGui\backends\imgui_impl_dx12.h">
