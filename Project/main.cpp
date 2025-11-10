@@ -326,6 +326,56 @@ int32_t WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	while (winAppContext.ProcessMessage() == 0) {
 		dx12Context.BeginFrame(cmdList);
+
+		auto rtv{ dx12Context.SwapChain().BackBufferRTVCPUHandle() };
+		auto dsv{ dx12Context.SwapChain().DSVCPUHandle() };
+
+		D3D12_RENDER_PASS_BEGINNING_ACCESS beginning_RTClear{
+			.Type{ D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR },
+			.Clear{
+				.ClearValue{
+					.Format{ DXGI_FORMAT_R8G8B8A8_UNORM_SRGB },
+					.Color{ 0.0f, 0.0f, 0.0f, 0.0f, },
+				},
+			},
+		};
+
+		D3D12_RENDER_PASS_BEGINNING_ACCESS beginning_DSClear{
+			.Type{ D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR },
+			.Clear{
+				.ClearValue{
+					.Format{ DXGI_FORMAT_D24_UNORM_S8_UINT },
+					.DepthStencil{
+						.Depth{ 1.0f },
+					},
+				},
+			},
+		};
+
+		D3D12_RENDER_PASS_ENDING_ACCESS ending_Preserve{
+			.Type{ D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE },
+		};
+
+		[[maybe_unused]] D3D12_RENDER_PASS_RENDER_TARGET_DESC renderTargetDesc{
+			.cpuDescriptor{ rtv },
+			.BeginningAccess{ beginning_RTClear },
+			.EndingAccess{ ending_Preserve },
+		};
+
+		[[maybe_unused]] D3D12_RENDER_PASS_DEPTH_STENCIL_DESC depthStencilDesc{
+			.cpuDescriptor{ dsv },
+			.DepthBeginningAccess{ beginning_DSClear },
+			.StencilBeginningAccess{ .Type{ D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_NO_ACCESS } },
+			.DepthEndingAccess{ ending_Preserve },
+			.StencilEndingAccess{ .Type{ D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_NO_ACCESS } },
+		};
+
+		static_cast<ID3D12GraphicsCommandList4*>(cmdList.Get())->BeginRenderPass(
+			1U,
+			&renderTargetDesc,
+			&depthStencilDesc,
+			D3D12_RENDER_PASS_FLAG_NONE
+		);
 		
 		//----	------	------	------	------	----//
 
@@ -478,7 +528,30 @@ int32_t WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 		//pnTest.Update();
 
+		static_cast<ID3D12GraphicsCommandList4*>(cmdList.Get())->EndRenderPass();
+
+		//----	------	------	------	------	----//
+
+		D3D12_RENDER_PASS_BEGINNING_ACCESS beginning_Preserve{
+			.Type{ D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_PRESERVE },
+		};
+
+		[[maybe_unused]] D3D12_RENDER_PASS_RENDER_TARGET_DESC renderTargetDesc2{
+			.cpuDescriptor{ rtv },
+			.BeginningAccess{ beginning_Preserve },
+			.EndingAccess{ ending_Preserve },
+		};
+
+		static_cast<ID3D12GraphicsCommandList4*>(cmdList.Get())->BeginRenderPass(
+			1U,
+			&renderTargetDesc2,
+			nullptr,
+			D3D12_RENDER_PASS_FLAG_NONE
+		);
+
 		Lumina::Utils::ImGuiManager::EndFrame(cmdList);
+
+		static_cast<ID3D12GraphicsCommandList4*>(cmdList.Get())->EndRenderPass();
 
 		//----	------	------	------	------	----//
 

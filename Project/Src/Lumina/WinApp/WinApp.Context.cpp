@@ -2,6 +2,8 @@ module;
 
 #include<Windows.h>
 
+#pragma comment(lib, "winmm.lib")
+
 module Lumina.WinApp.Context;
 
 namespace {
@@ -105,6 +107,8 @@ namespace Lumina::WinApp {
 		WindowClass_.Initialize(::LoadCursor(nullptr, IDC_ARROW));
 
 		NewWindow(mainWindowConfig_);
+
+		::timeBeginPeriod(1U);
 	}
 
 	void Context::Finalize() noexcept {

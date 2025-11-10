@@ -14,6 +14,9 @@ export module Lumina.DX12 : FrameBufferSwapChain;
 import <cstdint>;
 
 import <memory>;
+import <chrono>;
+
+import <thread>;
 
 import <vector>;
 
@@ -44,7 +47,7 @@ export namespace Lumina::DX12 {
 	//	FrameBufferSwapChain					//
 	//////	//////	//////	//////	//////	//////
 
-	class FrameBufferSwapChain final : 
+	class FrameBufferSwapChain final :
 		public Wrapper<FrameBufferSwapChain, IDXGISwapChain4>,
 		public NonCopyable<FrameBufferSwapChain> {
 	private:
@@ -65,7 +68,6 @@ export namespace Lumina::DX12 {
 			const CommandList& cmdList_
 		);
 		void Present() const;
-		void WaitFlip(uint32_t milliseconds_ = 1000U) const;
 
 		//----	------	------	------	------	----//
 
@@ -73,6 +75,7 @@ export namespace Lumina::DX12 {
 		const DXGI_SWAP_CHAIN_DESC1& Desc() const noexcept;
 		const D3D12_RENDER_TARGET_VIEW_DESC& RTVDesc() const noexcept;
 		uint32_t Num_Buffers() const noexcept;
+		D3D12_CPU_DESCRIPTOR_HANDLE BackBufferRTVCPUHandle() const noexcept;
 		D3D12_CPU_DESCRIPTOR_HANDLE RTVCPUHandle(uint32_t idx_) const noexcept;
 		D3D12_CPU_DESCRIPTOR_HANDLE DSVCPUHandle() const noexcept;
 		ID3D12Resource* BufferResource(uint32_t idx_) const;
@@ -88,7 +91,7 @@ export namespace Lumina::DX12 {
 		);
 
 		//----	------	------	------	------	----//
-		
+
 	public:
 		constexpr FrameBufferSwapChain() noexcept;
 		virtual ~FrameBufferSwapChain() noexcept;
@@ -109,7 +112,7 @@ namespace Lumina::DX12 {
 	//////	//////	//////	//////	//////	//////
 	//	FrameBufferSwapChain::Impl				//
 	//////	//////	//////	//////	//////	//////
-	
+
 	class FrameBufferSwapChain::Impl {
 		friend FrameBufferSwapChain;
 
@@ -120,8 +123,10 @@ namespace Lumina::DX12 {
 			const CommandList& cmdList_,
 			const D3D12_VIEWPORT& viewport_,
 			const D3D12_RECT& scissorRect_,
-			const float clearColor_[4]
+			[[maybe_unused]] const float clearColor_[4]
 		) {
+			TimePoint_FrameBegin_ = std::chrono::steady_clock::now();
+
 			auto backBufferIndex{ Owner_->GetCurrentBackBufferIndex() };
 
 			cmdList_.TransitionResourceState(
@@ -130,14 +135,62 @@ namespace Lumina::DX12 {
 				D3D12_RESOURCE_STATE_RENDER_TARGET
 			);
 
-			auto rtv{ RTVHeap_.CPUHandle(backBufferIndex) };
+			/*auto rtv{ RTVHeap_.CPUHandle(backBufferIndex) };
 			auto dsv{ DSVHeap_.CPUHandle(0U) };
+
+			D3D12_RENDER_PASS_BEGINNING_ACCESS beginning_RTClear{
+				.Type{ D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR },
+				.Clear{
+					.ClearValue{
+						.Format{ DXGI_FORMAT_R8G8B8A8_UNORM_SRGB },
+						.Color{ clearColor_[0], clearColor_[1], clearColor_[2], clearColor_[3], },
+					},
+				},
+			};
+
+			D3D12_RENDER_PASS_BEGINNING_ACCESS beginning_DSClear{
+				.Type{ D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR },
+				.Clear{
+					.ClearValue{
+						.Format{ DepthTexture_.Format() },
+						.DepthStencil{
+							.Depth{ 1.0f },
+						},
+					},
+				},
+			};
+
+			D3D12_RENDER_PASS_ENDING_ACCESS ending_Preserve{
+				.Type{ D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE },
+			};
+
+			[[maybe_unused]] D3D12_RENDER_PASS_RENDER_TARGET_DESC renderTargetDesc{
+				.cpuDescriptor{ rtv },
+				.BeginningAccess{ beginning_RTClear },
+				.EndingAccess{ ending_Preserve },
+			};
+
+			[[maybe_unused]] D3D12_RENDER_PASS_DEPTH_STENCIL_DESC depthStencilDesc{
+				.cpuDescriptor{ dsv },
+				.DepthBeginningAccess{ beginning_DSClear },
+				.StencilBeginningAccess{ .Type{ D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_NO_ACCESS } },
+				.DepthEndingAccess{ ending_Preserve },
+				.StencilEndingAccess{ .Type{ D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_NO_ACCESS } },
+			};
+
+			static_cast<ID3D12GraphicsCommandList4*>(cmdList_.Get())->BeginRenderPass(
+				1U,
+				&renderTargetDesc,
+				&depthStencilDesc,
+				D3D12_RENDER_PASS_FLAG_NONE
+			);*/
+
 			// Sets the current render target(s).
-			cmdList_->OMSetRenderTargets(1U, &rtv, false, &dsv);
-			cmdList_->ClearRenderTargetView(rtv, clearColor_, 0U, nullptr);
+			//cmdList_->OMSetRenderTargets(1U, &rtv, false, &dsv);
+			//cmdList_->ClearRenderTargetView(rtv, clearColor_, 0U, nullptr);
+			//cmdList_->ClearDepthStencilView(dsv, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0U, 0U, nullptr);
 			cmdList_->RSSetViewports(1U, &viewport_);
 			cmdList_->RSSetScissorRects(1U, &scissorRect_);
-			cmdList_->ClearDepthStencilView(dsv, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0U, 0U, nullptr);
 		}
 
 		void EndFrame(
@@ -145,6 +198,8 @@ namespace Lumina::DX12 {
 			const CommandAllocator& cmdAllocator_,
 			const CommandList& cmdList_
 		) {
+			//static_cast<ID3D12GraphicsCommandList4*>(cmdList_.Get())->EndRenderPass();
+
 			auto backBufferIndex{ Owner_->GetCurrentBackBufferIndex() };
 			cmdList_.TransitionResourceState(
 				Buffers_.at(backBufferIndex),
@@ -163,19 +218,18 @@ namespace Lumina::DX12 {
 			// Makes the CPU wait for the GPU.
 			cmdQueue_.CPUWait(fenceValue);
 
-			WaitFlip(1000U);
+			if (std::chrono::steady_clock::now() - TimePoint_FrameBegin_ < FrameTimeCheckThreshold_) {
+				while (std::chrono::steady_clock::now() - TimePoint_FrameBegin_ < FrameTimeThreshold_) {
+					std::this_thread::sleep_for(std::chrono::microseconds{ 1LLU });
+				}
+			}
 
 			// Prepares a command list for the next frame.
 			cmdList_.Reset(cmdAllocator_);
 		}
 
 		void Present() const {
-			static constexpr int32_t refreshRateThreshold{ 58 };
-			[[maybe_unused]] HRESULT result{ Owner_->Present((RefreshRate_ < refreshRateThreshold) ? (0U) : (1U), 0U) };
-		}
-
-		void WaitFlip(uint32_t milliseconds_) const {
-			WaitForSingleObject(FrameLatencyWaitableObject_, milliseconds_);
+			Owner_->Present(1U, 0U);
 		}
 
 		//----	------	------	------	------	----//
@@ -208,20 +262,16 @@ namespace Lumina::DX12 {
 				nullptr,
 				reinterpret_cast<IDXGISwapChain1**>(Owner_.GetAddressOf())
 			) ||
-			Utils::Debug::ThrowIfFailed{
-				std::format(
-					"<DX12.FrameBufferSwapChain> Failed to create{}!\n",
-					debugName_
-				)
+				Utils::Debug::ThrowIfFailed{
+					std::format(
+						"<DX12.FrameBufferSwapChain> Failed to create{}!\n",
+						debugName_
+					)
 			};
 			Logger().Message<0U>(
 				"FrameBufferSwapChain,{},Swap chain created successfully.\n",
 				debugName_
 			);
-
-			Owner_->SetMaximumFrameLatency(1U);
-			FrameLatencyWaitableObject_ = Owner_->GetFrameLatencyWaitableObject();
-			::WaitForSingleObject(FrameLatencyWaitableObject_, INFINITE);
 		}
 
 		void ObtainBuffers(std::string_view debugName_) {
@@ -229,12 +279,12 @@ namespace Lumina::DX12 {
 				auto& buffer{ Buffers_.emplace_back() };
 
 				Owner_->GetBuffer(idx_Buffer, IID_PPV_ARGS(&buffer)) ||
-				Utils::Debug::ThrowIfFailed{
-					std::format(
-						"<DX12.FrameBufferSwapChain - {}> Failed to obtain buffer #{} from the swap chain!\n",
-						debugName_,
-						idx_Buffer
-					)
+					Utils::Debug::ThrowIfFailed{
+						std::format(
+							"<DX12.FrameBufferSwapChain - {}> Failed to obtain buffer #{} from the swap chain!\n",
+							debugName_,
+							idx_Buffer
+						)
 				};
 				Logger().Message<0U>(
 					"FrameBufferSwapChain,{},Buffer #{} obtained successfully.\n",
@@ -271,17 +321,17 @@ namespace Lumina::DX12 {
 			}
 		}
 
-		void CreateDSTexturesAndDSVs(const GraphicsDevice& device_) {
-			DSTexture_.Initialize(device_, Desc_.Width, Desc_.Height, "SwapChainDSTex");
+		void CreateDepthTexturesAndDSVs(const GraphicsDevice& device_) {
+			DepthTexture_.Initialize(device_, Desc_.Width, Desc_.Height, "SwapChainDSTex");
 
 			DSVHeap_.Initialize(device_, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1U, false);
 
 			D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc{
-				.Format{ DSTexture_.Format() },
+				.Format{ DepthTexture_.Format() },
 				.ViewDimension{ D3D12_DSV_DIMENSION_TEXTURE2D },
 			};
 			D3D12_CPU_DESCRIPTOR_HANDLE dsvCPUHandle{ DSVHeap_.Allocate(1U).CPUHandle(0U) };
-			device_->CreateDepthStencilView(DSTexture_.Get(), &dsvDesc, dsvCPUHandle);
+			device_->CreateDepthStencilView(DepthTexture_.Get(), &dsvDesc, dsvCPUHandle);
 		}
 
 		//----	------	------	------	------	----//
@@ -299,7 +349,7 @@ namespace Lumina::DX12 {
 			CreateSwapChain(cmdQueue_, windowInstance_, debugName_);
 			ObtainBuffers(debugName_);
 			CreateRTVs(cmdQueue_.Device());
-			CreateDSTexturesAndDSVs(cmdQueue_.Device());
+			CreateDepthTexturesAndDSVs(cmdQueue_.Device());
 
 			HDC hdc{ ::GetDC(windowInstance_.Handle()) };
 			RefreshRate_ = ::GetDeviceCaps(hdc, VREFRESH);
@@ -333,12 +383,17 @@ namespace Lumina::DX12 {
 		std::vector<ID3D12Resource*> Buffers_{};
 		DescriptorHeap RTVHeap_{};
 		D3D12_RENDER_TARGET_VIEW_DESC RTVDesc_{};
-		DepthStencilTexture2D DSTexture_{};
+		DepthTexture2D DepthTexture_{};
 		DescriptorHeap DSVHeap_{};
 		uint32_t Num_Buffers_{ 2U };
 		uint32_t Index_BackBuffer_{};
 		int RefreshRate_{};
-		HANDLE FrameLatencyWaitableObject_{};
+
+		std::chrono::steady_clock::time_point TimePoint_FrameBegin_{};
+
+	private:
+		constexpr static std::chrono::microseconds FrameTimeThreshold_{ static_cast<uint64_t>(1000000.0f / 60.0f) };
+		constexpr static std::chrono::microseconds FrameTimeCheckThreshold_{ static_cast<uint64_t>(1000000.0f / 65.0f) };
 
 		//----	------	------	------	------	----//
 
@@ -378,13 +433,12 @@ namespace Lumina::DX12 {
 
 	void FrameBufferSwapChain::Present() const { Impl_->Present(); }
 
-	void FrameBufferSwapChain::WaitFlip(uint32_t milliseconds_) const { Impl_->WaitFlip(milliseconds_); }
-
 	//----	------	------	------	------	----//
 
 	const DXGI_SWAP_CHAIN_DESC1& FrameBufferSwapChain::Desc() const noexcept { return Impl_->Desc_; }
 	const D3D12_RENDER_TARGET_VIEW_DESC& FrameBufferSwapChain::RTVDesc() const noexcept { return Impl_->RTVDesc_; }
 	uint32_t FrameBufferSwapChain::Num_Buffers() const noexcept { return Impl_->Num_Buffers_; }
+	D3D12_CPU_DESCRIPTOR_HANDLE FrameBufferSwapChain::BackBufferRTVCPUHandle() const noexcept { return Impl_->RTVHeap_.CPUHandle(Wrapped_->GetCurrentBackBufferIndex()); }
 	D3D12_CPU_DESCRIPTOR_HANDLE FrameBufferSwapChain::RTVCPUHandle(uint32_t index_) const noexcept { return Impl_->RTVHeap_.CPUHandle(index_); }
 	D3D12_CPU_DESCRIPTOR_HANDLE FrameBufferSwapChain::DSVCPUHandle() const noexcept { return Impl_->DSVHeap_.CPUHandle(0U); }
 	ID3D12Resource* FrameBufferSwapChain::BufferResource(uint32_t index_) const { return Impl_->Buffers_.at(index_); }
@@ -400,11 +454,11 @@ namespace Lumina::DX12 {
 		ThrowIfInitialized(debugName_);
 
 		(Impl_ == nullptr) ||
-		Utils::Debug::ThrowIfFalse{
-			std::format(
-				"<DX12.FrameBufferSwapChain - {}> Pointer to Implementation is not nullptr!\n",
-				debugName_
-			)
+			Utils::Debug::ThrowIfFalse{
+				std::format(
+					"<DX12.FrameBufferSwapChain - {}> Pointer to Implementation is not nullptr!\n",
+					debugName_
+				)
 		};
 
 		Impl_ = new Impl{ *this };
