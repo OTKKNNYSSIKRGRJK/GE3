@@ -266,6 +266,9 @@
     <ClCompile Include="Src\Lumina\Editor\DX12\Editor.DX12.RootParameter.cpp">
       <Filter>Src\Lumina\Editor\DX12</Filter>
     </ClCompile>
+    <ClCompile Include="Src\Lumina\Lumina.ixx">
+      <Filter>Src\Lumina</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include=".editorconfig" />

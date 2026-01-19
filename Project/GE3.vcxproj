@@ -212,6 +212,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="Src\Lumina\Editor\DX12\Editor.DX12.RootTable.ixx" />
     <ClCompile Include="Src\Lumina\Editor\Editor.ixx" />
     <ClCompile Include="Src\Lumina\Editor\Editor.Lexicon.ixx" />
+    <ClCompile Include="Src\Lumina\Lumina.ixx" />
     <ClCompile Include="Src\Lumina\Math\Math.FractalBrownianMotion.ixx" />
     <ClCompile Include="Src\Lumina\Math\Math.ixx" />
     <ClCompile Include="Src\Lumina\Math\Math.Matrix.ixx" />
