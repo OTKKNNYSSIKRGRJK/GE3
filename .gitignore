@@ -350,3 +350,5 @@ DirectXGame/imgui.ini
 
 # ImGui
 imgui.ini
+
+.vscode/
