@@ -4,6 +4,8 @@ import Lumina.DX12;
 
 import Lumina.Math;
 
+import Lumina.WinApp.RawInput;
+
 namespace Game {
 	struct FloatingAnimationArgument {
 		float Timer{ 0.0f };
@@ -11,6 +13,9 @@ namespace Game {
 		float AngularFrequency{ 0.1f };
 	};
 
+	/// <summary>
+	/// Player
+	/// </summary>
 	export class Player {
 	public:
 		constexpr Lumina::Vec3 const& ModelScale() const noexcept { return ModelScale_; }
@@ -33,15 +38,19 @@ namespace Game {
 		void KnockedBack(float power_, Lumina::Vec2 const& dir_);
 
 	private:
-		template<typename...ArgTypes>
-		void Move(typename ArgTypes const&...args);
+		void Move(
+			Lumina::WinApp::RawInput const& input_,
+			bool const& canMove_
+		);
 		template<typename...ArgTypes>
 		void Dash(typename ArgTypes const&...args);
 		void ReturnToCenter();
 
 	public:
-		template<typename...ArgTypes>
-		void Update(typename ArgTypes const&...args);
+		void Update(
+			Lumina::WinApp::RawInput const& input_,
+			bool canMove_
+		);
 
 	public:
 		template<typename...ArgTypes>

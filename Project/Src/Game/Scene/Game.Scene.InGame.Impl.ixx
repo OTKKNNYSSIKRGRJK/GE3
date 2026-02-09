@@ -31,6 +31,9 @@ namespace Game::Scene::Impl {
 		uint32_t IsEnemySuccessfullyAttacking;
 	};
 
+	/// <summary>
+	/// In-game scene implementation
+	/// </summary>
 	export class InGame {
 	private:
 		template<typename...ArgTypes>

@@ -509,9 +509,11 @@ namespace Lumina::WinApp {
 	void RawInput::Finalize() noexcept {
 		if (Keyboard_ != nullptr) {
 			Keyboard_->Finalize();
+			Keyboard_.reset();
 		}
 		if (Mouse_ != nullptr) {
 			Mouse_->Finalize();
+			Mouse_.reset();
 		}
 	}
 

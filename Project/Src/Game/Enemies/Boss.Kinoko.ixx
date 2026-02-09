@@ -9,6 +9,9 @@ namespace Game {
 		float Timer{ 0.0f };
 	};
 
+	/// <summary>
+	/// Mushroom boss
+	/// </summary>
 	export class Boss_Kinoko {
 	public:
 		constexpr Lumina::Vec3 const& ModelScale() const noexcept { return ModelScale_; }
@@ -32,7 +35,6 @@ namespace Game {
 	private:
 		void Idle();
 		void Move();
-		void Dash();
 		void KnockedBack();
 		void ReturnToCenter();
 

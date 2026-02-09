@@ -110,28 +110,6 @@ namespace Game::Scene::Impl {
 
 		//----	------	------	------	------	----//
 
-		/*D3D12_RESOURCE_BARRIER const barriers_PrePostProcessingPass[]{
-			Lumina::DX12::Barrier::Transition(
-				DeferredLighting_.RenderTexture(),
-				D3D12_RESOURCE_STATE_RENDER_TARGET,
-				D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE
-			),
-		};
-		cmdList_->ResourceBarrier(1U, barriers_PrePostProcessingPass);
-
-		D3D12_RESOURCE_BARRIER const barriers_PostPostProcessing[]{
-			Lumina::DX12::Barrier::Transition(
-				RCT_PostProcessing_,
-				D3D12_RESOURCE_STATE_RENDER_TARGET,
-				D3D12_RESOURCE_STATE_UNORDERED_ACCESS
-			),
-			Lumina::DX12::Barrier::Transition(
-				RCT_PostProcessing_,
-				D3D12_RESOURCE_STATE_UNORDERED_ACCESS,
-				D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE
-			),
-		};*/
-
 		PrimitiveManager_->Begin(cmdList_);
 		PrimitiveManager_->BatchTriangle(
 			{ { -1.0f, 1.0f, 0.0f, 1.0f }, { 1.0f, 1.0f, 1.0f, 1.0f }, { 0.0f, 0.0f }, 3U },

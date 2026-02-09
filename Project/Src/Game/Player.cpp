@@ -12,7 +12,6 @@ namespace {
 }
 
 namespace Game {
-	template<>
 	void Player::Move(
 		Lumina::WinApp::RawInput const& input_,
 		bool const& canMove_
@@ -118,12 +117,6 @@ namespace Game {
 				DashStatus_ = 0;
 			}
 		}
-
-		/*ImGui::Begin("Player");
-		ImGui::Text("DashInputInterval = %d", DashInputInterval_);
-		ImGui::Text("DashTimer = %d", DashTimer_);
-		ImGui::Text("DashStatus = %d", DashStatus_);
-		ImGui::End();*/
 	}
 
 	void Player::ReturnToCenter() {
@@ -136,10 +129,9 @@ namespace Game {
 		}
 	}
 
-	template<>
 	void Player::Update(
 		Lumina::WinApp::RawInput const& input_,
-		bool const& canMove_
+		bool canMove_
 	) {
 		if (IsReturningToCenter_) {
 			ReturnToCenter();
@@ -178,16 +170,6 @@ namespace Game {
 		Floating_.Timer += 1.0f;
 
 		if (HP_ < 0.0f) { HP_ = 0.0f; }
-
-		/*ImGui::Begin("Player");
-		ImGui::PushID("Model");
-		ImGui::DragFloat3("Scale", ModelScale_(), 0.01f);
-		ImGui::DragFloat3("Rotate", ModelRotate_(), 0.01f);
-		ImGui::DragFloat3("Translate", ModelTranslate_(), 0.01f);
-		ImGui::DragFloat("Jump Init Speed", &JumpInitialSpeed_, 0.01f, 0.0f);
-		ImGui::Text("Angle = %f", Angle_);
-		ImGui::PopID();
-		ImGui::End();*/
 	}
 
 	template<>

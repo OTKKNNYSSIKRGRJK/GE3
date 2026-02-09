@@ -175,8 +175,8 @@ int32_t WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	//----	------	------	------	------	----//
 
-	std::unique_ptr<Game::Scene::InGame> scene_InGame{ std::make_unique<Game::Scene::InGame>() };
-	scene_InGame->Initialize(dx12Context, assetMngr);
+	std::unique_ptr<Game::Scene::InGame> inGameScene{ std::make_unique<Game::Scene::InGame>() };
+	inGameScene->Initialize(dx12Context, assetMngr);
 
 	//----	------	------	------	------	----//
 
@@ -201,8 +201,8 @@ int32_t WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			)
 		};
 
-		scene_InGame->Update(dx12Context, cmdList, mainWindowRawInput);
-		scene_InGame->Render(dx12Context, cmdList);
+		inGameScene->Update(dx12Context, cmdList, mainWindowRawInput);
+		inGameScene->Render(dx12Context, cmdList);
 
 		//----	------	------	------	------	----//
 

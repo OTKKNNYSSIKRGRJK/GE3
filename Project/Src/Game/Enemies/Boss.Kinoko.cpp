@@ -39,44 +39,6 @@ namespace Game {
 		ModelTranslate_.y += std::sin(Boing_.Timer * 0.2f) * 0.02f;
 	}
 
-	void Boss_Kinoko::Dash() {
-		/*Trigger_Dash_ = 0;
-		if (DashStatus_ == 0) {
-			if (keyboard.IsReleased(KEY::ARROW_UP)) {
-				DashStatus_ = 1;
-				DashInputInterval_ = 0;
-			}
-		}
-		else if (DashStatus_ == 1) {
-			if (keyboard.IsPressed(KEY::ARROW_UP)) {
-				if (DashInputInterval_ <= DashInputIntervalThreshold_) {
-					Trigger_Dash_ = 1;
-					DashStatus_ = 2;
-					SpeedByDash_ = 2.0f;
-					DashTimer_ = 0;
-					DashInputInterval_ = 0;
-				}
-				else {
-					DashStatus_ = -1;
-				}
-			}
-			else {
-				++DashInputInterval_;
-			}
-		}
-		else if (DashStatus_ == 2) {
-			if (DashTimer_ > DashMaxDuration_) {
-				DashStatus_ = 3;
-				SpeedByDash_ = 0.0f;
-				DashTimer_ = 0;
-			}
-			else {
-				SpeedByDash_ *= 0.85f;
-				++DashTimer_;
-			}
-		}*/
-	}
-
 	void Boss_Kinoko::Idle() {
 		Position_.y += std::sin(Boing_.Timer * 0.2f) * 0.02f;
 

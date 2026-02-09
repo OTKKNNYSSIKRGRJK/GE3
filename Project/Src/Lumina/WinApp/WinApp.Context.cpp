@@ -13,8 +13,7 @@ namespace {
 
 namespace Lumina::WinApp {
 	namespace {
-		class WindowEX : public Window {
-		public:
+		struct WindowEX : public Window {
 			uint32_t ID{ 0xFFFFFFFFU };
 			UniPtr<RawInput> RawInputContext{ nullptr };
 		};

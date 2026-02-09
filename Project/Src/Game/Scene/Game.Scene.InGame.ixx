@@ -7,6 +7,9 @@ import Lumina;
 namespace Game::Scene {
 	namespace Impl { class InGame; }
 
+	/// <summary>
+	/// In-game scene
+	/// </summary>
 	export class InGame {
 	public:
 		template<typename...ArgTypes>

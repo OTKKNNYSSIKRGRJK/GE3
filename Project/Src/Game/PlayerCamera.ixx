@@ -6,6 +6,9 @@ import Lumina.DX12.Aux.View;
 import Lumina.Math;
 
 namespace Game {
+	/// <summary>
+	/// Camera that tracks a target
+	/// </summary>
 	export struct TrackingCamera {
 		Lumina::Mat4 View;
 		Lumina::Mat4 Projection;

@@ -9,7 +9,7 @@ namespace Game::Scene::Impl {
 		/// <summary>
 		/// LookAt Matrix
 		/// </summary>
-		/// <param name="src_">Observor world position</param>
+		/// <param name="src_">Observer world position</param>
 		/// <param name="dst_">Target world position</param>
 		/// <param name="up_">Upward vector</param>
 		/// <returns>Mat4</returns>
