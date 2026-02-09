@@ -13,6 +13,11 @@ namespace Game {
 			JUMP,
 			DASH
 		};
+
+		constexpr float	XMin = -38.5f;
+		constexpr float XMax = 37.0f;
+		constexpr float ZMin = -38.5f;
+		constexpr float ZMax = 37.0f;
 	}
 
 	void Boss_Kinoko::Move() {
@@ -124,8 +129,8 @@ namespace Game {
 			CurrentState_ = &Boss_Kinoko::ReturnToCenter;
 		}
 
-		Position_.x = std::clamp(Position_.x, -38.5f, 37.0f);
-		Position_.z = std::clamp(Position_.z, -38.5f, 37.0f);
+		Position_.x = std::clamp(Position_.x, XMin, XMax);
+		Position_.z = std::clamp(Position_.z, ZMin, ZMax);
 
 		Position_.y = 0.0f;
 

@@ -181,8 +181,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="Src\AssetManager.Audio.ixx" />
     <ClCompile Include="Src\AssetManager.Graphics.ixx" />
     <ClCompile Include="Src\AssetManager.ixx" />
-    <ClCompile Include="Src\Editor.DX12.ixx" />
-    <ClCompile Include="Src\Editor.DX12.RootSignature.cpp" />
     <ClCompile Include="Src\Game\Enemies\Boss.Kinoko.cpp" />
     <ClCompile Include="Src\Game\Enemies\Boss.Kinoko.ixx" />
     <ClCompile Include="Src\Game\Player.cpp" />
@@ -220,15 +218,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="Src\Lumina\DX12\DX12.Shader.ixx" />
     <ClCompile Include="Src\Lumina\DX12\DX12.Texture.ixx" />
     <ClCompile Include="Src\Lumina\DX12\DX12.Wrapper.ixx" />
-    <ClCompile Include="Src\Lumina\Editor\DX12\Editor.DX12.cpp" />
-    <ClCompile Include="Src\Lumina\Editor\DX12\Editor.DX12.ModuleName.ixx" />
-    <ClCompile Include="Src\Lumina\Editor\DX12\Editor.DX12.RootParameter.cpp" />
-    <ClCompile Include="Src\Lumina\Editor\DX12\Editor.DX12.RootSignature.ixx" />
-    <ClCompile Include="Src\Lumina\Editor\DX12\Editor.DX12.RootParameter.ixx" />
-    <ClCompile Include="Src\Lumina\Editor\DX12\Editor.DX12.RootTable.cpp" />
-    <ClCompile Include="Src\Lumina\Editor\DX12\Editor.DX12.RootTable.ixx" />
-    <ClCompile Include="Src\Lumina\Editor\Editor.ixx" />
-    <ClCompile Include="Src\Lumina\Editor\Editor.Lexicon.ixx" />
     <ClCompile Include="Src\Lumina\Grassland.ixx" />
     <ClCompile Include="Src\Lumina\Lumina.ixx" />
     <ClCompile Include="Src\Lumina\Lumina.Scene.ixx" />

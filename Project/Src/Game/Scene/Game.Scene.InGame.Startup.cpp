@@ -33,12 +33,12 @@ namespace Game::Scene::Impl {
 		[[maybe_unused]] Lumina::DX12::CommandList const& cmdList_,
 		[[maybe_unused]] Lumina::WinApp::RawInput const& input_
 	) {
-		UI_PlayerHPValue_ = UI_PlayerHPValue_ * 0.9f + Player_->HP_ * 0.1f;
-		if (std::abs(UI_PlayerHPValue_ - Player_->HP_) < 1.0E-2) { UI_PlayerHPValue_ = Player_->HP_; }
+		UI_PlayerHPValue_ = UI_PlayerHPValue_ * 0.9f + Player_->HP() * 0.1f;
+		if (std::abs(UI_PlayerHPValue_ - Player_->HP()) < 1.0E-2) { UI_PlayerHPValue_ = Player_->HP(); }
 		UI_PlayerHPValue_ = std::max<float>(0.0f, UI_PlayerHPValue_);
-		Boss_Kinoko_->HP_ = std::max<float>(0.0f, Boss_Kinoko_->HP_);
-		UI_PlayerHPBar_.Scale_.x = MaxWidth_UI_PlayerHPBar_ * (UI_PlayerHPValue_ * Player_->Inv_MaxHP_);
-		UI_BossHPBar_.Scale_.x = MaxWidth_UI_BossHPBar_ * (Boss_Kinoko_->HP_ * Boss_Kinoko_->Inv_MaxHP_);
+		Boss_Kinoko_->HP(std::max<float>(0.0f, Boss_Kinoko_->HP()));
+		UI_PlayerHPBar_.Scale_.x = MaxWidth_UI_PlayerHPBar_ * (UI_PlayerHPValue_ * Player_->Inv_MaxHP());
+		UI_BossHPBar_.Scale_.x = MaxWidth_UI_BossHPBar_ * (Boss_Kinoko_->HP() * Boss_Kinoko_->Inv_MaxHP());
 
 		auto const& keyboard{ input_.Keyboard() };
 
@@ -59,12 +59,12 @@ namespace Game::Scene::Impl {
 		[[maybe_unused]] Lumina::DX12::CommandList const& cmdList_,
 		[[maybe_unused]] Lumina::WinApp::RawInput const& input_
 	) {
-		UI_PlayerHPValue_ = UI_PlayerHPValue_ * 0.9f + Player_->HP_ * 0.1f;
-		if (std::abs(UI_PlayerHPValue_ - Player_->HP_) < 1.0E-2) { UI_PlayerHPValue_ = Player_->HP_; }
+		UI_PlayerHPValue_ = UI_PlayerHPValue_ * 0.9f + Player_->HP() * 0.1f;
+		if (std::abs(UI_PlayerHPValue_ - Player_->HP()) < 1.0E-2) { UI_PlayerHPValue_ = Player_->HP(); }
 		UI_PlayerHPValue_ = std::max<float>(0.0f, UI_PlayerHPValue_);
-		Boss_Kinoko_->HP_ = std::max<float>(0.0f, Boss_Kinoko_->HP_);
-		UI_PlayerHPBar_.Scale_.x = MaxWidth_UI_PlayerHPBar_ * (UI_PlayerHPValue_ * Player_->Inv_MaxHP_);
-		UI_BossHPBar_.Scale_.x = MaxWidth_UI_BossHPBar_ * (Boss_Kinoko_->HP_ * Boss_Kinoko_->Inv_MaxHP_);
+		Boss_Kinoko_->HP(std::max<float>(0.0f, Boss_Kinoko_->HP()));
+		UI_PlayerHPBar_.Scale_.x = MaxWidth_UI_PlayerHPBar_ * (UI_PlayerHPValue_ * Player_->Inv_MaxHP());
+		UI_BossHPBar_.Scale_.x = MaxWidth_UI_BossHPBar_ * (Boss_Kinoko_->HP() * Boss_Kinoko_->Inv_MaxHP());
 
 		auto const& keyboard{ input_.Keyboard() };
 

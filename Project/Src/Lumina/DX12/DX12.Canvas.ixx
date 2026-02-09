@@ -135,13 +135,13 @@ namespace Lumina::DX12 {
 
 		Textures_.resize(Num_RenderTargets_);
 		for (auto& renderTex : Textures_) {
-			renderTex.reset(new RenderTexture2D{});
+			renderTex = std::make_unique<RenderTexture2D>();
 		}
 
 		Flag_UseDepthTest_ = !!flag_UseDepthTest_;
 		if (Flag_UseDepthTest_) {
 			auto& depthTex{ Textures_.emplace_back() };
-			depthTex.reset(new DepthTexture2D{});
+			depthTex = std::make_unique<DepthTexture2D>();
 		}
 
 		Viewports_.resize(Num_RenderTargets_);

@@ -98,16 +98,16 @@ namespace Game::Scene::Impl {
 		}
 		PlayerBullets_->Update(cmdList_, Mat4_I, UpdatePlayerBullet);
 
-		UI_PlayerHPValue_ = UI_PlayerHPValue_ * 0.9f + Player_->HP_ * 0.1f;
-		if (std::abs(UI_PlayerHPValue_ - Player_->HP_) < 1.0E-2) { UI_PlayerHPValue_ = Player_->HP_; }
-		UI_PlayerHPBar_.Scale_.x = MaxWidth_UI_PlayerHPBar_ * (UI_PlayerHPValue_ * Player_->Inv_MaxHP_);
-		UI_BossHPBar_.Scale_.x = MaxWidth_UI_BossHPBar_ * (Boss_Kinoko_->HP_ * Boss_Kinoko_->Inv_MaxHP_);
+		UI_PlayerHPValue_ = UI_PlayerHPValue_ * 0.9f + Player_->HP() * 0.1f;
+		if (std::abs(UI_PlayerHPValue_ - Player_->HP()) < 1.0E-2) { UI_PlayerHPValue_ = Player_->HP(); }
+		UI_PlayerHPBar_.Scale_.x = MaxWidth_UI_PlayerHPBar_ * (UI_PlayerHPValue_ * Player_->Inv_MaxHP());
+		UI_BossHPBar_.Scale_.x = MaxWidth_UI_BossHPBar_ * (Boss_Kinoko_->HP() * Boss_Kinoko_->Inv_MaxHP());
 
 		if (NextPhaseCountDown_ < 0) {
-			if (Boss_Kinoko_->HP_ <= 0.0f) {
+			if (Boss_Kinoko_->HP() <= 0.0f) {
 				CurrentPhase_ = PHASE_WIN;
 			}
-			else if (Player_->HP_ <= 0.0f) {
+			else if (Player_->HP() <= 0.0f) {
 				CurrentPhase_ = PHASE_LOSE;
 			}
 			NextPhaseCountDown_ = 90;

@@ -168,10 +168,10 @@ namespace Lumina {
 	};
 
 	void AssetManager::Initialize(DX12::Context const& dx12Context_) {
-		Graphics_ = UniPtr<GraphicsContext>{ new GraphicsContext{} };
+		Graphics_ = std::make_unique<GraphicsContext>();
 		Graphics_->Initialize(dx12Context_);
 
-		Audio_ = UniPtr<AudioContext>{ new AudioContext{} };
+		Audio_ = std::make_unique<AudioContext>();
 		Audio_->Initialize();
 	}
 

@@ -56,7 +56,7 @@ namespace Lumina {
 
 			Arr_Maps_.resize(Num_Maps_);
 			for (uint32_t idx{ 0U }; idx < static_cast<uint32_t>(Arr_Maps_.size()); ++idx) {
-				Arr_Maps_[idx].reset(new DX12::ComputeTexture2D{});
+				Arr_Maps_[idx] = std::make_unique<DX12::ComputeTexture2D>();
 				Arr_Maps_[idx]->Initialize(
 					device,
 					MapWidth_,
@@ -191,7 +191,7 @@ namespace Lumina {
 			Num_ComputeShaders_ = 5U;
 			Arr_ComputeShaders_.resize(Num_ComputeShaders_);
 			for (auto& cs : Arr_ComputeShaders_) {
-				cs.reset(new DX12::Shader{});
+				cs = std::make_unique<DX12::Shader>();
 			}
 			dxContext_.Compile(
 				*Arr_ComputeShaders_[static_cast<uint32_t>(COMPUTE_SHADER::BEND)],
@@ -232,7 +232,7 @@ namespace Lumina {
 			Num_ComputePSOs_ = 5U;
 			Arr_ComputePSOs_.resize(Num_ComputePSOs_);
 			for (auto& pso : Arr_ComputePSOs_) {
-				pso.reset(new DX12::ComputePipelineState{});
+				pso = std::make_unique<DX12::ComputePipelineState>();
 			}
 			Arr_ComputePSOs_[static_cast<uint32_t>(COMPUTE_SHADER::BEND)]->Initialize(
 				device,

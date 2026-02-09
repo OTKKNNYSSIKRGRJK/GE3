@@ -88,6 +88,12 @@ namespace Game {
 		int32_t FrameCountDown_ToNextState_{};
 
 	public:
+		constexpr float MaxHP() const noexcept { return MaxHP_; }
+		constexpr float Inv_MaxHP() const noexcept { return Inv_MaxHP_; }
+		constexpr float HP() const noexcept { return HP_; }
+		constexpr void HP(float hp_) noexcept { HP_ = hp_; }
+
+	private:
 		float MaxHP_{};
 		float Inv_MaxHP_{};
 		float HP_{};

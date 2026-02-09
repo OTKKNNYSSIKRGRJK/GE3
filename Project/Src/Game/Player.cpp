@@ -4,10 +4,11 @@ import Lumina.WinApp.RawInput;
 
 import Lumina.Math;
 
-//import Lumina.Utils.ImGui;
-
 namespace {
 	using Lumina::WinApp::KEY;
+
+	constexpr float SpeedByInput = 0.25f;
+	constexpr float RotateSpeed = 0.1f;
 }
 
 namespace Game {
@@ -20,19 +21,23 @@ namespace Game {
 
 		Velocity_ = {};
 
+		// X-Z move
+
 		SpeedByInput_ = 0.0f;
 		if (keyboard.IsPressed(KEY::ARROW_UP)) {
-			SpeedByInput_ = 0.25f;
+			SpeedByInput_ = SpeedByInput;
 		}
 		if (keyboard.IsPressed(KEY::ARROW_DOWN)) {
-			SpeedByInput_ = -0.125f;
+			SpeedByInput_ = -SpeedByInput * 0.5f;
 		}
 		if (keyboard.IsPressed(KEY::ARROW_LEFT)) {
-			Angle_ += 0.1f;
+			Angle_ += RotateSpeed;
 		}
 		if (keyboard.IsPressed(KEY::ARROW_RIGHT)) {
-			Angle_ -= 0.1f;
+			Angle_ -= RotateSpeed;
 		}
+
+		// Jump
 
 		Trigger_Jump_ = 0;
 		if (Flag_Jump_ == 0) {

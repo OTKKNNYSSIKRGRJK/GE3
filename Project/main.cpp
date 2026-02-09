@@ -42,7 +42,6 @@ import Game.Scene.InGame;
 namespace {
 	#if defined(_DEBUG)
 	void SetImGuiAppearance() {
-		//ImGui::GetIO().Fonts->AddFontFromFileTTF("C:/Windows/Fonts/consola.ttf", 12.0f);
 		ImGui::GetIO().Fonts->AddFontFromFileTTF("Assets/Fonts/AnonymousPro/AnonymousPro-Regular.ttf", 12.0f);
 		
 		ImGuiStyle& style{ ImGui::GetStyle() };
@@ -101,7 +100,7 @@ namespace {
 
 int32_t WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	Lumina::WinApp::Context winAppContext{};
-	Lumina::WinApp::WindowConfig mainWindowConfig_{
+	Lumina::WinApp::WindowConfig mainWindowConfig{
 		.Name{ L"Main" },
 		.Title{ L"LE2C_コウ_シキン_草" },
 		.Style{
@@ -112,7 +111,7 @@ int32_t WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		.ClientWidth{ 1280U },
 		.ClientHeight{ 720U },
 	};
-	winAppContext.Initialize(mainWindowConfig_);
+	winAppContext.Initialize(mainWindowConfig);
 	auto const& mainWindow{ winAppContext.WindowInstance(L"Main") };
 	auto const& mainWindowRawInput{ winAppContext.RawInputContext(mainWindow) };
 
@@ -160,9 +159,6 @@ int32_t WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	//----	------	------	------	------	----//
 
-	Lumina::DX12::CommandQueue computeQueue{};
-	computeQueue.Initialize(device, D3D12_COMMAND_LIST_TYPE_COMPUTE, "ComputeQueue");
-
 	ID3D12DescriptorHeap* descriptorHeaps[]{ gpuDH.Get() };
 
 	//----	------	------	------	------	----//
@@ -179,7 +175,7 @@ int32_t WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	//----	------	------	------	------	----//
 
-	std::unique_ptr<Game::Scene::InGame> scene_InGame{ new Game::Scene::InGame{} };
+	std::unique_ptr<Game::Scene::InGame> scene_InGame{ std::make_unique<Game::Scene::InGame>() };
 	scene_InGame->Initialize(dx12Context, assetMngr);
 
 	//----	------	------	------	------	----//
@@ -205,26 +201,12 @@ int32_t WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			)
 		};
 
-		/*float playerRadius{ 1.35f };
-		if (player0.WorldPosition().y > 0.5f) {
-			playerRadius = 0.0f;
-		}
-		grassland->Update(dx12Context, *vpInUse, player0.ModelTranslate(), playerRadius);*/
-
 		scene_InGame->Update(dx12Context, cmdList, mainWindowRawInput);
 		scene_InGame->Render(dx12Context, cmdList);
 
 		//----	------	------	------	------	----//
 
 		horometer.Update();
-
-		[[maybe_unused]] auto deltaTime = horometer.DeltaTime();
-		[[maybe_unused]] auto fps = 1000.0f / static_cast<float>(deltaTime.count());
-
-		/*ImGui::Begin("Performance");
-		ImGui::Text("%f", ImGui::GetIO().Framerate);
-		ImGui::Text("%f", fps);
-		ImGui::End();*/
 
 		//----	------	------	------	------	----//
 

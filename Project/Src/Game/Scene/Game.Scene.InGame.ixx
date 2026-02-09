@@ -15,8 +15,10 @@ namespace Game::Scene {
 		void Render(typename ArgTypes const&...args_);
 
 	public:
-		template<typename...ArgTypes>
-		void Initialize(typename ArgTypes const&...args_);
+		void Initialize(
+			Lumina::DX12::Context const& dxContext_,
+			Lumina::AssetManager& assetMngr_
+		);
 
 		InGame();
 		virtual ~InGame();

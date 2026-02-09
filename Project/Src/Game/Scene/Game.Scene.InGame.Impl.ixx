@@ -42,6 +42,18 @@ namespace Game::Scene::Impl {
 		template<typename...ArgTypes>
 		void Lose(typename ArgTypes const&...args_);
 
+	private:
+		void InitializePlayerAndBoss(Lumina::DX12::Context const& dxContext_);
+		void InitializeCanvasAndPass(Lumina::DX12::Context const& dxContext_);
+		void InitializeSprite(Lumina::DX12::Context const& dxContext_);
+		void LoadImageTextures(
+			Lumina::DX12::Context const& dxContext_,
+			Lumina::AssetManager& assetMngr_
+		);
+		void InitializeMeshes(Lumina::DX12::Context const& dxContext_);
+		void InitializeParticles(Lumina::DX12::Context const& dxContext_);
+		void InitializeShaderConstants(Lumina::DX12::Context const& dxContext_);
+
 	public:
 		template<typename...ArgTypes>
 		void Update(typename ArgTypes const&...args_);
@@ -49,8 +61,10 @@ namespace Game::Scene::Impl {
 		void Render(typename ArgTypes const&...args_);
 
 	public:
-		template<typename...ArgTypes>
-		void Initialize(typename ArgTypes const&...args_);
+		void Initialize(
+			Lumina::DX12::Context const& dxContext_,
+			Lumina::AssetManager& assetMngr_
+		);
 
 		InGame();
 		virtual ~InGame();
@@ -61,15 +75,21 @@ namespace Game::Scene::Impl {
 
 		std::unique_ptr<Boss_Kinoko> Boss_Kinoko_{ nullptr };
 
+		// Buffer for view-to-world matrix
 		Lumina::DX12::UploadBuffer UB_ViewToWorld_{};
+		// Buffer for screen-to-world matrix
 		Lumina::DX12::UploadBuffer UB_ScreenToWorld_{};
+		// Buffer for player material
 		Lumina::DX12::UploadBuffer UB_PlayerMaterial_{};
+		// Buffer for boss material
 		Lumina::DX12::UploadBuffer UB_BossMaterial_{};
 
 		MeshMaterial PlayerMaterial_{};
 		MeshMaterial BossMaterial_{};
 
+		// Shader-invisible heap for scene data
 		Lumina::DX12::DescriptorHeap LocalHeap_Scene_{};
+		// Shader-invisible heap for materials
 		Lumina::DX12::DescriptorHeap LocalHeap_Materials_{};
 
 		std::unique_ptr<Lumina::DeferredLighting> DeferredLighting_{ nullptr };
@@ -77,10 +97,15 @@ namespace Game::Scene::Impl {
 		Lumina::List<Lumina::Mat4> List_LocalToWorld_LightSphere_{};
 		std::vector<uint32_t> Arr_Index_ActivePointLight_{};
 
+		// Common root signature for particle systems
 		Lumina::DX12::RootSignature RS_ParticleSystem_{};
+		// Basic particle vertex shader
 		Lumina::DX12::Shader VS_BasicParticle_{};
+		// Basic particle pixel shader
 		Lumina::DX12::Shader PS_BasicParticle_{};
+		// Basic particle additive mode PSO
 		Lumina::DX12::GraphicsPSO GraphicsPSO_BasicParticle_AdditiveMode_{};
+
 		std::unique_ptr<ParticleSystem<Particle>> AmbientSparkles_{ nullptr };
 		std::unique_ptr<ParticleSystem<Particle>> PlayerEffects_{ nullptr };
 		std::unique_ptr<ParticleSystem<Particle>> KnockEffects_{ nullptr };
@@ -95,23 +120,35 @@ namespace Game::Scene::Impl {
 
 		std::unique_ptr<Lumina::MeshManager> MeshManager_{ nullptr };
 		std::vector<Lumina::MeshShaderAsset> MeshShaderAssets_{};
+		// Mesh vertex shader used in the geometry pass
 		Lumina::DX12::Shader VS_MeshDeferredGeometry_{};
+		// Mesh pixel shader used in the geometry pass
 		Lumina::DX12::Shader PS_MeshDeferredGeometry_{};
+		// PSO used in the geometry pass
 		Lumina::DX12::GraphicsPSO GraphicsPSO_MeshDeferredGeometry_{};
 
+		// Contains albedo, normal and depth-stencil textures
 		Lumina::DX12::Canvas Canvas_{};
+		// Merges result of lighting and particles
 		Lumina::DX12::Canvas Canvas_Merge_{};
+		// Canvas for post-processing
 		Lumina::DX12::Canvas Canvas_PostProcessing_{};
+
 		Lumina::DX12::RenderPass DeferredGeometryPass_{};
 		Lumina::DX12::RenderPass MergePass_{};
 		Lumina::DX12::RenderPass PostProcessingPass_{};
 		Lumina::DX12::RenderPass UIPass_{};
 
+		// SRV table for image textures
 		Lumina::DX12::DescriptorTable GlobalTable_SRV_ImageTexture_{};
+		// SRV table for render/depth-stencil textures
 		Lumina::DX12::DescriptorTable GlobalTable_SRV_CanvasTexture_{};
 
+		// Buffer for post-processing constants
 		Lumina::DX12::UploadBuffer UB_PostProcessingConstants_{};
+		// Dummy buffer
 		Lumina::DX12::UploadBuffer UB_Dummy_{};
+		// CBV table for post-processing
 		Lumina::DX12::DescriptorTable GlobalTable_CBV_PostProcessing_{};
 
 		int CurrentPhase_{};

@@ -6,6 +6,13 @@ import Lumina;
 
 namespace Game::Scene::Impl {
 	namespace {
+		/// <summary>
+		/// LookAt Matrix
+		/// </summary>
+		/// <param name="src_">Observor world position</param>
+		/// <param name="dst_">Target world position</param>
+		/// <param name="up_">Upward vector</param>
+		/// <returns>Mat4</returns>
 		Lumina::Mat4 LookAt(
 			Lumina::Vec3 const& src_,
 			Lumina::Vec3 const& dst_,
@@ -226,12 +233,12 @@ namespace Game::Scene::Impl {
 			Lumina::Vec3 const contactPoint = Player_->WorldPosition() + dPos * 0.25f;
 			if (Player_->IsDashing() && !Boss_Kinoko_->IsBeingKnockedBack()) {
 				Boss_Kinoko_->KnockedBack(15.0f, { -dPos.x, -dPos.z });
-				Boss_Kinoko_->HP_ -= 100.0f;
+				Boss_Kinoko_->HP(Boss_Kinoko_->HP() - 100.0f);
 				emitKnockEffectParticles(contactPoint, 195.0f);
 			}
 			else if (!Player_->IsDashing() && !Player_->IsBeingKnockedBack()) {
 				Player_->KnockedBack(15.0f, { dPos.x, dPos.z });
-				Player_->HP_ -= 10.0f;
+				Player_->HP(Player_->HP() - 10.0f);
 				emitKnockEffectParticles(contactPoint, -7.5f);
 			}
 		}
@@ -243,9 +250,9 @@ namespace Game::Scene::Impl {
 		if (Player_->WorldPosition().y > 0.5f) {
 			playerRadius = 0.0f;
 		}
-		float emenyRadius{ 3.2f };
+		float enemyRadius{ 3.2f };
 		if (Boss_Kinoko_->WorldPosition().y > 2.0f) {
-			emenyRadius = 0.0f;
+			enemyRadius = 0.0f;
 		}
 		Grassland_->Update(
 			dxContext_,
@@ -253,7 +260,7 @@ namespace Game::Scene::Impl {
 			Player_->ModelTranslate(),
 			playerRadius,
 			Boss_Kinoko_->ModelTranslate(),
-			emenyRadius
+			enemyRadius
 		);
 
 		// Player effects
@@ -505,7 +512,7 @@ namespace Game::Scene::Impl {
 				};
 				if (Lumina::Vec3::Dot(d_XYZ, d_XYZ) < 9.0f) {
 					if (!Boss_Kinoko_->IsBeingKnockedBack()) {
-						Boss_Kinoko_->HP_ -= (b.ATK - b.Velocity.y * 3.0f);
+						Boss_Kinoko_->HP(Boss_Kinoko_->HP() - (b.ATK - b.Velocity.y * 3.0f));
 					}
 					b.Life = 0.0f;
 				}
@@ -644,9 +651,9 @@ namespace Game::Scene::Impl {
 				Lumina::Utils::Color::HSV{
 					rndEngine() * Inv_0xFFFFFFFF * 3.0f + std::sin(playerHPBarColorHueFactor) * 5.0f + 195.0f,
 					rndEngine() * Inv_0xFFFFFFFF * 0.05f + 0.5f +
-					(1.0f - (Boss_Kinoko_->HP_ * Boss_Kinoko_->Inv_MaxHP_)) * 0.4f,
+					(1.0f - (Boss_Kinoko_->HP() * Boss_Kinoko_->Inv_MaxHP())) * 0.4f,
 					0.5f +
-					(1.0f - (Boss_Kinoko_->HP_ * Boss_Kinoko_->Inv_MaxHP_)) * 0.4f
+					(1.0f - (Boss_Kinoko_->HP() * Boss_Kinoko_->Inv_MaxHP())) * 0.4f
 				}
 			);
 			UI_PlayerHPBar_.RGBA_.x = rgb_Base.R;
@@ -688,9 +695,9 @@ namespace Game::Scene::Impl {
 				Lumina::Utils::Color::HSV{
 					rndEngine() * Inv_0xFFFFFFFF * 3.0f + std::sin(bossHPBarColorHueFactor) * 5.0f,
 					rndEngine() * Inv_0xFFFFFFFF * 0.05f + 0.5f +
-					(1.0f - (Boss_Kinoko_->HP_ * Boss_Kinoko_->Inv_MaxHP_)) * 0.4f,
+					(1.0f - (Boss_Kinoko_->HP() * Boss_Kinoko_->Inv_MaxHP())) * 0.4f,
 					0.5f +
-					(1.0f - (Boss_Kinoko_->HP_ * Boss_Kinoko_->Inv_MaxHP_)) * 0.4f
+					(1.0f - (Boss_Kinoko_->HP() * Boss_Kinoko_->Inv_MaxHP())) * 0.4f
 				}
 			);
 			UI_BossHPBar_.RGBA_.x = rgb_Base.R;
