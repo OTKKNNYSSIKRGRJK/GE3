@@ -5,6 +5,7 @@ import <d3d12.h>;
 import : Resource;
 
 namespace Lumina::DX12 {
+	// Resource barrier helper class
 	export class Barrier {
 	public:
 		template<Concept_Resource ResourceType>

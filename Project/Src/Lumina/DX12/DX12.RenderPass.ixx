@@ -11,6 +11,7 @@ import : Command;
 import Lumina.Math.Numerics;
 
 namespace Lumina::DX12 {
+	// Render pass helper class
 	export class RenderPass {
 		struct DescCollection {
 			std::vector<D3D12_RENDER_PASS_RENDER_TARGET_DESC> RenderTargetDescs_;

@@ -81,18 +81,32 @@ public:
 	typename Lumina::List<T> const& InstanceList() const noexcept;
 
 public:
+	/// <summary>
+	/// Batches a particle.
+	/// </summary>
+	/// <param name="p_">Particle</param>
 	void Emit(T&& p_) {
 		if (!Instances_.IsFull()) {
 			auto& p{ Instances_.New() };
 			p = std::move(p_);
 		}
 	}
+	/// <summary>
+	/// Erase all alive particles.
+	/// </summary>
 	void Clear() {
 		Instances_.Clear();
 		Count_Alive_ = 0U;
 	}
 
 public:
+	/// <summary>
+	/// Updates alive particles.
+	/// </summary>
+	/// <param name="cmdList_">Command list</param>
+	/// <param name="viewToWorld_">View-to-world matrix used for billboard</param>
+	/// <param name="updateFunc_">Callback function in which a particle is updated</param>
+	/// <param name="updateFuncParam_">Callback function parameter</param>
 	void Update(
 		Lumina::DX12::CommandList const& cmdList_,
 		Lumina::Mat4 const& viewToWorld_,
@@ -100,6 +114,16 @@ public:
 		void const* updateFuncParam_ = nullptr
 	);
 
+	/// <summary>
+	/// Renders alive particles.
+	/// </summary>
+	/// <param name="cmdList_">Command list</param>
+	/// <param name="rs_">Root signature</param>
+	/// <param name="graphicsPSO_">PSO</param>
+	/// <param name="localCBV_SceneVars_">Shader-invisible CBV for scene constants</param>
+	/// <param name="localCBV_VP_">Shader-invisible CBV for world-to-NDC matrix</param>
+	/// <param name="globalTable_Textures_">Shader-visible image texture SRV table</param>
+	/// <param name="globalTable_Textures2_">Shader-visible G-buffer SRV table</param>
 	void Render(
 		Lumina::DX12::CommandList const& cmdList_,
 		Lumina::DX12::RootSignature const& rs_,

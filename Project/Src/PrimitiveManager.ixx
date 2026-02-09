@@ -344,6 +344,10 @@ namespace Lumina {
 			UB_VP_.Initialize(dx12Context_.Device(), (sizeof(Mat4) + 0xFFU) & ~0xFFU);
 		}
 
+		/// <summary>
+		/// Begins batch.
+		/// </summary>
+		/// <param name="cmdList_">Command list</param>
 		void Begin(
 			DX12::CommandList const&
 		) {
@@ -364,6 +368,10 @@ namespace Lumina {
 			TriangleManager_.RenderBatched(cmdList_, flag_SRGB_);
 		}
 
+		/// <summary>
+		/// Ends batch.
+		/// </summary>
+		/// <param name="cmdList_">Command list</param>
 		void End(
 			DX12::CommandList const& cmdList_
 		) {
@@ -371,6 +379,14 @@ namespace Lumina {
 			TriangleManager_.End(cmdList_);
 		}
 
+		/// <summary>
+		/// Renders batched primitives.
+		/// </summary>
+		/// <param name="cmdList_">Command list</param>
+		/// <param name="texTable_">Texture SRV table</param>
+		/// <param name="vp_">World-to-NDC matrix</param>
+		/// <param name="flag_SRGB_">SRGB format or not</param>
+		/// <param name="cbv_">Scene constant CBV</param>
 		void Render(
 			DX12::CommandList const& cmdList_,
 			DX12::DescriptorTable const& texTable_,

@@ -169,39 +169,7 @@ namespace Game {
 	void Boss_Kinoko::Initialize(
 		Lumina::Vec3 const& initPos_
 	) {
-		State_ = BOSS_STATE::IDLE;
-		Position_ = initPos_;
-
-		Angle_ = std::numbers::pi_v<float> * 0.5f;
-		ModelRotate_ = { 0.0f, -Angle_, 0.0f };
-		ModelScale_ = { 1.0f, 1.0f, 1.0f };
-		ModelTranslate_.y = 0.0f;
-
-		Boing_.Timer = 0.0f;
-
-		Flag_Jump_ = 0;
-		JumpSpeed_ = 0.0f;
-		JumpInitialSpeed_ = 0.25f;
-		SecondJumpInputInterval_ = 0;
-		SecondJumpInputIntervalThreshold_ = 15;
-
-		SpeedByDash_ = 0.0f;
-		DashStatus_ = -1;
-		DashTimer_ = 0;
-		DashMaxDuration_ = 15;
-		DashInputInterval_ = 0;
-		DashInputIntervalThreshold_ = 10;
-
-		SpeedByKnockBack_ = 0.0f;
-
-		CurrentState_ = &Boss_Kinoko::Idle;
-		FrameCountDown_ToNextState_ = (Lumina::Random::Generator()()) % 60 + 240;
-
-		SpeedByMove_Default_ = 0.1f;
-
-		MaxHP_ = 25000.0f;
-		Inv_MaxHP_ = 1.0f / MaxHP_;
-		HP_ = MaxHP_;
+		Reset(initPos_);
 	}
 
 	void Boss_Kinoko::KnockedBack(float power_, Lumina::Vec2 const& dir_) {

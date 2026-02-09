@@ -19,6 +19,7 @@ import : Resource.Texture2D;
 import : Descriptor;
 
 namespace Lumina::DX12 {
+	// Set of render/depth-stencil textures and views
 	export class Canvas {
 	public:
 		[[nodiscard]] inline auto RenderTexture(uint32_t idx_) noexcept -> RenderTexture2D&;
