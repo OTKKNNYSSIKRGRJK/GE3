@@ -44,12 +44,15 @@ namespace Game::Scene::Impl {
 
 	private:
 		void InitializePlayerAndBoss(Lumina::DX12::Context const& dxContext_);
-		void InitializeCanvasAndPass(Lumina::DX12::Context const& dxContext_);
-		void InitializeSprite(Lumina::DX12::Context const& dxContext_);
+		void InitializeCanvas(Lumina::DX12::Context const& dxContext_);
+		void InitializeRenderPass();
+		void InitializeSpriteRenderer(Lumina::DX12::Context const& dxContext_);
+		void InitializeSprites();
 		void LoadImageTextures(
 			Lumina::DX12::Context const& dxContext_,
 			Lumina::AssetManager& assetMngr_
 		);
+		void InitializeMeshManager(Lumina::DX12::Context const& dxContext_);
 		void InitializeMeshes(Lumina::DX12::Context const& dxContext_);
 		void InitializeParticles(Lumina::DX12::Context const& dxContext_);
 		void InitializeShaderConstants(Lumina::DX12::Context const& dxContext_);

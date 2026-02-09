@@ -19,7 +19,7 @@ import : Impl;
 
 namespace Game::Scene::Impl {
 	namespace {
-		void InitializeCanvas(
+		void InitializeCanvasImpl(
 			Lumina::DX12::Canvas& canvas_,
 			Lumina::DX12::Context const& dxContext_
 		) {
@@ -87,12 +87,12 @@ namespace Game::Scene::Impl {
 		}
 	}
 
-	void InGame::InitializeCanvasAndPass(Lumina::DX12::Context const& dxContext_) {
+	void InGame::InitializeCanvas(Lumina::DX12::Context const& dxContext_) {
 		auto const& device{ dxContext_.Device() };
 
 		// Canvas
 		{
-			InitializeCanvas(Canvas_, dxContext_);
+			InitializeCanvasImpl(Canvas_, dxContext_);
 			{
 				Canvas_Merge_.AllocateTextures(1U, false);
 				Canvas_Merge_.RenderTexture(0U).Initialize(
@@ -128,22 +128,11 @@ namespace Game::Scene::Impl {
 				);
 				Canvas_PostProcessing_.TransitionResourceStates(device, dxContext_.DirectQueue());
 				Canvas_PostProcessing_.CreateViews(device);
-				Canvas_PostProcessing_.Viewport(0U) = D3D12_VIEWPORT{
-					.TopLeftX{ 0.0f },
-					.TopLeftY{ 0.0f },
-					.Width{ 1280.0f },
-					.Height{ 720.0f },
-					.MinDepth{ 0.0f },
-					.MaxDepth{ 1.0f },
-				};
-				Canvas_PostProcessing_.ScissorRect(0U) = D3D12_RECT{
-					.left{ 0 },
-					.top{ 0 },
-					.right{ 1280 },
-					.bottom{ 720 },
-				};
+				Canvas_PostProcessing_.Viewport(0U) = Canvas_Merge_.Viewport(0U);
+				Canvas_PostProcessing_.ScissorRect(0U) = Canvas_Merge_.ScissorRect(0U);
 			}
-
+		}
+		{
 			GlobalTable_SRV_CanvasTexture_ = dxContext_.GlobalDescriptorHeap().Allocate(8U);
 			Lumina::DX12::SRV<void>::Create(
 				device,
@@ -178,7 +167,9 @@ namespace Game::Scene::Impl {
 				Canvas_PostProcessing_.RenderTexture(0U)
 			);
 		}
+	}
 
+	void InGame::InitializeRenderPass() {
 		// DeferredGeometryPass
 		{
 			DeferredGeometryPass_.Initialize(2U, true);
@@ -225,13 +216,6 @@ namespace Game::Scene::Impl {
 				{ 0.0f, 0.0f, 0.0f, 0.0f }
 			);
 			PostProcessingPass_.RenderTarget(0).EndingEvent().Preserve();
-			/*PostProcessingPass_.DepthStencil().DepthBeginningEvent().ClearTarget(
-				DXGI_FORMAT_D24_UNORM_S8_UINT,
-				{ .Depth{ 1.0f }, }
-			);
-			PostProcessingPass_.DepthStencil().DepthEndingEvent().Preserve();
-			PostProcessingPass_.DepthStencil().StencilBeginningEvent().NoAccess();
-			PostProcessingPass_.DepthStencil().StencilEndingEvent().NoAccess();*/
 
 			PostProcessingPass_.RenderTarget(0U).View() = Canvas_PostProcessing_.RTV(0U);
 		}
@@ -244,7 +228,44 @@ namespace Game::Scene::Impl {
 		}
 	}
 
-	void InGame::InitializeSprite(Lumina::DX12::Context const& dxContext_) {
+	void InGame::InitializeSprites() {
+		// PlayerHPBar
+		{
+			UI_PlayerHPBar_.Translate({ 40.0f, 680.0f });
+			UI_PlayerHPBar_.Scale({ 0.0f, 40.0f });
+			UI_PlayerHPBar_.AnchorPoint({ 0.0f, 1.0f });
+			UI_PlayerHPBar_.TextureID(3U);
+			UI_PlayerHPBar_.RGBA({ 1.0f, 1.0f, 1.0f, 0.25f });
+
+			MaxWidth_UI_PlayerHPBar_ = 480.0f;
+			UI_PlayerHPValue_ = Player_->HP();
+		}
+		// BossHPBar
+		{
+			UI_BossHPBar_.Translate({ 20.0f, 20.0f });
+			UI_BossHPBar_.Scale({ 0.0f, 20.0f });
+			UI_BossHPBar_.AnchorPoint({ 0.0f, 0.0f });
+			UI_BossHPBar_.TextureID(3U);
+			UI_BossHPBar_.RGBA({ 1.0f, 1.0f, 1.0f, 0.25f });
+
+			MaxWidth_UI_BossHPBar_ = 1280.0f - 20.0f * 2;
+		}
+
+		{
+			UI_WIN_.Translate({ 640.0f, 360.0f });
+			UI_WIN_.Scale({ 720.0f, 180.0f });
+			UI_WIN_.AnchorPoint({ 0.5f, 0.5f });
+			UI_WIN_.TextureID(4U);
+			UI_WIN_.RGBA({ 1.0f, 1.0f, 1.0f, 1.0f });
+			UI_LOSE_.Translate({ 640.0f, 360.0f });
+			UI_LOSE_.Scale({ 720.0f, 180.0f });
+			UI_LOSE_.AnchorPoint({ 0.5f, 0.5f });
+			UI_LOSE_.TextureID(5U);
+			UI_LOSE_.RGBA({ 1.0f, 1.0f, 1.0f, 1.0f });
+		}
+	}
+	
+	void InGame::InitializeSpriteRenderer(Lumina::DX12::Context const& dxContext_) {
 		auto const& device{ dxContext_.Device() };
 
 		SpriteRenderer_ = std::make_unique<Lumina::SpriteRenderer>();
@@ -252,20 +273,8 @@ namespace Game::Scene::Impl {
 
 		// Pipeline
 		{
-			dxContext_.Compile(
-				VS_Sprite_,
-				L"Assets/Shaders/Sprite2.VS.hlsl",
-				L"vs_6_6",
-				L"main",
-				"Sprite2.VS"
-			);
-			dxContext_.Compile(
-				PS_Sprite_,
-				L"Assets/Shaders/Sprite2.PS.hlsl",
-				L"ps_6_6",
-				L"main",
-				"Sprite2.PS"
-			);
+			dxContext_.Compile(VS_Sprite_, L"Assets/Shaders/Sprite2.VS.hlsl", L"vs_6_6", L"main", "Sprite2.VS");
+			dxContext_.Compile(PS_Sprite_, L"Assets/Shaders/Sprite2.PS.hlsl", L"ps_6_6", L"main", "Sprite2.PS");
 
 			Lumina::DX12::BlendState spriteBlendState{};
 			spriteBlendState.RenderTarget[0] = D3D12_RENDER_TARGET_BLEND_DESC{
@@ -328,45 +337,10 @@ namespace Game::Scene::Impl {
 				D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
 				{ DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, },
 				Lumina::DX12::GraphicsPSO::DefaultDSVFormat
-				);
-		}
-
-		// PlayerHPBar
-		{
-			UI_PlayerHPBar_.Translate({ 40.0f, 680.0f });
-			UI_PlayerHPBar_.Scale({ 0.0f, 40.0f });
-			UI_PlayerHPBar_.AnchorPoint({ 0.0f, 1.0f });
-			UI_PlayerHPBar_.TextureID(3U);
-			UI_PlayerHPBar_.RGBA({ 1.0f, 1.0f, 1.0f, 0.25f });
-
-			MaxWidth_UI_PlayerHPBar_ = 480.0f;
-			UI_PlayerHPValue_ = Player_->HP();
-		}
-		// BossHPBar
-		{
-			UI_BossHPBar_.Translate({ 20.0f, 20.0f });
-			UI_BossHPBar_.Scale({ 0.0f, 20.0f });
-			UI_BossHPBar_.AnchorPoint({ 0.0f, 0.0f });
-			UI_BossHPBar_.TextureID(3U);
-			UI_BossHPBar_.RGBA({ 1.0f, 1.0f, 1.0f, 0.25f });
-
-			MaxWidth_UI_BossHPBar_ = 1280.0f - 20.0f * 2;
-		}
-
-		{
-			UI_WIN_.Translate({ 640.0f, 360.0f });
-			UI_WIN_.Scale({ 720.0f, 180.0f });
-			UI_WIN_.AnchorPoint({ 0.5f, 0.5f });
-			UI_WIN_.TextureID(4U);
-			UI_WIN_.RGBA({ 1.0f, 1.0f, 1.0f, 1.0f });
-			UI_LOSE_.Translate({ 640.0f, 360.0f });
-			UI_LOSE_.Scale({ 720.0f, 180.0f });
-			UI_LOSE_.AnchorPoint({ 0.5f, 0.5f });
-			UI_LOSE_.TextureID(5U);
-			UI_LOSE_.RGBA({ 1.0f, 1.0f, 1.0f, 1.0f });
+			);
 		}
 	}
-	
+
 	void InGame::LoadImageTextures(
 		Lumina::DX12::Context const& dxContext_,
 		Lumina::AssetManager& assetMngr_
@@ -395,6 +369,62 @@ namespace Game::Scene::Impl {
 				D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
 			);
 		}
+	}
+
+	void InGame::InitializeMeshManager(Lumina::DX12::Context const& dxContext_) {
+		auto const& device{ dxContext_.Device() };
+
+		MeshManager_ = std::make_unique<Lumina::MeshManager>();
+		MeshManager_->Initialize(dxContext_, 2048U, 1048576U);
+
+		dxContext_.Compile(
+			VS_MeshDeferredGeometry_,
+			L"Assets/Shaders/MeshCommon.VS.hlsl",
+			L"vs_6_6",
+			L"main",
+			"Mesh.DeferredGeometry.VS"
+		);
+		dxContext_.Compile(
+			PS_MeshDeferredGeometry_,
+			L"Assets/Shaders/MeshCommon.PS.hlsl",
+			L"ps_6_6",
+			L"main",
+			"Mesh.DeferredGeometry.PS"
+		);
+
+		Lumina::DX12::BlendState blendState_None{};
+		blendState_None.RenderTarget[0].BlendEnable = false;
+		blendState_None.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+		blendState_None.RenderTarget[1].BlendEnable = false;
+		blendState_None.RenderTarget[1].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+
+		Lumina::DX12::GraphicsPSO::InputLayout inputLayout_Mesh{};
+		inputLayout_Mesh.Append("IDX_POSITION", 0U, DXGI_FORMAT_R32_UINT);
+		inputLayout_Mesh.Append("IDX_TEXCOORD", 0U, DXGI_FORMAT_R32_UINT);
+		inputLayout_Mesh.Append("IDX_NORMAL", 0U, DXGI_FORMAT_R32_UINT);
+		inputLayout_Mesh.Append("IDX_TANGENT", 0U, DXGI_FORMAT_R32_UINT);
+
+		GraphicsPSO_MeshDeferredGeometry_.Initialize(
+			device,
+			MeshManager_->RootSignature(),
+			VS_MeshDeferredGeometry_,
+			PS_MeshDeferredGeometry_,
+			blendState_None,
+			Lumina::DX12::RasterizerState{
+				.FillMode{ D3D12_FILL_MODE_SOLID },
+				.CullMode{ D3D12_CULL_MODE_BACK },
+			},
+			Lumina::DX12::DepthStencilState{
+				.DepthEnable{ true },
+				.DepthWriteMask{ D3D12_DEPTH_WRITE_MASK_ALL },
+				.DepthFunc{ D3D12_COMPARISON_FUNC_LESS_EQUAL },
+				.StencilEnable{ false },
+			},
+			inputLayout_Mesh,
+			D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
+			{ DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, DXGI_FORMAT_R8G8B8A8_UNORM, },
+			Lumina::DX12::GraphicsPSO::DefaultDSVFormat
+		);
 	}
 
 	void InGame::InitializeMeshes(Lumina::DX12::Context const& dxContext_) {
@@ -450,61 +480,6 @@ namespace Game::Scene::Impl {
 				meshUploader.Batch(mesh);
 			}
 			meshUploader.End(MeshShaderAssets_);
-		}
-
-		// MeshManager
-		{
-			MeshManager_ = std::make_unique<Lumina::MeshManager>();
-			MeshManager_->Initialize(dxContext_, 2048U, 1048576U);
-
-			dxContext_.Compile(
-				VS_MeshDeferredGeometry_,
-				L"Assets/Shaders/MeshCommon.VS.hlsl",
-				L"vs_6_6",
-				L"main",
-				"Mesh.DeferredGeometry.VS"
-			);
-			dxContext_.Compile(
-				PS_MeshDeferredGeometry_,
-				L"Assets/Shaders/MeshCommon.PS.hlsl",
-				L"ps_6_6",
-				L"main",
-				"Mesh.DeferredGeometry.PS"
-			);
-
-			Lumina::DX12::BlendState blendState_None{};
-			blendState_None.RenderTarget[0].BlendEnable = false;
-			blendState_None.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
-			blendState_None.RenderTarget[1].BlendEnable = false;
-			blendState_None.RenderTarget[1].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
-
-			Lumina::DX12::GraphicsPSO::InputLayout inputLayout_Mesh{};
-			inputLayout_Mesh.Append("IDX_POSITION", 0U, DXGI_FORMAT_R32_UINT);
-			inputLayout_Mesh.Append("IDX_TEXCOORD", 0U, DXGI_FORMAT_R32_UINT);
-			inputLayout_Mesh.Append("IDX_NORMAL", 0U, DXGI_FORMAT_R32_UINT);
-			inputLayout_Mesh.Append("IDX_TANGENT", 0U, DXGI_FORMAT_R32_UINT);
-
-			GraphicsPSO_MeshDeferredGeometry_.Initialize(
-				device,
-				MeshManager_->RootSignature(),
-				VS_MeshDeferredGeometry_,
-				PS_MeshDeferredGeometry_,
-				blendState_None,
-				Lumina::DX12::RasterizerState{
-					.FillMode{ D3D12_FILL_MODE_SOLID },
-					.CullMode{ D3D12_CULL_MODE_BACK },
-				},
-				Lumina::DX12::DepthStencilState{
-					.DepthEnable{ true },
-					.DepthWriteMask{ D3D12_DEPTH_WRITE_MASK_ALL },
-					.DepthFunc{ D3D12_COMPARISON_FUNC_LESS_EQUAL },
-					.StencilEnable{ false },
-				},
-				inputLayout_Mesh,
-				D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
-				{ DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, DXGI_FORMAT_R8G8B8A8_UNORM, },
-				Lumina::DX12::GraphicsPSO::DefaultDSVFormat
-			);
 		}
 	}
 
@@ -643,11 +618,13 @@ namespace Game::Scene::Impl {
 		InitializePlayerAndBoss(dxContext_);
 		LoadImageTextures(dxContext_, assetMngr_);
 		InitializeShaderConstants(dxContext_);
+		InitializeMeshManager(dxContext_);
 		InitializeMeshes(dxContext_);
 
 		InitializeParticles(dxContext_);
 
-		InitializeSprite(dxContext_);
+		InitializeSpriteRenderer(dxContext_);
+		InitializeSprites();
 
 		// Grassland
 		{
@@ -674,7 +651,8 @@ namespace Game::Scene::Impl {
 			List_LocalToWorld_LightSphere_.Initialize(2048U);
 		}
 
-		InitializeCanvasAndPass(dxContext_);
+		InitializeCanvas(dxContext_);
+		InitializeRenderPass();
 	}
 
 	InGame::InGame() = default;
