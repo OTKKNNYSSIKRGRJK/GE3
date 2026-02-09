@@ -19,9 +19,11 @@ import Lumina.DX12.Context;
 import Lumina.DX12.Aux;
 
 import Lumina.Utils.Data;
-import Lumina.Utils.Data.Mesh;
+export import Lumina.Utils.Data.Mesh;
 
+#if defined(_DEBUG)
 import Lumina.Utils.ImGui;
+#endif
 
 namespace Lumina {
 	export class MeshShaderAsset {
@@ -73,7 +75,8 @@ namespace Lumina {
 			meshShaderAsset.Positions_.reset(new DX12::DefaultBuffer{});
 			meshShaderAsset.Positions_->Initialize(
 				device,
-				sizeof(Float3) * mesh_.Positions.size()
+				sizeof(Float3) * mesh_.Positions.size(),
+				"Positions"
 			);
 			DX12::SRV<Float3>::Create(
 				device,
@@ -99,7 +102,8 @@ namespace Lumina {
 			meshShaderAsset.TexCoords_.reset(new DX12::DefaultBuffer{});
 			meshShaderAsset.TexCoords_->Initialize(
 				device,
-				sizeof(Float2) * mesh_.TexCoords.size()
+				sizeof(Float2) * mesh_.TexCoords.size(),
+				"TexCoords"
 			);
 			DX12::SRV<Float2>::Create(
 				device,
@@ -125,7 +129,8 @@ namespace Lumina {
 			meshShaderAsset.Normals_.reset(new DX12::DefaultBuffer{});
 			meshShaderAsset.Normals_->Initialize(
 				device,
-				sizeof(Float3) * mesh_.Normals.size()
+				sizeof(Float3) * mesh_.Normals.size(),
+				"Normals"
 			);
 			DX12::SRV<Float3>::Create(
 				device,
@@ -151,7 +156,8 @@ namespace Lumina {
 			meshShaderAsset.Tangents_.reset(new DX12::DefaultBuffer{});
 			meshShaderAsset.Tangents_->Initialize(
 				device,
-				sizeof(Float3) * mesh_.Tangents.size()
+				sizeof(Float3) * mesh_.Tangents.size(),
+				"Tangents"
 			);
 			DX12::SRV<Float3>::Create(
 				device,
@@ -477,7 +483,6 @@ namespace Lumina {
 		void Render(
 			DX12::GraphicsPipelineState const& pso_,
 			D3D12_GPU_DESCRIPTOR_HANDLE globalSRV_TextureStart_,
-			D3D12_GPU_DESCRIPTOR_HANDLE globalCBV_Lighting_,
 			D3D12_CPU_DESCRIPTOR_HANDLE localCBV_VP_
 		) {
 			DX12Context_->Device()->CopyDescriptorsSimple(
@@ -520,10 +525,6 @@ namespace Lumina {
 			CommandList_->SetGraphicsRootDescriptorTable(
 				static_cast<uint32_t>(RootSignatureEntry::Table_Textures),
 				globalSRV_TextureStart_
-			);
-			CommandList_->SetGraphicsRootDescriptorTable(
-				static_cast<uint32_t>(RootSignatureEntry::Table_Lighting),
-				globalCBV_Lighting_
 			);
 
 			CommandList_->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);

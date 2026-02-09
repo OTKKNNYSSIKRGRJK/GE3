@@ -165,10 +165,10 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="..\..\TD2_2\Project\Src\Lumina\DX12\DX12.Barrier.ixx" />
-    <ClCompile Include="..\..\TD2_2\Project\Src\Lumina\MeshManager.ixx" />
-    <ClCompile Include="..\..\TD2_2\Project\Src\Lumina\Utils\Utils.Data.ixx" />
-    <ClCompile Include="..\..\TD2_2\Project\Src\Lumina\Utils\Utils.Data.Mesh.ixx" />
+    <ClCompile Include="Src\Lumina\DX12\DX12.Barrier.ixx" />
+    <ClCompile Include="Src\Lumina\MeshManager.ixx" />
+    <ClCompile Include="Src\Lumina\Utils\Utils.Data.ixx" />
+    <ClCompile Include="Src\Lumina\Utils\Utils.Data.Mesh.ixx" />
     <ClCompile Include="External\ImGui\backends\imgui_impl_dx12.cpp" />
     <ClCompile Include="External\ImGui\backends\imgui_impl_win32.cpp" />
     <ClCompile Include="External\ImGui\imgui.cpp" />

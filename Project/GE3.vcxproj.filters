@@ -263,28 +263,7 @@
     <ClCompile Include="Src\Lumina\Editor\DX12\Editor.DX12.RootParameter.cpp">
       <Filter>Src\Lumina\Editor\DX12</Filter>
     </ClCompile>
-    <ClCompile Include="..\..\TD2_2\Project\Src\Lumina\DX12\DX12.Barrier.ixx">
-      <Filter>Src</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\TD2_2\Project\Src\Lumina\MeshManager.ixx">
-      <Filter>Src</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\TD2_2\Project\Src\Lumina\Utils\Utils.Data.ixx">
-      <Filter>Src</Filter>
-    </ClCompile>
-    <ClCompile Include="..\..\TD2_2\Project\Src\Lumina\Utils\Utils.Data.Mesh.ixx">
-      <Filter>Src</Filter>
-    </ClCompile>
     <ClCompile Include="External\nlohmann.json.ixx">
-      <Filter>Src</Filter>
-    </ClCompile>
-    <ClCompile Include="Src\Lumina\DX12\DX12.Canvas.ixx">
-      <Filter>Src</Filter>
-    </ClCompile>
-    <ClCompile Include="Src\Lumina\DX12\DX12.RenderPass.ixx">
-      <Filter>Src</Filter>
-    </ClCompile>
-    <ClCompile Include="Src\PrimitiveManager.ixx">
       <Filter>Src</Filter>
     </ClCompile>
     <ClCompile Include="Src\Lumina\Grassland.ixx">
@@ -346,6 +325,27 @@
     </ClCompile>
     <ClCompile Include="Src\Game\Enemies\Boss.Kinoko.ixx">
       <Filter>Src\Game\Enemies\Boss.Kinoko</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\Utils\Utils.Data.ixx">
+      <Filter>Src\Lumina\Utils</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\Utils\Utils.Data.Mesh.ixx">
+      <Filter>Src\Lumina\Utils</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\DX12\DX12.RenderPass.ixx">
+      <Filter>Src\Lumina\DX12</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\DX12\DX12.Barrier.ixx">
+      <Filter>Src\Lumina\DX12</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\DX12\DX12.Canvas.ixx">
+      <Filter>Src\Lumina\DX12</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\PrimitiveManager.ixx">
+      <Filter>Src\Lumina</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\MeshManager.ixx">
+      <Filter>Src\Lumina</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
