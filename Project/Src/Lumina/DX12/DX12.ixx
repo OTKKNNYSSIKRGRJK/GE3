@@ -20,6 +20,9 @@ export import <dxgi1_6.h>;
 export import : GraphicsDevice;
 
 export import : Command;
+export import : Barrier;
+
+export import : RenderPass;
 
 export import : Resource;
 export import : ImageTexture;
@@ -29,6 +32,7 @@ export import : Shader;
 export import : RootSignature;
 export import : PipelineState;
 
+export import : Canvas;
 export import : FrameBufferSwapChain;
 
 export import : Debug;

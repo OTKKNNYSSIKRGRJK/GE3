@@ -53,6 +53,18 @@
     <Filter Include="Src\Lumina\Editor\DX12">
       <UniqueIdentifier>{46770b99-5b6c-4aa1-a916-b469a473047c}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Src\Game\Enemies">
+      <UniqueIdentifier>{f402c778-295f-49db-a234-0ac2a085231c}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Src\Game\Scene">
+      <UniqueIdentifier>{8d54533e-b3cd-4197-b4d0-324ff3d2a4dd}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Src\Game\Enemies\Boss.Kinoko">
+      <UniqueIdentifier>{5dacc8f1-7899-4e98-981e-a8c44b1ffcf5}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Src\Game\Scene\InGame">
+      <UniqueIdentifier>{95ad7316-acee-48b0-8e5b-896d90693b36}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
@@ -125,9 +137,6 @@
     <ClCompile Include="Src\Lumina\DX12\DX12.Aux.ixx">
       <Filter>Src\Lumina\DX12</Filter>
     </ClCompile>
-    <ClCompile Include="Src\Lumina\DX12\DX12.Aux.RenderTextureEX.ixx">
-      <Filter>Src\Lumina\DX12</Filter>
-    </ClCompile>
     <ClCompile Include="Src\Lumina\DX12\DX12.Aux.View.ixx">
       <Filter>Src\Lumina\DX12</Filter>
     </ClCompile>
@@ -194,12 +203,6 @@
     <ClCompile Include="Src\Lumina\Utils\Utils.Color.ixx">
       <Filter>Src\Lumina\Utils</Filter>
     </ClCompile>
-    <ClCompile Include="Src\Lumina\Utils\Utils.Data.ixx">
-      <Filter>Src\Lumina\Utils</Filter>
-    </ClCompile>
-    <ClCompile Include="Src\Lumina\Utils\Utils.Data.Model.ixx">
-      <Filter>Src\Lumina\Utils</Filter>
-    </ClCompile>
     <ClCompile Include="Src\Lumina\Utils\Utils.Debug.ixx">
       <Filter>Src\Lumina\Utils</Filter>
     </ClCompile>
@@ -226,12 +229,6 @@
     </ClCompile>
     <ClCompile Include="Src\Lumina\Utils\Utils.Debug.Exception.ixx">
       <Filter>Src\Lumina\Utils</Filter>
-    </ClCompile>
-    <ClCompile Include="Src\PipelineEditor.ixx">
-      <Filter>Src</Filter>
-    </ClCompile>
-    <ClCompile Include="Src\RootSignatureEditor.ixx">
-      <Filter>Src</Filter>
     </ClCompile>
     <ClCompile Include="Src\Editor.DX12.ixx">
       <Filter>Src\Lumina\Editor</Filter>
@@ -266,16 +263,99 @@
     <ClCompile Include="Src\Lumina\Editor\DX12\Editor.DX12.RootParameter.cpp">
       <Filter>Src\Lumina\Editor\DX12</Filter>
     </ClCompile>
+    <ClCompile Include="..\..\TD2_2\Project\Src\Lumina\DX12\DX12.Barrier.ixx">
+      <Filter>Src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\TD2_2\Project\Src\Lumina\MeshManager.ixx">
+      <Filter>Src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\TD2_2\Project\Src\Lumina\Utils\Utils.Data.ixx">
+      <Filter>Src</Filter>
+    </ClCompile>
+    <ClCompile Include="..\..\TD2_2\Project\Src\Lumina\Utils\Utils.Data.Mesh.ixx">
+      <Filter>Src</Filter>
+    </ClCompile>
+    <ClCompile Include="External\nlohmann.json.ixx">
+      <Filter>Src</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\DX12\DX12.Canvas.ixx">
+      <Filter>Src</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\DX12\DX12.RenderPass.ixx">
+      <Filter>Src</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\PrimitiveManager.ixx">
+      <Filter>Src</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\Grassland.ixx">
+      <Filter>Src\Lumina</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\DeferredLighting.ixx">
+      <Filter>Src\Lumina</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\DeferredLighting.cpp">
+      <Filter>Src\Lumina</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\ParticleSystem.ixx">
+      <Filter>Src\Lumina</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\DX12\DX12.Fence.ixx">
+      <Filter>Src\Lumina\DX12</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Game\Player.cpp">
+      <Filter>Src\Game</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Game\Player.ixx">
+      <Filter>Src\Game</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Game\PlayerCamera.ixx">
+      <Filter>Src\Game</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Game\Scene\Game.Scene.InGame.Initialize.cpp">
+      <Filter>Src\Game\Scene\InGame</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Game\Scene\Game.Scene.InGame.ixx">
+      <Filter>Src\Game\Scene\InGame</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Game\Scene\Game.Scene.InGame.Render.cpp">
+      <Filter>Src\Game\Scene\InGame</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Game\Scene\Game.Scene.InGame.Update.cpp">
+      <Filter>Src\Game\Scene\InGame</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Game\Scene\Game.Scene.InGame.Impl.ixx">
+      <Filter>Src\Game\Scene\InGame</Filter>
+    </ClCompile>
     <ClCompile Include="Src\Lumina\Lumina.ixx">
       <Filter>Src\Lumina</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\Lumina.Scene.ixx">
+      <Filter>Src\Lumina</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\Sprite.ixx">
+      <Filter>Src\Lumina</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Game\Scene\Game.Scene.InGame.Startup.cpp">
+      <Filter>Src\Game\Scene\InGame</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Game\Scene\Game.Scene.InGame.InBattle.cpp">
+      <Filter>Src\Game\Scene\InGame</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Game\Enemies\Boss.Kinoko.cpp">
+      <Filter>Src\Game\Enemies\Boss.Kinoko</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Game\Enemies\Boss.Kinoko.ixx">
+      <Filter>Src\Game\Enemies\Boss.Kinoko</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include=".editorconfig" />
+    <None Include=".gitignore" />
     <None Include="Assets\Shaders\Basic.hlsli">
       <Filter>Assets\Shaders</Filter>
     </None>
-    <None Include="..\.gitignore" />
+    <None Include="LE2C_13_コウ_シキン_milestone10.md" />
+    <None Include="..\readme.md" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="External\ImGui\backends\imgui_impl_dx12.h">

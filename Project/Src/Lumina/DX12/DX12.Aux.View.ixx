@@ -119,6 +119,12 @@ namespace Lumina::DX12 {
 			D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle_,
 			ResourceType const& res_
 		);
+		template<DXGI_FORMAT ViewFormat, typename ResourceType>
+		static void Create(
+			GraphicsDevice const& device_,
+			D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle_,
+			ResourceType const& res_
+		);
 	};
 
 	//----	------	------	------	------	----//
@@ -133,6 +139,21 @@ namespace Lumina::DX12 {
 		ResourceType const& res_
 	) {
 		Desc const resDesc{ res_ };
+		device_->CreateShaderResourceView(
+			res_.Get(),
+			&resDesc,
+			cpuHandle_
+		);
+	}
+
+	template<typename ElementType>
+	template<DXGI_FORMAT ViewFormat, typename ResourceType>
+	void ShaderResourceView<ElementType>::Create(
+		GraphicsDevice const& device_,
+		D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle_,
+		ResourceType const& res_
+	) {
+		Desc const resDesc{ res_, ViewFormat };
 		device_->CreateShaderResourceView(
 			res_.Get(),
 			&resDesc,
@@ -159,7 +180,10 @@ namespace Lumina::DX12 {
 		template<Concept_Buffer BufferType>
 		constexpr Desc(BufferType const& buf_) noexcept;
 		template<Concept_Texture2D Tex2DType>
-		constexpr Desc(Tex2DType const& buf_) noexcept;
+		constexpr Desc(
+			Tex2DType const& tex2D_,
+			DXGI_FORMAT viewFormat_ = DXGI_FORMAT_UNKNOWN
+		) noexcept;
 	};
 
 	//----	------	------	------	------	----//
@@ -211,7 +235,8 @@ namespace Lumina::DX12 {
 	template<typename ElementType>
 	template<Concept_Texture2D Tex2DType>
 	constexpr ShaderResourceView<ElementType>::Desc::Desc(
-		Tex2DType const& tex2D_
+		Tex2DType const& tex2D_,
+		DXGI_FORMAT viewFormat_
 	) noexcept {
 
 		//----	------	------	------	------	----//
@@ -226,7 +251,7 @@ namespace Lumina::DX12 {
 		//----	------	------	------	------	----//
 
 		else {
-			Format = tex2D_.Format();
+			Format = (viewFormat_ == DXGI_FORMAT_UNKNOWN) ? (tex2D_.Format()) : (viewFormat_);
 			ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 			Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 			Texture2D = D3D12_TEX2D_SRV{
@@ -270,6 +295,11 @@ namespace Lumina::DX12 {
 			const GraphicsDevice& device_,
 			D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle_,
 			const ComputeTexture2D& tex2D_
+		);
+		static void Create(
+			const GraphicsDevice& device_,
+			D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle_,
+			const RenderComputeTexture2D& tex2D_
 		);
 	};
 
@@ -323,6 +353,21 @@ namespace Lumina::DX12 {
 		);
 	}
 
+	template<typename ElementType>
+	void UnorderedAccessView<ElementType>::Create(
+		const GraphicsDevice& device_,
+		D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle_,
+		const RenderComputeTexture2D& tex2D_
+	) {
+		Desc uavDesc{ tex2D_ };
+		device_->CreateUnorderedAccessView(
+			tex2D_.Get(),
+			nullptr,
+			&uavDesc,
+			cpuHandle_
+		);
+	}
+
 	//====	======	======	======	======	====//
 
 	export template<typename ElementType>
@@ -341,6 +386,7 @@ namespace Lumina::DX12 {
 	public:
 		constexpr Desc(UnorderedAccessBuffer const& buf_) noexcept;
 		constexpr Desc(ComputeTexture2D const& tex2D_) noexcept;
+		constexpr Desc(RenderComputeTexture2D const& tex2D_) noexcept;
 	};
 
 	//----	------	------	------	------	----//
@@ -413,6 +459,185 @@ namespace Lumina::DX12 {
 			Texture2D = D3D12_TEX2D_UAV{};
 		}
 	}
+
+	template<typename ElementType>
+	constexpr UnorderedAccessView<ElementType>::Desc::Desc(
+		RenderComputeTexture2D const& tex2D_
+	) noexcept {
+
+		//----	------	------	------	------	----//
+		//	Typed									//
+		//----	------	------	------	------	----//
+
+		if constexpr (!std::is_void_v<ElementType>) {
+			Format = DXGI_FORMAT_UNKNOWN;
+			ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+			Texture2D = D3D12_TEX2D_UAV{};
+		}
+
+		//----	------	------	------	------	----//
+		//	Typeless								//
+		//----	------	------	------	------	----//
+
+		else {
+			Format = tex2D_.Format();
+			ViewDimension = D3D12_UAV_DIMENSION_TEXTURE2D;
+			Texture2D = D3D12_TEX2D_UAV{};
+		}
+	}
+}
+
+//////	//////	//////	//////	//////	//////
+//	RenderTargetView						//
+//////	//////	//////	//////	//////	//////
+
+namespace Lumina::DX12 {
+
+	//----	------	------	------	------	----//
+	//	Declaration								//
+	//----	------	------	------	------	----//
+
+	export class RenderTargetView {
+	public:
+		class Desc;
+
+		//====	======	======	======	======	====//
+
+	public:
+		template<Concept_Resource ResourceType>
+		static void Create(
+			GraphicsDevice const& device_,
+			D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle_,
+			ResourceType const& res_
+		);
+	};
+
+	//----	------	------	------	------	----//
+	//	Implementation							//
+	//----	------	------	------	------	----//
+
+	template<Concept_Resource ResourceType>
+	void RenderTargetView::Create(
+		GraphicsDevice const& device_,
+		D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle_,
+		ResourceType const& res_
+	) {
+		Desc const resDesc{ res_ };
+		device_->CreateRenderTargetView(
+			res_.Get(),
+			&resDesc,
+			cpuHandle_
+		);
+	}
+
+	//====	======	======	======	======	====//
+
+	export using RTV = RenderTargetView;
+
+	//****	******	******	******	******	****//
+
+	//====	======	======	======	======	====//
+	//	RenderTargetView::Desc					//
+	//====	======	======	======	======	====//
+
+	class RenderTargetView::Desc :
+		public D3D12_RENDER_TARGET_VIEW_DESC {
+	public:
+		template<Concept_Texture2D Tex2DType>
+		constexpr Desc(Tex2DType const& tex2D_) noexcept;
+	};
+
+	//----	------	------	------	------	----//
+	//	Tex2D RTV								//
+	//----	------	------	------	------	----//
+
+	template<Concept_Texture2D Tex2DType>
+	constexpr RenderTargetView::Desc::Desc(
+		Tex2DType const& tex2D_
+	) noexcept {
+		Format = tex2D_.Format();
+		ViewDimension = D3D12_RTV_DIMENSION_TEXTURE2D;
+		Texture2D = D3D12_TEX2D_RTV{};
+	}
+}
+
+//////	//////	//////	//////	//////	//////
+//	DepthStencilView						//
+//////	//////	//////	//////	//////	//////
+
+namespace Lumina::DX12 {
+
+	//----	------	------	------	------	----//
+	//	Declaration								//
+	//----	------	------	------	------	----//
+
+	export class DepthStencilView {
+	public:
+		class Desc;
+
+		//====	======	======	======	======	====//
+
+	public:
+		template<Concept_Resource ResourceType>
+		static void Create(
+			GraphicsDevice const& device_,
+			D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle_,
+			ResourceType const& res_,
+			DXGI_FORMAT format_
+		);
+	};
+
+	//----	------	------	------	------	----//
+	//	Implementation							//
+	//----	------	------	------	------	----//
+
+	template<Concept_Resource ResourceType>
+	void DepthStencilView::Create(
+		GraphicsDevice const& device_,
+		D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle_,
+		ResourceType const& res_,
+		DXGI_FORMAT format_
+	) {
+		Desc const resDesc{ res_, format_ };
+		device_->CreateDepthStencilView(
+			res_.Get(),
+			&resDesc,
+			cpuHandle_
+		);
+	}
+
+	//====	======	======	======	======	====//
+
+	export using DSV = DepthStencilView;
+
+	//****	******	******	******	******	****//
+
+	//====	======	======	======	======	====//
+	//	DepthStencilView::Desc					//
+	//====	======	======	======	======	====//
+
+	class DepthStencilView::Desc :
+		public D3D12_DEPTH_STENCIL_VIEW_DESC {
+	public:
+		constexpr Desc(
+			[[maybe_unused]] DepthTexture2D const& tex2D_,
+			DXGI_FORMAT format_
+		) noexcept;
+	};
+
+	//----	------	------	------	------	----//
+	//	Tex2D DSV								//
+	//----	------	------	------	------	----//
+
+	constexpr DepthStencilView::Desc::Desc(
+		[[maybe_unused]] DepthTexture2D const& tex2D_,
+		DXGI_FORMAT format_
+	) noexcept {
+		Format = format_;
+		ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+		Flags = D3D12_DSV_FLAG_NONE;
+		Texture2D = D3D12_TEX2D_DSV{};
+	}
 }
 
 //////	//////	//////	//////	//////	//////
@@ -426,25 +651,25 @@ namespace Lumina::DX12 {
 	//	VertexBufferView						//
 	//////	//////	//////	//////	//////	//////
 
-	export template<typename VertexType>
-	class VertexBufferView : public D3D12_VERTEX_BUFFER_VIEW {
+	export class VertexBufferView : public D3D12_VERTEX_BUFFER_VIEW {
 	public:
-		template<typename BufferType>
-		constexpr VertexBufferView(const BufferType& buf_) noexcept :
-			D3D12_VERTEX_BUFFER_VIEW{
+		template<typename VertexType, typename BufferType>
+		static constexpr VertexBufferView Create(BufferType const& buf_) noexcept {
+			D3D12_VERTEX_BUFFER_VIEW vbv{
 				// GPU virtual address of the buffer
 				.BufferLocation{ buf_->GetGPUVirtualAddress() },
 				// Size, in bytes, of the buffer
 				.SizeInBytes{ static_cast<uint32_t>(buf_.SizeInBytes()) },
 				// Size, in bytes, per vertex
 				.StrideInBytes{ sizeof(VertexType) },
-			} {}
+			};
+			return static_cast<VertexBufferView>(vbv);
+		}
 	};
 
 	//====	======	======	======	======	====//
 
-	export template<typename VertexType>
-	using VBV = VertexBufferView<VertexType>;
+	export using VBV = VertexBufferView;
 
 	//****	******	******	******	******	****//
 
@@ -455,12 +680,14 @@ namespace Lumina::DX12 {
 	export class IndexBufferView : public D3D12_INDEX_BUFFER_VIEW {
 	public:
 		template<typename BufferType>
-		constexpr IndexBufferView(const BufferType& buf_) noexcept :
-			D3D12_INDEX_BUFFER_VIEW{
+		static constexpr IndexBufferView Create(BufferType const& buf_) noexcept {
+			D3D12_INDEX_BUFFER_VIEW ibv{
 				.BufferLocation{ buf_->GetGPUVirtualAddress() },
 				.SizeInBytes{ static_cast<uint32_t>(buf_.SizeInBytes()) },
 				.Format{ DXGI_FORMAT_R32_UINT },
-			} {}
+			};
+			return static_cast<IndexBufferView>(ibv);
+		}
 	};
 
 	//====	======	======	======	======	====//

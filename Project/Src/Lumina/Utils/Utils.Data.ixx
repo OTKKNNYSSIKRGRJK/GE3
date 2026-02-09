@@ -1,21 +1,15 @@
-module;
-
-#include<vector>
-#include<unordered_map>
-
-#include<string>
-#include<format>
-
-#include<fstream>
-#include<sstream>
-
-#include<External/nlohmann.JSON/single_include/nlohmann/json.hpp>
-
-//////	//////	//////	//////	//////	//////
-//////	//////	//////	//////	//////	//////
-//////	//////	//////	//////	//////	//////
-
 export module Lumina.Utils.Data;
+
+import <vector>;
+import <unordered_map>;
+
+import <string>;
+import <format>;
+
+import <fstream>;
+import <sstream>;
+
+import nlohmann.json;
 
 import Lumina.Utils.Debug;
 
@@ -117,23 +111,35 @@ namespace Lumina::Utils {
 			uint32_t Index_Vertex_Last;
 		};
 
+		struct Offset {
+			uint32_t Index_Position;
+			uint32_t Index_TexCoord;
+			uint32_t Index_Normal;
+			uint32_t Index_Face;
+		};
+
 		//////	//////	//////	//////	//////	//////
 
 	public:
-		constexpr auto Position(uint32_t idx_) const -> Numerics::Float4 const& { return Positions_.at(idx_); }
-		constexpr auto TexCoord(uint32_t idx_) const -> Numerics::Float2 const& { return TexCoords_.at(idx_); }
-		constexpr auto Normal(uint32_t idx_) const -> Numerics::Float3 const& { return Normals_.at(idx_); }
+		constexpr auto Num_Objects() const noexcept -> uint32_t { return static_cast<uint32_t>(ObjectNames_.size()); }
 
-		constexpr auto Positions() const noexcept -> std::vector<Numerics::Float4> const& { return Positions_; }
+		constexpr auto ObjectNames() const noexcept -> std::vector<std::string> const& { return ObjectNames_; }
+		constexpr auto ObjectOffsets() const noexcept -> std::vector<Offset> const& { return ObjectOffsets_; }
+		
+		constexpr auto Positions() const noexcept -> std::vector<Numerics::Float3> const& { return Positions_; }
 		constexpr auto TexCoords() const noexcept -> std::vector<Numerics::Float2> const& { return TexCoords_; }
 		constexpr auto Normals() const noexcept -> std::vector<Numerics::Float3> const& { return Normals_; }
+		
 		constexpr auto Vertices() const noexcept -> std::vector<Vertex> const& { return Vertices_; }
 		constexpr auto Faces() const noexcept -> std::vector<Face> const& { return Faces_; }
 
 		//////	//////	//////	//////	//////	//////
 
 	protected:
-		std::vector<Numerics::Float4> Positions_{};
+		std::vector<std::string> ObjectNames_{};
+		std::vector<Offset> ObjectOffsets_{};
+
+		std::vector<Numerics::Float3> Positions_{};
 		std::vector<Numerics::Float2> TexCoords_{};
 		std::vector<Numerics::Float3> Normals_{};
 
@@ -155,6 +161,7 @@ namespace Lumina::Utils {
 			//////	//////	//////	//////	//////	//////
 
 		private:
+			void ReadObjectName(std::istringstream& iss_);
 			void ReadPosition(std::istringstream& iss_);
 			void ReadTexCoord(std::istringstream& iss_);
 			void ReadNormal(std::istringstream& iss_);
@@ -175,6 +182,18 @@ namespace Lumina::Utils {
 					auto&& it{ Statements_.find(specifier) };
 					if (it != Statements_.cend()) { (this->*(it->second))(iss_Line); }
 				}
+
+				if (ObjectOffsets_.empty()) {
+					ObjectNames_.emplace_back();
+					ObjectOffsets_.emplace_back(0U, 0U, 0U, 0U);
+				}
+
+				ObjectOffsets_.emplace_back(
+					static_cast<uint32_t>(Positions_.size()),
+					static_cast<uint32_t>(TexCoords_.size()),
+					static_cast<uint32_t>(Normals_.size()),
+					static_cast<uint32_t>(Faces_.size())
+				);
 			}
 			~WavefrontOBJParser() noexcept = default;
 
@@ -182,6 +201,7 @@ namespace Lumina::Utils {
 
 		private:
 			static inline std::unordered_map<Specifier, Statement> const Statements_{
+				{ "o", &ReadObjectName },
 				{ "v", &ReadPosition },
 				{ "vt", &ReadTexCoord },
 				{ "vn", &ReadNormal },
@@ -192,10 +212,21 @@ namespace Lumina::Utils {
 
 		//////	//////	//////	//////	//////	//////
 
+		void WavefrontOBJParser::ReadObjectName(std::istringstream& iss_) {
+			std::string& objName{ ObjectNames_.emplace_back() };
+			std::getline(iss_, objName);
+
+			ObjectOffsets_.emplace_back(
+				static_cast<uint32_t>(Positions_.size()),
+				static_cast<uint32_t>(TexCoords_.size()),
+				static_cast<uint32_t>(Normals_.size()),
+				static_cast<uint32_t>(Faces_.size())
+			);
+		}
+
 		void WavefrontOBJParser::ReadPosition(std::istringstream& iss_) {
-			Numerics::Float4& pos{ Positions_.emplace_back() };
+			Numerics::Float3& pos{ Positions_.emplace_back() };
 			iss_ >> pos.x >> pos.y >> pos.z;
-			pos.w = 1.0f;
 		}
 
 		void WavefrontOBJParser::ReadTexCoord(std::istringstream& iss_) {

@@ -61,13 +61,13 @@ namespace Lumina::DX12 {
 			return (resID_ & BitMask_ResourceIndex_);
 		}
 
-		auto GetResource(ResourceID resID_) const noexcept -> IResource* {
+		auto GetResource(ResourceID resID_) const noexcept -> void* {
 			RESOURCE_TYPE resType{ GetResourceType(resID_) };
 			uint32_t resIdx{ GetResourceIndex(resID_) };
 
 			switch (resType) {
 				case RESOURCE_TYPE::IMAGE_TEXTURE2D:
-					return reinterpret_cast<IResource*>(Arr_ImageTextures_.at(resIdx).get());
+					return reinterpret_cast<void*>(Arr_ImageTextures_.at(resIdx).get());
 			}
 
 			return nullptr;

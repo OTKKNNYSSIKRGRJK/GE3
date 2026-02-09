@@ -6,6 +6,8 @@ import <cmath>;
 
 import <immintrin.h>;
 
+import Lumina.Math.Numerics;
+
 //////	//////	//////	//////	//////	//////
 
 #define INLINE_NAMESPACE_MATH_BEGIN		inline namespace Math {
@@ -90,6 +92,7 @@ export namespace Lumina {
 		constexpr Vec2() noexcept : x{ 0.0f }, y{ 0.0f } {}
 		constexpr Vec2(float x_, float y_) noexcept : x{ x_ }, y{ y_ } {}
 		constexpr Vec2(float const entries_[2]) noexcept : x{ entries_[0] }, y{ entries_[1] } {}
+		constexpr Vec2(Float2 const& float2_) noexcept : x{ float2_.x }, y{ float2_.y } {}
 
 		//====	======	======	======	======	====//
 
@@ -229,6 +232,10 @@ export namespace Lumina {
 			x{ entries_[0] },
 			y{ entries_[1] },
 			z{ entries_[2] } {}
+		constexpr Vec3(Float3 const& float3_) noexcept :
+			x{ float3_.x },
+			y{ float3_.y },
+			z{ float3_.z } {}
 		constexpr Vec3(Vec2 const& vec2_) noexcept :
 			x{ vec2_.x },
 			y{ vec2_.y } {}
@@ -396,6 +403,11 @@ export namespace Lumina {
 			y{ entries_[1] },
 			z{ entries_[2] },
 			w{ entries_[3] } {}
+		constexpr Vec4(Float4 const& float4_) noexcept :
+			x{ float4_.x },
+			y{ float4_.y },
+			z{ float4_.z },
+			w{ float4_.w } {}
 		constexpr Vec4(Vec3 const& vec3_) noexcept :
 			x{ vec3_.x },
 			y{ vec3_.y },

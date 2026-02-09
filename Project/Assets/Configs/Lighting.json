@@ -1,0 +1,100 @@
+{
+  "RS": {
+    "Parameters": [
+      {
+        "ShaderVisibility": "Vertex",
+        "ParameterType": "DescriptorTable",
+        "TableName": "V.Transform"
+      },
+      {
+        "ShaderVisibility": "Pixel",
+        "ParameterType": "DescriptorTable",
+        "TableName": "P.PointLight"
+      },
+      {
+        "ShaderVisibility": "Vertex",
+        "ParameterType": "DescriptorTable",
+        "TableName": "V.Index"
+      },
+      {
+        "ShaderVisibility": "Pixel",
+        "ParameterType": "DescriptorTable",
+        "TableName": "P.G-Buffer"
+      }
+    ],
+
+    "V.Transform": [
+      {
+        "Name": "Array: Mat4.World",
+        "RangeType": "SRV",
+        "NumDescriptors": 1,
+        "BaseShaderRegister": 0,
+        "RegisterSpace": 0,
+        "OffsetInDescriptorsFromTableStart": 0
+      },
+      {
+        "Name": "Mat4.WorldToNDC",
+        "RangeType": "CBV",
+        "NumDescriptors": 1,
+        "BaseShaderRegister": 0,
+        "RegisterSpace": 0,
+        "OffsetInDescriptorsFromTableStart": -1
+      }
+    ],
+    "P.PointLight": [
+      {
+        "Name": "Array: Info",
+        "RangeType": "SRV",
+        "NumDescriptors": 1,
+        "BaseShaderRegister": 0,
+        "RegisterSpace": 1,
+        "OffsetInDescriptorsFromTableStart": 0
+      },
+      {
+        "Name": "Mat4.ScreenToWorld",
+        "RangeType": "CBV",
+        "NumDescriptors": 1,
+        "BaseShaderRegister": 0,
+        "RegisterSpace": 1,
+        "OffsetInDescriptorsFromTableStart": -1
+      }
+    ],
+    "V.Index": [
+      {
+        "Name": "Array: Index.ActivePointLight",
+        "RangeType": "SRV",
+        "NumDescriptors": 1,
+        "BaseShaderRegister": 0,
+        "RegisterSpace": 2,
+        "OffsetInDescriptorsFromTableStart": 0
+      }
+    ],
+    "P.G-Buffer": [
+      {
+        "Name": "Array: Tex2D.G-Buffer",
+        "RangeType": "SRV",
+        "NumDescriptors": 4,
+        "BaseShaderRegister": 0,
+        "RegisterSpace": 16,
+        "OffsetInDescriptorsFromTableStart": 0
+      }
+    ],
+
+    "StaticSamplers": [
+      {
+        "Filter": {
+          "ReductionType": "Standard",
+          "IsAnisotropic": 0,
+          "MinFilter": "Bilinear",
+          "MagFilter": "Bilinear",
+          "MipFilter": "Bilinear"
+        },
+        "TextureAddressU": "Clamp",
+        "TextureAddressV": "Clamp",
+        "TextureAddressW": "Clamp",
+        "ShaderRegister": 0,
+        "ShaderVisibility": "Pixel"
+      }
+    ]
+  }
+}

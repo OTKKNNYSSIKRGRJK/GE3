@@ -147,14 +147,14 @@ namespace Lumina::DX12 {
 			Utils::String::Convert(FilePath_), Utils::String::Convert(Profile_)
 		);
 
+		SetDebugName(debugName_);
+
 		COMPtr<IDxcBlobEncoding> shaderSource{ compiler_.LoadFromFile(FilePath_) };
 		compiler_.Compile(*this, shaderSource, entryPoint_);
 		Logger().Message<0U>(
 			"Shader,{},Compilation ended successfully.\n",
 			debugName_
 		);
-
-		SetDebugName(debugName_);
 	}
 
 	//////	//////	//////	//////	//////	//////

@@ -104,11 +104,11 @@ namespace Lumina::WinApp {
 	//----	------	------	------	------	----//
 
 	void Context::Initialize(Window::Config const& mainWindowConfig_) {
+		::timeBeginPeriod(1U);
+
 		WindowClass_.Initialize(::LoadCursor(nullptr, IDC_ARROW));
 
 		NewWindow(mainWindowConfig_);
-
-		::timeBeginPeriod(1U);
 	}
 
 	void Context::Finalize() noexcept {

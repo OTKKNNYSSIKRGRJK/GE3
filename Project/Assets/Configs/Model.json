@@ -1,0 +1,306 @@
+{
+  "Basic RS": {
+    "Parameters": [
+      {
+        "ShaderVisibility": "Pixel",
+        "ParameterType": "DescriptorTable",
+        "TableName": "Textures"
+      },
+      {
+        "ShaderVisibility": "Vertex",
+        "ParameterType": "DescriptorTable",
+        "TableName": "ConstantBuffers"
+      }
+    ],
+
+    "Textures": [
+      {
+        "RangeType": "SRV",
+        "NumDescriptors": 32,
+        "BaseShaderRegister": 0,
+        "RegisterSpace": 1,
+        "OffsetInDescriptorsFromTableStart": -1
+      }
+    ],
+    "ConstantBuffers": [
+      {
+        "RangeType": "CBV",
+        "NumDescriptors": 32,
+        "BaseShaderRegister": 0,
+        "RegisterSpace": 0,
+        "OffsetInDescriptorsFromTableStart": -1
+      }
+    ],
+
+    "StaticSamplers": [
+      {
+        "Filter": {
+          "ReductionType": "Standard",
+          "IsAnisotropic": 0,
+          "MinFilter": "Bilinear",
+          "MagFilter": "Bilinear",
+          "MipFilter": "Bilinear"
+        },
+        "TextureAddressU": "Clamp",
+        "TextureAddressV": "Clamp",
+        "TextureAddressW": "Clamp",
+        "ShaderRegister": 0,
+        "ShaderVisibility": "Pixel"
+      }
+    ]
+  },
+
+  "Basic PSO": {
+    "RasterizerState": {
+      "FillMode": "Solid",
+      "CullMode": "Back"
+    },
+    "InputLayout": [
+      [ "POSITION", 0, "float4" ],
+      [ "COLOR", 0, "float4" ],
+      [ "TEXCOORD", 0, "float2" ],
+      [ "NORMAL", 0, "float3" ]
+    ],
+    "PrimitiveTopologyType": "Triangle"
+  },
+
+  "Basic": {
+    "RS": "Basic RS",
+    "PSO": "Basic PSO"
+  },
+
+  "ComputeShaderTest RS": {
+    "Parameters": [
+      {
+        "ShaderVisibility": "All",
+        "ParameterType": "DescriptorTable",
+        "TableName": "Buffers"
+      }
+    ],
+
+    "Buffers": [
+      {
+        "RangeType": "UAV",
+        "NumDescriptors": 1,
+        "BaseShaderRegister": 0,
+        "RegisterSpace": 0,
+        "OffsetInDescriptorsFromTableStart": -1
+      },
+      {
+        "RangeType": "SRV",
+        "NumDescriptors": 1,
+        "BaseShaderRegister": 0,
+        "RegisterSpace": 0,
+        "OffsetInDescriptorsFromTableStart": -1
+      }
+    ],
+
+    "StaticSamplers": []
+  },
+
+  "Model.RS": {
+    "Parameters": [
+      {
+        "ShaderVisibility": "All",
+        "ParameterType": "DescriptorTable",
+        "TableName": "Material"
+      },
+      {
+        "ShaderVisibility": "Vertex",
+        "ParameterType": "DescriptorTable",
+        "TableName": "Worlds"
+      },
+      {
+        "ShaderVisibility": "All",
+        "ParameterType": "32BitConstants",
+        "ShaderRegister": 0,
+        "RegisterSpace": 0,
+        "Num32BitValues": 1
+      },
+      {
+        "ShaderVisibility": "Pixel",
+        "ParameterType": "DescriptorTable",
+        "TableName": "Textures"
+      },
+      {
+        "ShaderVisibility": "Pixel",
+        "ParameterType": "DescriptorTable",
+        "TableName": "Lighting"
+      },
+      {
+        "ShaderVisibility": "Vertex",
+        "ParameterType": "DescriptorTable",
+        "TableName": "VP"
+      }
+    ],
+
+    "Material": [
+      {
+        "RangeType": "CBV",
+        "NumDescriptors": 4096,
+        "BaseShaderRegister": 0,
+        "RegisterSpace": 3,
+        "OffsetInDescriptorsFromTableStart": -1
+      }
+    ],
+    "Textures": [
+      {
+        "RangeType": "SRV",
+        "NumDescriptors": 128,
+        "BaseShaderRegister": 0,
+        "RegisterSpace": 1,
+        "OffsetInDescriptorsFromTableStart": -1
+      }
+    ],
+    "Worlds": [
+      {
+        "RangeType": "SRV",
+        "NumDescriptors": 1,
+        "BaseShaderRegister": 0,
+        "RegisterSpace": 0,
+        "OffsetInDescriptorsFromTableStart": -1
+      }
+    ],
+    "Lighting": [
+      {
+        "RangeType": "CBV",
+        "NumDescriptors": 1,
+        "BaseShaderRegister": 0,
+        "RegisterSpace": 2,
+        "OffsetInDescriptorsFromTableStart": -1
+      }
+    ],
+    "VP": [
+      {
+        "RangeType": "CBV",
+        "NumDescriptors": 1,
+        "BaseShaderRegister": 1,
+        "RegisterSpace": 0,
+        "OffsetInDescriptorsFromTableStart": -1
+      }
+    ],
+
+    "StaticSamplers": [
+      {
+        "Filter": {
+          "ReductionType": "Standard",
+          "IsAnisotropic": 0,
+          "MinFilter": "Bilinear",
+          "MagFilter": "Bilinear",
+          "MipFilter": "Bilinear"
+        },
+        "TextureAddressU": "Wrap",
+        "TextureAddressV": "Wrap",
+        "TextureAddressW": "Wrap",
+        "ShaderRegister": 0,
+        "ShaderVisibility": "Pixel"
+      }
+    ]
+  },
+
+  "Model.PSO": {
+    "RasterizerState": {
+      "FillMode": "Solid",
+      "CullMode": "Back"
+    },
+    "DepthStencilState": {
+      "DepthEnable": 1,
+      "DepthWriteMask": "All",
+      "DepthFunc": "LessEqual",
+      "StencilEnable": 0
+    },
+    "InputLayout": [
+      [ "POSITION", 0, "float4" ],
+      [ "TEXCOORD", 0, "float2" ],
+      [ "NORMAL", 0, "float3" ]
+    ],
+    "PrimitiveTopologyType": "Triangle"
+  },
+
+  "BlendStates": [
+    [
+      {
+        "Name": "PremultipliedAlphaBlend",
+        "BlendEnable": 1,
+        "LogicOpEnable": 0,
+        "SrcBlend": "One",
+        "DestBlend": "InvSrcAlpha",
+        "BlendOp": "Src+Dst",
+        "SrcBlendAlpha": "One",
+        "DestBlendAlpha": "InvSrcAlpha",
+        "BlendOpAlpha": "Src+Dst",
+        "LogicOp": "None"
+      }
+    ],
+    [
+      {
+        "Name": "StraightAlphaBlend",
+        "BlendEnable": 1,
+        "LogicOpEnable": 0,
+        "SrcBlend": "SrcAlpha",
+        "DestBlend": "InvSrcAlpha",
+        "BlendOp": "Src+Dst",
+        "SrcBlendAlpha": "SrcAlpha",
+        "DestBlendAlpha": "InvSrcAlpha",
+        "BlendOpAlpha": "Src+Dst",
+        "LogicOp": "None"
+      }
+    ],
+    [
+      {
+        "Name": "Additive",
+        "BlendEnable": 1,
+        "LogicOpEnable": 0,
+        "SrcBlend": "SrcAlpha",
+        "DestBlend": "One",
+        "BlendOp": "Src+Dst",
+        "SrcBlendAlpha": "SrcAlpha",
+        "DestBlendAlpha": "One",
+        "BlendOpAlpha": "Src+Dst",
+        "LogicOp": "None"
+      }
+    ],
+    [
+      {
+        "Name": "Subtract",
+        "BlendEnable": 1,
+        "LogicOpEnable": 0,
+        "SrcBlend": "SrcAlpha",
+        "DestBlend": "One",
+        "BlendOp": "Dst-Src",
+        "SrcBlendAlpha": "One",
+        "DestBlendAlpha": "InvSrcAlpha",
+        "BlendOpAlpha": "Src+Dst",
+        "LogicOp": "None"
+      }
+    ],
+    [
+      {
+        "Name": "Multiply",
+        "BlendEnable": 1,
+        "LogicOpEnable": 0,
+        "SrcBlend": "Zero",
+        "DestBlend": "SrcColor",
+        "BlendOp": "Src+Dst",
+        "SrcBlendAlpha": "One",
+        "DestBlendAlpha": "InvSrcAlpha",
+        "BlendOpAlpha": "Src+Dst",
+        "LogicOp": "None"
+      }
+    ],
+    [
+      {
+        "Name": "Screen",
+        "BlendEnable": 1,
+        "LogicOpEnable": 0,
+        "SrcBlend": "InvDstColor",
+        "DestBlend": "One",
+        "BlendOp": "Src+Dst",
+        "SrcBlendAlpha": "One",
+        "DestBlendAlpha": "InvSrcAlpha",
+        "BlendOpAlpha": "Src+Dst",
+        "LogicOp": "None"
+      }
+    ]
+  ]
+}
