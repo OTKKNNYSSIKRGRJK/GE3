@@ -63,9 +63,6 @@ namespace Lumina::XAudio2 {
 	private:
 		static inline AudioManager* Manager_{ nullptr };
 	};
-
-	export class AudioStream::Handle;
-	export class AudioStreamPlayer::Handle;
 }
 
 namespace Lumina::XAudio2 {
@@ -78,9 +75,6 @@ namespace Lumina::XAudio2 {
 			bool flag_Loop_,
 			float volume_
 		);
-		void Resume(AudioStreamPlayer::Handle hndl_StreamPlayer_);
-		void Pause(AudioStreamPlayer::Handle hndl_StreamPlayer_);
-		void Stop(AudioStreamPlayer::Handle hndl_StreamPlayer_);
 
 	public:
 		void Update();
@@ -239,26 +233,6 @@ namespace Lumina::XAudio2 {
 			Array_StreamPlayers_.emplace_back(audioSource);
 		}
 		return *reinterpret_cast<AudioStreamPlayer::Handle*>(&handle_StreamPlayer);
-	}
-
-	void AudioManager::Resume(AudioStreamPlayer::Handle hndl_StreamPlayer_) {
-		int32_t const id{ *reinterpret_cast<int32_t*>(&hndl_StreamPlayer_) };
-		IXAudio2SourceVoice* audioSource{ Array_StreamPlayers_[id].Source };
-		audioSource->Start(0U);
-	}
-
-	void AudioManager::Pause(AudioStreamPlayer::Handle hndl_StreamPlayer_) {
-		int32_t const id{ *reinterpret_cast<int32_t*>(&hndl_StreamPlayer_) };
-		IXAudio2SourceVoice* audioSource{ Array_StreamPlayers_[id].Source };
-		audioSource->Stop(0U);
-	}
-
-	void AudioManager::Stop(AudioStreamPlayer::Handle hndl_StreamPlayer_) {
-		int32_t const id{ *reinterpret_cast<int32_t*>(&hndl_StreamPlayer_) };
-		IXAudio2SourceVoice*& audioSource{ Array_StreamPlayers_[id].Source };
-		audioSource->Stop(0U);
-		audioSource->DestroyVoice();
-		audioSource = nullptr;
 	}
 
 	void AudioManager::Update() {

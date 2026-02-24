@@ -37,7 +37,7 @@ namespace Lumina::Utils::Debug {
 	//----	------	------	------	------	----//
 
 	void Logger::Initialize(std::string_view logFileTitle_) {
-		//std::filesystem::create_directory("../Generated/Logs");
+		std::filesystem::create_directory("../Generated/Logs");
 		std::string logFilePath{
 			std::format(
 				"../Generated/Logs/{:%Y%m%d_%H%M%S}_{:s}.log",

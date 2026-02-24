@@ -41,7 +41,6 @@ namespace Lumina::DX12 {
 	class DefaultTexture2D;
 	class RenderTexture2D;
 	class ComputeTexture2D;
-	class RenderComputeTexture2D;
 	class DepthTexture2D;
 }
 
@@ -61,7 +60,7 @@ namespace Lumina::DX12 {
 	class CommonTexture2D :
 		public Wrapper<CommonTexture2D<Settings>, ID3D12Resource>,
 		public NonCopyable<CommonTexture2D<Settings>>,
-		public Texture2D {
+		public ITexture2D {
 		using SelfType = CommonTexture2D<Settings>;
 		using WrapperType = Wrapper<SelfType, ID3D12Resource>;
 
@@ -321,7 +320,7 @@ namespace Lumina::DX12 {
 		constexpr ResourceSettings RenderTexture2DSettings{
 			.HeapProperties{ .Type{ D3D12_HEAP_TYPE_DEFAULT }, },
 			.ResourceFlags{ D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET },
-			.InitialState{ D3D12_RESOURCE_STATE_RENDER_TARGET },
+			.InitialState{ D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE },
 		};
 	}
 
@@ -353,7 +352,7 @@ namespace Lumina::DX12 {
 			uint32_t width_,
 			uint32_t height_,
 			DXGI_FORMAT format_ = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB,
-			Float4 const& clearColor_ = { 0.0f, 0.0f, 0.0f, 0.0f },
+			Float4 const& clearColor_ = { 0.0f, 0.0f, 0.0f, 1.0f },
 			std::string_view debugName_ = "RenderTex2D"
 		);
 
@@ -435,7 +434,10 @@ namespace Lumina::DX12 {
 		constexpr ResourceSettings ComputeTexture2DSettings{
 			.HeapProperties{ .Type{ D3D12_HEAP_TYPE_DEFAULT }, },
 			.ResourceFlags{ D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS },
-			.InitialState{ D3D12_RESOURCE_STATE_UNORDERED_ACCESS },
+			.InitialState{
+				D3D12_RESOURCE_STATE_UNORDERED_ACCESS |
+				D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE
+			},
 		};
 	}
 
@@ -526,117 +528,9 @@ namespace Lumina::DX12 {
 	}
 }
 
-//////	//////	//////	//////	//////	//////
-//	RenderComputeTexture2D					//
-//////	//////	//////	//////	//////	//////
-
-namespace Lumina::DX12 {
-
-	//----	------	------	------	------	----//
-	//	Settings								//
-	//----	------	------	------	------	----//
-
-	namespace {
-		constexpr ResourceSettings RenderComputeTexture2DSettings{
-			.HeapProperties{.Type{ D3D12_HEAP_TYPE_DEFAULT }, },
-			.ResourceFlags{
-				D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET |
-				D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS
-			},
-			.InitialState{ D3D12_RESOURCE_STATE_COMMON },
-		};
-	}
-
-	//****	******	******	******	******	****//
-
-	//----	------	------	------	------	----//
-	//	Declaration								//
-	//----	------	------	------	------	----//
-
-	export class RenderComputeTexture2D :
-		public CommonTexture2D<RenderComputeTexture2DSettings> {
-		using ParentType = CommonTexture2D<RenderComputeTexture2DSettings>;
-
-		//====	======	======	======	======	====//
-
-	private:
-		auto CreateD3D12Resource(
-			GraphicsDevice const& device_,
-			D3D12_RESOURCE_DESC const& resDesc_,
-			std::string_view debugName_
-		) -> void;
-
-		//----	------	------	------	------	----//
-
-	public:
-		void Initialize(
-			GraphicsDevice const& device_,
-			uint32_t width_,
-			uint32_t height_,
-			DXGI_FORMAT format_ = DXGI_FORMAT_R8G8B8A8_UNORM,
-			std::string_view debugName_ = "RenderComputeTex2D"
-		);
-
-		//----	------	------	------	------	----//
-
-	public:
-		constexpr RenderComputeTexture2D() noexcept = default;
-		constexpr virtual ~RenderComputeTexture2D() noexcept = default;
-	};
-
-	//----	------	------	------	------	----//
-	//	Implementation							//
-	//----	------	------	------	------	----//
-
-	auto RenderComputeTexture2D::CreateD3D12Resource(
-		GraphicsDevice const& device_,
-		D3D12_RESOURCE_DESC const& resDesc_,
-		std::string_view debugName_
-	) -> void {
-		device_->CreateCommittedResource(
-			&RenderComputeTexture2DSettings.HeapProperties,
-			D3D12_HEAP_FLAG_NONE,
-			&resDesc_,
-			RenderComputeTexture2DSettings.InitialState,
-			nullptr,
-			IID_PPV_ARGS(GetAddressOf())
-		) ||
-		Utils::Debug::ThrowIfFailed{
-			std::format(
-				"<DX12.RenderComputeTexture2D> Failed to create {}!\n",
-				debugName_
-			)
-		};
-	}
-
-	//----	------	------	------	------	----//
-
-	void RenderComputeTexture2D::Initialize(
-		GraphicsDevice const& device_,
-		uint32_t width_,
-		uint32_t height_,
-		DXGI_FORMAT format_,
-		std::string_view debugName_
-	) {
-		ParentType::ThrowIfInitialized(debugName_);
-
-		ParentType::VerifySize(width_, height_, debugName_);
-		auto&& resDesc{
-			ParentType::GenerateResourceDesc(
-				1U,
-				format_,
-				SampleDesc_NoMultisampling
-			)
-		};
-		CreateD3D12Resource(device_, resDesc, debugName_);
-
-		ParentType::SetDebugName(debugName_);
-	}
-}
-
 
 //////	//////	//////	//////	//////	//////
-//	DepthStencilTexture2D					//
+//	DepthTexture2D							//
 //////	//////	//////	//////	//////	//////
 
 namespace Lumina::DX12 {
@@ -646,7 +540,7 @@ namespace Lumina::DX12 {
 	//----	------	------	------	------	----//
 
 	namespace {
-		constexpr ResourceSettings DepthStencilTexture2DSettings{
+		constexpr ResourceSettings DepthTexture2DSettings{
 			.HeapProperties{ .Type{ D3D12_HEAP_TYPE_DEFAULT }, },
 			.ResourceFlags{ D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL },
 			.InitialState{ D3D12_RESOURCE_STATE_DEPTH_WRITE },
@@ -660,8 +554,8 @@ namespace Lumina::DX12 {
 	//----	------	------	------	------	----//
 
 	export class DepthTexture2D :
-		public CommonTexture2D<DepthStencilTexture2DSettings> {
-		using ParentType = CommonTexture2D<DepthStencilTexture2DSettings>;
+		public CommonTexture2D<DepthTexture2DSettings> {
+		using ParentType = CommonTexture2D<DepthTexture2DSettings>;
 
 		//====	======	======	======	======	====//
 
@@ -700,22 +594,22 @@ namespace Lumina::DX12 {
 	) -> void {
 		D3D12_CLEAR_VALUE clearValue{
 			// Same format as of the resource
-			.Format{ DXGI_FORMAT_D24_UNORM_S8_UINT },
+			.Format{ resDesc_.Format },
 			// Clears the depth stencil texture by the largest valid value (i.e. 1.0f).
 			.DepthStencil{ .Depth{ 1.0f } },
 		};
 
 		device_->CreateCommittedResource(
-			&DepthStencilTexture2DSettings.HeapProperties,
+			&DepthTexture2DSettings.HeapProperties,
 			D3D12_HEAP_FLAG_NONE,
 			&resDesc_,
-			DepthStencilTexture2DSettings.InitialState,
+			DepthTexture2DSettings.InitialState,
 			&clearValue,
 			IID_PPV_ARGS(GetAddressOf())
 		) ||
 		Utils::Debug::ThrowIfFailed{
 			std::format(
-				"<DX12.DepthStencilTexture2D> Failed to create {}!\n",
+				"<DX12.DepthTexture2D> Failed to create {}!\n",
 				debugName_
 			)
 		};
@@ -735,7 +629,7 @@ namespace Lumina::DX12 {
 		auto&& resDesc{
 			ParentType::GenerateResourceDesc(
 				1U,
-				DXGI_FORMAT_R24G8_TYPELESS,
+				DXGI_FORMAT_D24_UNORM_S8_UINT,
 				SampleDesc_NoMultisampling
 			)
 		};

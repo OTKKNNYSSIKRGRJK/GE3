@@ -43,7 +43,7 @@ export namespace Lumina {
 	private:
 		float BaseFrequency_{};
 		uint32_t Num_Octaves_{};
-		float Persistence_{};
+		float Persistance_{};
 		Float3 Offset_{};
 
 		// Inverse of the maximum possible value of all outputs
@@ -143,7 +143,7 @@ namespace Lumina {
 
 		for (uint32_t i_Octave{ 0U }; i_Octave < Num_Octaves_; ++i_Octave) {
 			output += Calculate(x_, y_, z_, frequency, Offset_) * amplitude;
-			amplitude *= Persistence_;
+			amplitude *= Persistance_;
 			frequency *= 2.0f;
 		}
 
@@ -160,14 +160,14 @@ namespace Lumina {
 	) noexcept {
 		BaseFrequency_ = std::max<float>(std::abs(baseFreq_), 0.0009765625f);
 		Num_Octaves_ = std::clamp<uint32_t>(num_Octaves_, 1U, 8U);
-		Persistence_ = std::max<float>(persistance_, 0.0f);
+		Persistance_ = std::max<float>(persistance_, 0.0f);
 		Offset_ = offset_;
 
 		float maxPossibleValue{ 0.0f };
 		float amplitude{ 1.0f };
 		for (uint32_t i_Octave{ 0U }; i_Octave < Num_Octaves_; ++i_Octave) {
 			maxPossibleValue += amplitude;
-			amplitude *= Persistence_;
+			amplitude *= Persistance_;
 		}
 		Inv_MaxPossibleValue_ = 1.0f / maxPossibleValue;
 	}

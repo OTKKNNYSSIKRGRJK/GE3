@@ -98,7 +98,7 @@ namespace Lumina {
 			}
 
 			static constexpr auto Rotate(Vec4 const& vec4_, Quaternion const& quat_) noexcept -> Vec4 {
-				Quaternion&& vec4_Rotated{ quat_ * Quaternion{ vec4_ } * quat_.Reciprocal() };
+				Quaternion&& vec4_Rotated{ quat_ * Quaternion{ vec4_ } *quat_.Reciprocal() };
 				return Vec4{ reinterpret_cast<float const*>(&vec4_Rotated) };
 			}
 

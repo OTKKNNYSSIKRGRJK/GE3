@@ -362,13 +362,8 @@ namespace Lumina::DX12 {
 			.DSVFormat{ dsvFormat_ },
 			.SampleDesc{ .Count{ 1U }, },
 		};
-		uint32_t num_RTVsWithNonUnknownFormat{ 0U };
 		for (size_t i{ 0LLU }; i < std::min<size_t>(rtvFormats_.size(), 8LLU); ++i) {
 			psoDesc.RTVFormats[i] = rtvFormats_.at(i);
-			if (psoDesc.RTVFormats[i] != DXGI_FORMAT_UNKNOWN) { ++num_RTVsWithNonUnknownFormat; }
-		}
-		if (num_RTVsWithNonUnknownFormat == 0U) {
-			psoDesc.NumRenderTargets = 0U;
 		}
 
 		device_->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&Wrapped_)) ||

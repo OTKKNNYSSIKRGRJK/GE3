@@ -9,165 +9,142 @@ namespace Lumina {
 	export template<typename T>
 	class List {
 	protected:
-		T* Elements_{ nullptr };
-		bool* Table_IsActive_{ nullptr };
-		int* Table_Prev_{ nullptr };
-		int* Table_Next_{ nullptr };
+		T* Table_Element{ nullptr };
+		bool* Table_IsActive{ nullptr };
+		int* Table_Prev{ nullptr };
+		int* Table_Next{ nullptr };
 
 		uint32_t Capacity_{ 32U };
-		uint32_t Size_{ 0U };
 
-		int32_t Active_First_{};
-		int32_t Active_Last_{};
-		int32_t Inactive_First_{};
-		int32_t Inactive_Last_{};
+		int Active_First{};
+		int Active_Last{};
+		int Inactive_First{};
+		int Inactive_Last{};
 
-		void Initialize_Implementation(uint32_t capacity_) {
-			if (capacity_ > 0U) { Capacity_ = capacity_; }
+		void Initialize(uint32_t capacity_) {
+			if (capacity_ > 0) { Capacity_ = capacity_; }
 
-			assert(Elements_ == nullptr);
-			Elements_ = new T[Capacity_];
+			assert(Table_Element == nullptr);
+			Table_Element = new T[Capacity_];
 
-			assert(Table_IsActive_ == nullptr);
-			Table_IsActive_ = new bool[Capacity_];
+			assert(Table_IsActive == nullptr);
+			Table_IsActive = new bool[Capacity_];
 
-			assert(Table_Prev_ == nullptr);
-			Table_Prev_ = new int[Capacity_];
+			assert(Table_Prev == nullptr);
+			Table_Prev = new int[Capacity_];
 
-			assert(Table_Next_ == nullptr);
-			Table_Next_ = new int[Capacity_];
+			assert(Table_Next == nullptr);
+			Table_Next = new int[Capacity_];
 
-			std::memset(Table_IsActive_, 0, sizeof(bool) * Capacity_);
+			std::memset(Table_IsActive, 0, sizeof(bool) * Capacity_);
 			for (uint32_t i{ 0U }; i < Capacity_; ++i) {
-				Table_Prev_[i] = i - 1;
-				Table_Next_[i] = i + 1;
+				Table_Prev[i] = i - 1;
+				Table_Next[i] = i + 1;
 			}
-			Table_Next_[Capacity_ - 1] = -1;
+			Table_Next[Capacity_ - 1] = -1;
 
-			Active_First_ = -1;
-			Active_Last_ = -1;
-			Inactive_First_ = 0;
-			Inactive_Last_ = Capacity_ - 1;
-
-			Size_ = 0U;
+			Active_First = -1;
+			Active_Last = -1;
+			Inactive_First = 0;
+			Inactive_Last = Capacity_ - 1;
 		}
 
 		void Delete_Implementation(int index) {
-			if (index > -1 && index < static_cast<int>(Capacity_) && Table_IsActive_[index] == 1) {
-				int prev{ Table_Prev_[index] };
-				int next{ Table_Next_[index] };
+			if (index > -1 && index < static_cast<int>(Capacity_) && Table_IsActive[index] == 1) {
+				int prev{ Table_Prev[index] };
+				int next{ Table_Next[index] };
 
-				if (index != Active_First_) { Table_Next_[prev] = Table_Next_[index]; }
-				else { Active_First_ = Table_Next_[Active_First_]; }
-				if (index != Active_Last_) { Table_Prev_[next] = Table_Prev_[index]; }
-				else { Active_Last_ = Table_Prev_[Active_Last_]; }
+				if (index != Active_First) { Table_Next[prev] = Table_Next[index]; }
+				else { Active_First = Table_Next[Active_First]; }
+				if (index != Active_Last) { Table_Prev[next] = Table_Prev[index]; }
+				else { Active_Last = Table_Prev[Active_Last]; }
 
-				if (Inactive_First_ == -1) {
-					Inactive_First_ = index;
-					Table_Prev_[index] = -1;
+				if (Inactive_First == -1) {
+					Inactive_First = index;
+					Table_Prev[index] = -1;
 				}
 				else {
-					Table_Next_[Inactive_Last_] = index;
-					Table_Prev_[index] = Inactive_Last_;
+					Table_Next[Inactive_Last] = index;
+					Table_Prev[index] = Inactive_Last;
 				}
-				Table_Next_[index] = -1;
-				Inactive_Last_ = index;
+				Table_Next[index] = -1;
+				Inactive_Last = index;
 
-				Table_IsActive_[index] = 0;
-
-				--Size_;
+				Table_IsActive[index] = 0;
 			}
 		}
 
 	public:
+		template<typename T>
 		class Iterator;
 
-	public:
-		using ElementType = typename T;
-
-	public:
-		void Initialize(uint32_t capacity_) {
-			Initialize_Implementation(capacity_);
-		}
-
-	public:
-		constexpr List() noexcept = default;
-		inline List(uint32_t capacity_) {
-			Initialize_Implementation(capacity_);
-		}
+		explicit List() { Initialize(32U); }
+		explicit List(uint32_t capacity_) { Initialize(capacity_); }
 
 		virtual ~List() noexcept {
-			if (Elements_ != nullptr) {
-				delete[] Elements_;
-				Elements_ = nullptr;
+			if (Table_Element != nullptr) {
+				delete[] Table_Element;
+				Table_Element = nullptr;
 			}
 
-			if (Table_IsActive_ != nullptr) {
-				delete[] Table_IsActive_;
-				Table_IsActive_ = nullptr;
+			if (Table_IsActive != nullptr) {
+				delete[] Table_IsActive;
+				Table_IsActive = nullptr;
 			}
 
-			if (Table_Prev_ != nullptr) {
-				delete[] Table_Prev_;
-				Table_Prev_ = nullptr;
+			if (Table_Prev != nullptr) {
+				delete[] Table_Prev;
+				Table_Prev = nullptr;
 			}
 
-			if (Table_Next_ != nullptr) {
-				delete[] Table_Next_;
-				Table_Next_ = nullptr;
+			if (Table_Next != nullptr) {
+				delete[] Table_Next;
+				Table_Next = nullptr;
 			}
 		}
 
-	public:
 		// Returns an unused entry.
-		[[nodiscard]] T& New() {
+		[[nodiscard]] T& NewElement() {
 			assert(!IsFull());
 
-			int i{ Inactive_First_ };
+			int i{ Inactive_First };
 			
-			if (Active_First_ == -1) {
-				Active_First_ = i;
+			if (Active_First == -1) {
+				Active_First = i;
 			}
 			else {
-				Table_Prev_[i] = Active_Last_;
-				Table_Next_[Active_Last_] = i;
+				Table_Prev[i] = Active_Last;
+				Table_Next[Active_Last] = i;
 			}
-			Active_Last_ = i;
-			Inactive_First_ = Table_Next_[Inactive_First_];
-			if (Inactive_First_ == -1) { Inactive_Last_ = -1; }
-			Table_Next_[i] = -1;
+			Active_Last = i;
+			Inactive_First = Table_Next[Inactive_First];
+			if (Inactive_First == -1) { Inactive_Last = -1; }
+			Table_Next[i] = -1;
 
-			Table_IsActive_[i] = 1;
+			Table_IsActive[i] = 1;
 
-			++Size_;
-
-			return Elements_[i];
+			return Table_Element[i];
 		}
 
-		void Delete(Iterator& it_) { Delete_Implementation(it_.Index_Current); }
+		void Delete(Iterator<T>& it_) { Delete_Implementation(it_.Index_Current); }
 
 		void Clear() {
-			std::memset(Table_IsActive_, 0, sizeof(bool) * Capacity_);
+			std::memset(Table_IsActive, 0, sizeof(bool) * Capacity_);
 			for (uint32_t i{ 0U }; i < Capacity_; ++i) {
-				Table_Prev_[i] = i - 1;
-				Table_Next_[i] = i + 1;
+				Table_Prev[i] = i - 1;
+				Table_Next[i] = i + 1;
 			}
-			Table_Next_[Capacity_ - 1] = -1;
+			Table_Next[Capacity_ - 1] = -1;
 
-			Active_First_ = -1;
-			Active_Last_ = -1;
-			Inactive_First_ = 0;
-			Inactive_Last_ = Capacity_ - 1;
-
-			Size_ = 0U;
+			Active_First = -1;
+			Active_Last = -1;
+			Inactive_First = 0;
+			Inactive_Last = Capacity_ - 1;
 		}
 
-		constexpr uint32_t Size() const noexcept { return Size_; }
-		constexpr uint32_t Capacity() const noexcept { return Capacity_; }
-		constexpr bool IsFull() const noexcept { return (Inactive_First_ == -1); }
+		constexpr bool IsFull() const noexcept { return (Inactive_First == -1); }
 
-		constexpr T const* Data() const noexcept { return Elements_; }
-
+		template<typename T>
 		class Iterator {
 			friend List;
 
@@ -181,18 +158,18 @@ namespace Lumina {
 			~Iterator() = default;
 
 			constexpr void Begin() {
-				Index_Current = Iteratee_->Active_First_;
-				Index_Next = Iteratee_->Table_Next_[Index_Current];
+				Index_Current = Iteratee_->Active_First;
+				Index_Next = Iteratee_->Table_Next[Index_Current];
 			}
 			constexpr bool End() const { return (Index_Current == -1); }
 			constexpr void Next() {
 				Index_Current = Index_Next;
-				Index_Next = (Index_Next == -1) ? (-1) : (Iteratee_->Table_Next_[Index_Next]);
+				Index_Next = (Index_Next == -1) ? (-1) : (Iteratee_->Table_Next[Index_Next]);
 			}
 
 			inline T& operator*() {
 				assert(Index_Current != -1);
-				return Iteratee_->Elements_[Index_Current];
+				return Iteratee_->Table_Element[Index_Current];
 			};
 
 			constexpr int Index() const noexcept { return Index_Current; }

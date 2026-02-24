@@ -21,7 +21,7 @@ namespace Lumina::DX12 {
 	) noexcept {
 		return (
 			(heapProperties_.Type == D3D12_HEAP_TYPE_UPLOAD) ||
-			//(heapProperties_.Type == D3D12_HEAP_TYPE_GPU_UPLOAD) ||
+			(heapProperties_.Type == D3D12_HEAP_TYPE_GPU_UPLOAD) ||
 			(heapProperties_.Type == D3D12_HEAP_TYPE_READBACK) ||
 			(heapProperties_.MemoryPoolPreference == D3D12_MEMORY_POOL_L0)
 		);
@@ -43,15 +43,13 @@ namespace Lumina::DX12 {
 //****	******	******	******	******	****//
 
 namespace Lumina::DX12 {
-	class Resource {};
-	export template<typename T>
-		concept Concept_Resource = std::is_base_of_v<Resource, T>;
+	export class IResource {};
 
-	class Buffer : public Resource {};
+	class IBuffer : public IResource {};
 	export template<typename T>
-		concept Concept_Buffer = std::is_base_of_v<Buffer, T>;
+		concept Concept_Buffer = std::is_base_of_v<IBuffer, T>;
 
-	class Texture2D : public Resource {};
+	class ITexture2D : public IResource {};
 	export template<typename T>
-		concept Concept_Texture2D = std::is_base_of_v<Texture2D, T>;
+		concept Concept_Texture2D = std::is_base_of_v<ITexture2D, T>;
 }

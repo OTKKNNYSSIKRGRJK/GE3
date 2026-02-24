@@ -13,7 +13,8 @@ namespace {
 
 namespace Lumina::WinApp {
 	namespace {
-		struct WindowEX : public Window {
+		class WindowEX : public Window {
+		public:
 			uint32_t ID{ 0xFFFFFFFFU };
 			UniPtr<RawInput> RawInputContext{ nullptr };
 		};
@@ -68,13 +69,13 @@ namespace Lumina::WinApp {
 
 		WindowEX& windowInst{
 			*static_cast<WindowEX*>(
-				Array_WindowInstances_.emplace_back(std::make_unique<WindowEX>()).get()
+				Array_WindowInstances_.emplace_back(new WindowEX{}).get()
 			)
 		};
 		windowInst.Initialize(WindowClass_.Name(), windowConfig_);
 		windowInst.ID = static_cast<uint32_t>(Array_WindowInstances_.size()) - 1U;
 
-		windowInst.RawInputContext = UniPtr<RawInput>{ std::make_unique<RawInput>() };
+		windowInst.RawInputContext = UniPtr<RawInput>{ new RawInput{} };
 		windowInst.RawInputContext->Initialize(windowInst.Handle());
 		RegisterCallback(windowInst.RawInputContext->Callback());
 
@@ -103,11 +104,11 @@ namespace Lumina::WinApp {
 	//----	------	------	------	------	----//
 
 	void Context::Initialize(Window::Config const& mainWindowConfig_) {
-		::timeBeginPeriod(1U);
-
 		WindowClass_.Initialize(::LoadCursor(nullptr, IDC_ARROW));
 
 		NewWindow(mainWindowConfig_);
+
+		::timeBeginPeriod(1U);
 	}
 
 	void Context::Finalize() noexcept {

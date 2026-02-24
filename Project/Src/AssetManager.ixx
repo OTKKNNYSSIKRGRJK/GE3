@@ -17,8 +17,6 @@ import : Audio;
 import Lumina.Utils.String;
 import Lumina.Utils.Debug;
 
-import Lumina.DX12.Context;
-
 namespace {
 	template<typename T>
 	using UniPtr = std::unique_ptr<T>;
@@ -29,9 +27,6 @@ namespace Lumina {
 
 	class GraphicsContext;
 	class AudioContext;
-
-	export using AudioStreamHandle = XAudio2::AudioStream::Handle;
-	export using AudioStreamPlayerHandle = XAudio2::AudioStreamPlayer::Handle;
 }
 
 namespace Lumina {
@@ -122,22 +117,6 @@ namespace Lumina {
 			return Manager_.Play(hndl_Stream_, flag_Loop_, volume_);
 		}
 
-		auto Resume(XAudio2::AudioStreamPlayer::Handle hndl_Stream_) -> void {
-			Manager_.Resume(hndl_Stream_);
-		}
-
-		auto Pause(XAudio2::AudioStreamPlayer::Handle hndl_Stream_) -> void {
-			Manager_.Pause(hndl_Stream_);
-		}
-
-		auto Stop(XAudio2::AudioStreamPlayer::Handle hndl_Stream_) -> void {
-			Manager_.Stop(hndl_Stream_);
-		}
-
-		auto Update() -> void {
-			Manager_.Update();
-		}
-
 	private:
 		void Initialize() {
 			Manager_.Initialize();
@@ -168,10 +147,10 @@ namespace Lumina {
 	};
 
 	void AssetManager::Initialize(DX12::Context const& dx12Context_) {
-		Graphics_ = std::make_unique<GraphicsContext>();
+		Graphics_ = UniPtr<GraphicsContext>{ new GraphicsContext{} };
 		Graphics_->Initialize(dx12Context_);
 
-		Audio_ = std::make_unique<AudioContext>();
+		Audio_ = UniPtr<AudioContext>{ new AudioContext{} };
 		Audio_->Initialize();
 	}
 

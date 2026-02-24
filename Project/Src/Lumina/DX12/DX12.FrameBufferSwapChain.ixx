@@ -47,7 +47,7 @@ export namespace Lumina::DX12 {
 	//	FrameBufferSwapChain					//
 	//////	//////	//////	//////	//////	//////
 
-	class FrameBufferSwapChain final : 
+	class FrameBufferSwapChain final :
 		public Wrapper<FrameBufferSwapChain, IDXGISwapChain4>,
 		public NonCopyable<FrameBufferSwapChain> {
 	private:
@@ -79,7 +79,6 @@ export namespace Lumina::DX12 {
 		D3D12_CPU_DESCRIPTOR_HANDLE RTVCPUHandle(uint32_t idx_) const noexcept;
 		D3D12_CPU_DESCRIPTOR_HANDLE DSVCPUHandle() const noexcept;
 		ID3D12Resource* BufferResource(uint32_t idx_) const;
-		ID3D12Resource* BackBufferResource() const;
 
 		//----	------	------	------	------	----//
 
@@ -92,7 +91,7 @@ export namespace Lumina::DX12 {
 		);
 
 		//----	------	------	------	------	----//
-		
+
 	public:
 		constexpr FrameBufferSwapChain() noexcept;
 		virtual ~FrameBufferSwapChain() noexcept;
@@ -113,7 +112,7 @@ namespace Lumina::DX12 {
 	//////	//////	//////	//////	//////	//////
 	//	FrameBufferSwapChain::Impl				//
 	//////	//////	//////	//////	//////	//////
-	
+
 	class FrameBufferSwapChain::Impl {
 		friend FrameBufferSwapChain;
 
@@ -121,9 +120,9 @@ namespace Lumina::DX12 {
 
 	public:
 		void BeginFrame(
-			CommandList const& cmdList_,
-			D3D12_VIEWPORT const& viewport_,
-			D3D12_RECT const& scissorRect_,
+			const CommandList& cmdList_,
+			const D3D12_VIEWPORT& viewport_,
+			const D3D12_RECT& scissorRect_,
 			[[maybe_unused]] const float clearColor_[4]
 		) {
 			TimePoint_FrameBegin_ = std::chrono::steady_clock::now();
@@ -263,11 +262,11 @@ namespace Lumina::DX12 {
 				nullptr,
 				reinterpret_cast<IDXGISwapChain1**>(Owner_.GetAddressOf())
 			) ||
-			Utils::Debug::ThrowIfFailed{
-				std::format(
-					"<DX12.FrameBufferSwapChain> Failed to create{}!\n",
-					debugName_
-				)
+				Utils::Debug::ThrowIfFailed{
+					std::format(
+						"<DX12.FrameBufferSwapChain> Failed to create{}!\n",
+						debugName_
+					)
 			};
 			Logger().Message<0U>(
 				"FrameBufferSwapChain,{},Swap chain created successfully.\n",
@@ -280,12 +279,12 @@ namespace Lumina::DX12 {
 				auto& buffer{ Buffers_.emplace_back() };
 
 				Owner_->GetBuffer(idx_Buffer, IID_PPV_ARGS(&buffer)) ||
-				Utils::Debug::ThrowIfFailed{
-					std::format(
-						"<DX12.FrameBufferSwapChain - {}> Failed to obtain buffer #{} from the swap chain!\n",
-						debugName_,
-						idx_Buffer
-					)
+					Utils::Debug::ThrowIfFailed{
+						std::format(
+							"<DX12.FrameBufferSwapChain - {}> Failed to obtain buffer #{} from the swap chain!\n",
+							debugName_,
+							idx_Buffer
+						)
 				};
 				Logger().Message<0U>(
 					"FrameBufferSwapChain,{},Buffer #{} obtained successfully.\n",
@@ -328,7 +327,7 @@ namespace Lumina::DX12 {
 			DSVHeap_.Initialize(device_, D3D12_DESCRIPTOR_HEAP_TYPE_DSV, 1U, false);
 
 			D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc{
-				.Format{ DXGI_FORMAT_D24_UNORM_S8_UINT },
+				.Format{ DepthTexture_.Format() },
 				.ViewDimension{ D3D12_DSV_DIMENSION_TEXTURE2D },
 			};
 			D3D12_CPU_DESCRIPTOR_HANDLE dsvCPUHandle{ DSVHeap_.Allocate(1U).CPUHandle(0U) };
@@ -443,7 +442,6 @@ namespace Lumina::DX12 {
 	D3D12_CPU_DESCRIPTOR_HANDLE FrameBufferSwapChain::RTVCPUHandle(uint32_t index_) const noexcept { return Impl_->RTVHeap_.CPUHandle(index_); }
 	D3D12_CPU_DESCRIPTOR_HANDLE FrameBufferSwapChain::DSVCPUHandle() const noexcept { return Impl_->DSVHeap_.CPUHandle(0U); }
 	ID3D12Resource* FrameBufferSwapChain::BufferResource(uint32_t index_) const { return Impl_->Buffers_.at(index_); }
-	ID3D12Resource* FrameBufferSwapChain::BackBufferResource() const { return Impl_->Buffers_.at(Wrapped_->GetCurrentBackBufferIndex()); }
 
 	//----	------	------	------	------	----//
 
@@ -456,11 +454,11 @@ namespace Lumina::DX12 {
 		ThrowIfInitialized(debugName_);
 
 		(Impl_ == nullptr) ||
-		Utils::Debug::ThrowIfFalse{
-			std::format(
-				"<DX12.FrameBufferSwapChain - {}> Pointer to Implementation is not nullptr!\n",
-				debugName_
-			)
+			Utils::Debug::ThrowIfFalse{
+				std::format(
+					"<DX12.FrameBufferSwapChain - {}> Pointer to Implementation is not nullptr!\n",
+					debugName_
+				)
 		};
 
 		Impl_ = new Impl{ *this };

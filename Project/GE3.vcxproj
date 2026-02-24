@@ -165,10 +165,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="Src\Lumina\DX12\DX12.Barrier.ixx" />
-    <ClCompile Include="Src\Lumina\MeshManager.ixx" />
-    <ClCompile Include="Src\Lumina\Utils\Utils.Data.ixx" />
-    <ClCompile Include="Src\Lumina\Utils\Utils.Data.Mesh.ixx" />
     <ClCompile Include="External\ImGui\backends\imgui_impl_dx12.cpp" />
     <ClCompile Include="External\ImGui\backends\imgui_impl_win32.cpp" />
     <ClCompile Include="External\ImGui\imgui.cpp" />
@@ -176,40 +172,27 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="External\ImGui\imgui_draw.cpp" />
     <ClCompile Include="External\ImGui\imgui_tables.cpp" />
     <ClCompile Include="External\ImGui\imgui_widgets.cpp" />
-    <ClCompile Include="External\nlohmann.json.ixx" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Src\AssetManager.Audio.ixx" />
     <ClCompile Include="Src\AssetManager.Graphics.ixx" />
-    <ClCompile Include="Src\AssetManager.ixx" />
-    <ClCompile Include="Src\Game\Enemies\Boss.Kinoko.cpp" />
-    <ClCompile Include="Src\Game\Enemies\Boss.Kinoko.ixx" />
-    <ClCompile Include="Src\Game\Player.cpp" />
-    <ClCompile Include="Src\Game\Player.ixx" />
-    <ClCompile Include="Src\Game\PlayerCamera.ixx" />
-    <ClCompile Include="Src\Game\Scene\Game.Scene.InGame.Impl.ixx" />
-    <ClCompile Include="Src\Game\Scene\Game.Scene.InGame.InBattle.cpp" />
-    <ClCompile Include="Src\Game\Scene\Game.Scene.InGame.Initialize.cpp" />
-    <ClCompile Include="Src\Game\Scene\Game.Scene.InGame.ixx" />
-    <ClCompile Include="Src\Game\Scene\Game.Scene.InGame.Render.cpp" />
-    <ClCompile Include="Src\Game\Scene\Game.Scene.InGame.Startup.cpp" />
-    <ClCompile Include="Src\Game\Scene\Game.Scene.InGame.Update.cpp" />
+    <ClCompile Include="Src\AssetManager.ixx">
+      <CompileAs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">CompileAsCppModule</CompileAs>
+      <CompileAs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">CompileAsCppModule</CompileAs>
+      <CompileAs Condition="'$(Configuration)|$(Platform)'=='Development|x64'">CompileAsCppModule</CompileAs>
+    </ClCompile>
     <ClCompile Include="Src\Lumina\Container\Container.Bitset.ixx" />
     <ClCompile Include="Src\Lumina\Container\Container.List.ixx" />
-    <ClCompile Include="Src\Lumina\DeferredLighting.cpp" />
-    <ClCompile Include="Src\Lumina\DeferredLighting.ixx" />
     <ClCompile Include="Src\Lumina\DX12\DX12.Aux.ixx" />
+    <ClCompile Include="Src\Lumina\DX12\DX12.Aux.RenderTextureEX.ixx" />
     <ClCompile Include="Src\Lumina\DX12\DX12.Aux.View.ixx" />
-    <ClCompile Include="Src\Lumina\DX12\DX12.Canvas.ixx" />
     <ClCompile Include="Src\Lumina\DX12\DX12.Command.ixx" />
     <ClCompile Include="Src\Lumina\DX12\DX12.Context.ixx" />
     <ClCompile Include="Src\Lumina\DX12\DX12.Debug.ixx" />
     <ClCompile Include="Src\Lumina\DX12\DX12.Descriptor.ixx" />
-    <ClCompile Include="Src\Lumina\DX12\DX12.Fence.ixx" />
     <ClCompile Include="Src\Lumina\DX12\DX12.FrameBufferSwapChain.ixx" />
     <ClCompile Include="Src\Lumina\DX12\DX12.GraphicsDevice.ixx" />
     <ClCompile Include="Src\Lumina\DX12\DX12.ixx" />
     <ClCompile Include="Src\Lumina\DX12\DX12.PipelineState.ixx" />
-    <ClCompile Include="Src\Lumina\DX12\DX12.RenderPass.ixx" />
     <ClCompile Include="Src\Lumina\DX12\DX12.Resource.Buffer.ixx" />
     <ClCompile Include="Src\Lumina\DX12\DX12.Resource.Commons.ixx" />
     <ClCompile Include="Src\Lumina\DX12\DX12.Resource.ixx" />
@@ -218,9 +201,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="Src\Lumina\DX12\DX12.Shader.ixx" />
     <ClCompile Include="Src\Lumina\DX12\DX12.Texture.ixx" />
     <ClCompile Include="Src\Lumina\DX12\DX12.Wrapper.ixx" />
-    <ClCompile Include="Src\Lumina\Grassland.ixx" />
     <ClCompile Include="Src\Lumina\Lumina.ixx" />
-    <ClCompile Include="Src\Lumina\Lumina.Scene.ixx" />
     <ClCompile Include="Src\Lumina\Math\Math.FractalBrownianMotion.ixx" />
     <ClCompile Include="Src\Lumina\Math\Math.ixx" />
     <ClCompile Include="Src\Lumina\Math\Math.Matrix.ixx" />
@@ -231,9 +212,9 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="Src\Lumina\Math\Math.Vector.ixx" />
     <ClCompile Include="Src\Lumina\Math\Math.VoronoiDiagram.ixx" />
     <ClCompile Include="Src\Lumina\Mixins.ixx" />
-    <ClCompile Include="Src\Lumina\ParticleSystem.ixx" />
-    <ClCompile Include="Src\Lumina\Sprite.ixx" />
     <ClCompile Include="Src\Lumina\Utils\Utils.Color.ixx" />
+    <ClCompile Include="Src\Lumina\Utils\Utils.Data.ixx" />
+    <ClCompile Include="Src\Lumina\Utils\Utils.Data.Model.ixx" />
     <ClCompile Include="Src\Lumina\Utils\Utils.Debug.Exception.cpp" />
     <ClCompile Include="Src\Lumina\Utils\Utils.Debug.Exception.ixx" />
     <ClCompile Include="Src\Lumina\Utils\Utils.Debug.ixx" />
@@ -247,18 +228,15 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="Src\Lumina\WinApp\WinApp.Context.ixx" />
     <ClCompile Include="Src\Lumina\WinApp\WinApp.ixx" />
     <ClCompile Include="Src\Lumina\WinApp\WinApp.RawInput.ixx" />
-    <ClCompile Include="Src\PrimitiveManager.ixx" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="..\readme.md" />
+    <None Include="..\.gitignore" />
     <None Include=".editorconfig" />
-    <None Include=".gitignore" />
     <None Include="Assets\Shaders\Basic.hlsli">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</ExcludedFromBuild>
     </None>
-    <None Include="LE2C_13_コウ_シキン_milestone10.md" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="External\ImGui\backends\imgui_impl_dx12.h" />
