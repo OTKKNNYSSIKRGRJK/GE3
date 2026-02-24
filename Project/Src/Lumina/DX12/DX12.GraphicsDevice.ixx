@@ -1,25 +1,31 @@
-module;
-
-#include<d3d12.h>
-#include<dxgi1_6.h>
-
-//////	//////	//////	//////	//////	//////
-//////	//////	//////	//////	//////	//////
-//////	//////	//////	//////	//////	//////
-
 export module Lumina.DX12 : GraphicsDevice;
 
 //****	******	******	******	******	****//
 
+//----	------	------	------	------	----//
+//	Standard C++ library imports			//
+//----	------	------	------	------	----//
+
 import <cstdint>;
 
-import <utility>;
-
 import <vector>;
+
+//----	------	------	------	------	----//
+//	Platform API imports					//
+//----	------	------	------	------	----//
+
+import <d3d12.h>;
+import <dxgi1_6.h>;
+
+//----	------	------	------	------	----//
+//	Lumina library imports					//
+//----	------	------	------	------	----//
 
 import : Wrapper;
 
 import : Debug;
+
+//----	------	------	------	------	----//
 
 import Lumina.Mixins;
 
@@ -42,15 +48,23 @@ namespace Lumina::DX12 {
 		constexpr auto Adapter() const noexcept;
 
 		//----	------	------	------	------	----//
+
+	#if defined(_DEBUG)
+	public:
+		void SetBreakOnMessages(D3D12_MESSAGE_SEVERITY minSeverity_) const;
+		void SuppressMessages(
+			std::vector<D3D12_MESSAGE_ID> const& ids_,
+			std::vector<D3D12_MESSAGE_SEVERITY> const& severities_ = {},
+			std::vector<D3D12_MESSAGE_CATEGORY> const& categories_ = {}
+		) const;
+	#endif
+
+		//----	------	------	------	------	----//
 	
 	private:
 		void CreateDXGIFactory(std::string_view debugName_);
 		void CreateDXGIAdapter(std::string_view debugName_);
 		void CreateD3D12Device(std::string_view debugName_);
-
-		#if defined(_DEBUG)
-		void EnableBreakOnAlert();
-		#endif
 
 		//----	------	------	------	------	----//
 
@@ -76,6 +90,55 @@ namespace Lumina::DX12 {
 
 	constexpr auto GraphicsDevice::Factory() const noexcept { return Factory_; }
 	constexpr auto GraphicsDevice::Adapter() const noexcept { return Adapter_; }
+
+	//----	------	------	------	------	----//
+
+	#if defined(_DEBUG)
+	void GraphicsDevice::SetBreakOnMessages(D3D12_MESSAGE_SEVERITY minSeverity_) const {
+		ID3D12InfoQueue* infoQueue{ nullptr };
+		if (SUCCEEDED(Wrapped_->QueryInterface(IID_PPV_ARGS(&infoQueue)))) {
+			for (
+				D3D12_MESSAGE_SEVERITY severity : {
+					D3D12_MESSAGE_SEVERITY_CORRUPTION,
+					D3D12_MESSAGE_SEVERITY_ERROR,
+					D3D12_MESSAGE_SEVERITY_WARNING,
+					D3D12_MESSAGE_SEVERITY_INFO,
+					D3D12_MESSAGE_SEVERITY_MESSAGE,
+				}
+			) {
+				infoQueue->SetBreakOnSeverity(
+					severity,
+					(static_cast<int32_t>(severity) <= static_cast<int32_t>(minSeverity_))
+				);
+			}
+
+			infoQueue->Release();
+		}
+	}
+
+	void GraphicsDevice::SuppressMessages(
+		std::vector<D3D12_MESSAGE_ID> const& ids_,
+		std::vector<D3D12_MESSAGE_SEVERITY> const& severities_,
+		std::vector<D3D12_MESSAGE_CATEGORY> const& categories_
+	) const {
+		ID3D12InfoQueue* infoQueue{ nullptr };
+		if (SUCCEEDED(Wrapped_->QueryInterface(IID_PPV_ARGS(&infoQueue)))) {
+			D3D12_INFO_QUEUE_FILTER msgFilter{
+				.DenyList{
+					.NumCategories{ static_cast<uint32_t>(categories_.size()) },
+					.pCategoryList{ const_cast<D3D12_MESSAGE_CATEGORY*>(categories_.data()) },
+					.NumSeverities{ static_cast<uint32_t>(severities_.size()) },
+					.pSeverityList{ const_cast<D3D12_MESSAGE_SEVERITY*>(severities_.data()) },
+					.NumIDs{ static_cast<uint32_t>(ids_.size()) },
+					.pIDList{ const_cast<D3D12_MESSAGE_ID*>(ids_.data()) },
+				},
+			};
+			infoQueue->PushStorageFilter(&msgFilter);
+
+			infoQueue->Release();
+		}
+	}
+	#endif
 
 	//----	------	------	------	------	----//
 
@@ -170,39 +233,6 @@ namespace Lumina::DX12 {
 		);
 	}
 
-	#if defined(_DEBUG)
-	void GraphicsDevice::EnableBreakOnAlert() {
-		ID3D12InfoQueue* infoQueue{ nullptr };
-		if (SUCCEEDED(Wrapped_->QueryInterface(IID_PPV_ARGS(&infoQueue)))) {
-			// Makes the application break upon occurance of severe errors.
-			infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_CORRUPTION, true);
-			// Makes the application break upon occurance of errors.
-			infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_ERROR, true);
-			// Makes the application break upon occurance of warnings.
-			infoQueue->SetBreakOnSeverity(D3D12_MESSAGE_SEVERITY_WARNING, true);
-
-			D3D12_MESSAGE_ID denyIDs[]{
-				// Bug occured by interactions between the DXGI debug layer and DX12 debug layer on Windows 11; fixed already probably?
-				// Reference: https://stackoverflow.com/questions/69805245/directx-12-application-is-crashing-in-windows-11
-				D3D12_MESSAGE_ID_RESOURCE_BARRIER_MISMATCHING_COMMAND_LIST_TYPE,
-			};
-			D3D12_MESSAGE_SEVERITY severities[]{ D3D12_MESSAGE_SEVERITY_INFO, };
-			D3D12_INFO_QUEUE_FILTER msgFilter{
-				.DenyList{
-					.NumSeverities{ _countof(severities) },
-					.pSeverityList{ severities },
-					.NumIDs{ _countof(denyIDs) },
-					.pIDList{ denyIDs },
-				},
-			};
-			// Filters out the message(s).
-			infoQueue->PushStorageFilter(&msgFilter);
-
-			infoQueue->Release();
-		}
-	}
-	#endif
-
 	//----	------	------	------	------	----//
 
 	void GraphicsDevice::Initialize(std::string_view debugName_) {
@@ -212,11 +242,21 @@ namespace Lumina::DX12 {
 		CreateDXGIAdapter(debugName_);
 		CreateD3D12Device(debugName_);
 
-		#if defined(_DEBUG)
-		EnableBreakOnAlert();
-		#endif
-
 		SetDebugName(debugName_);
+
+		#if defined(_DEBUG)
+		// Makes the application break upon occurance of
+		// D3D12 messages of CORRUPTION, ERROR and WARNING severities.
+		SetBreakOnMessages(D3D12_MESSAGE_SEVERITY_WARNING);
+		SuppressMessages(
+			{
+				// Bug occured by interactions between the DXGI debug layer and DX12 debug layer on Windows 11; fixed already probably?
+				// Reference: https://stackoverflow.com/questions/69805245/directx-12-application-is-crashing-in-windows-11
+				D3D12_MESSAGE_ID_RESOURCE_BARRIER_MISMATCHING_COMMAND_LIST_TYPE,
+			},
+			{ D3D12_MESSAGE_SEVERITY_INFO, }
+		);
+		#endif
 	}
 
 	//----	------	------	------	------	----//

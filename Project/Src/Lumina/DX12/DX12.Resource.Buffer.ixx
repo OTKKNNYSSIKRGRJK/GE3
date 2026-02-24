@@ -68,7 +68,7 @@ namespace Lumina::DX12 {
 	class CommonBuffer :
 		public Wrapper<CommonBuffer<Settings>, ID3D12Resource>,
 		public NonCopyable<CommonBuffer<Settings>>,
-		public IBuffer {
+		public Buffer {
 		using SelfType = CommonBuffer<Settings>;
 		using WrapperType = Wrapper<SelfType, ID3D12Resource>;
 

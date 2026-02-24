@@ -69,8 +69,7 @@ export namespace Lumina::DX12 {
 		constexpr D3D12_ROOT_SIGNATURE_DESC operator()(
 			D3D12_ROOT_SIGNATURE_FLAGS flags_ =
 				D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT |
-				D3D12_ROOT_SIGNATURE_FLAG_CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED |
-				D3D12_ROOT_SIGNATURE_FLAG_SAMPLER_HEAP_DIRECTLY_INDEXED
+				D3D12_ROOT_SIGNATURE_FLAG_CBV_SRV_UAV_HEAP_DIRECTLY_INDEXED
 		) const noexcept;
 		// Does something much similar to what the overloaded operator() does, but in a stream-like manner.
 		friend constexpr D3D12_ROOT_SIGNATURE_DESC& operator<<(

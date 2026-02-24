@@ -24,6 +24,8 @@ namespace Lumina::DX12 {
 
 		auto SwapChain() const noexcept -> FrameBufferSwapChain const& { return SwapChain_; }
 
+		auto Compiler() const noexcept -> Shader::Compiler const& { return ShaderCompiler_; }
+
 	public:
 		void Compile(
 			Shader& shader_,
@@ -68,7 +70,7 @@ namespace Lumina::DX12 {
 		static constinit inline LeakChecker const LeakChecker_{};
 
 	private:
-		static constexpr uint32_t Capacity_DH_Global_{ 1024U };
+		static constexpr uint32_t Capacity_DH_Global_{ 65536U };
 	};
 
 	void Context::Compile(

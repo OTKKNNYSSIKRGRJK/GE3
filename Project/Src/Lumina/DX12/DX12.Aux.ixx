@@ -1,13 +1,3 @@
-module;
-
-#include<d3d12.h>
-
-#include<External/nlohmann.JSON/single_include/nlohmann/json.hpp>
-
-//////	//////	//////	//////	//////	//////
-//////	//////	//////	//////	//////	//////
-//////	//////	//////	//////	//////	//////
-
 export module Lumina.DX12.Aux;
 
 export import Lumina.DX12.Aux.View;
@@ -26,6 +16,10 @@ import <unordered_map>;
 
 import <string>;
 
+import <d3d12.h>;
+
+import nlohmann.json;
+
 import Lumina.DX12;
 
 import Lumina.Utils.Data;
@@ -37,7 +31,7 @@ namespace {
 	template<typename T>
 	using UniPtr = std::unique_ptr<T>;
 
-	using JSON = NLohmannJSON;
+	using JSON = nlohmann::json;
 }
 
 //****	******	******	******	******	****//
@@ -46,6 +40,7 @@ namespace {
 //	LoadRootSignature						//
 //	LoadRootSignatureSetup					//
 //	LoadGraphicsPipelineState				//
+//	LoadBlendState							//
 //	LoadRasterizerState						//
 //	LoadInputLayout							//
 //////	//////	//////	//////	//////	//////
@@ -70,11 +65,20 @@ export namespace Lumina::DX12 {
 		const JSON& dict_PSOSetup_,
 		std::string_view debugName_
 	);
+	BlendState LoadBlendState0(
+		JSON const& arr_BlendState_
+	);
+	BlendState LoadBlendState(
+		JSON const& dict_PSOSetup_
+	);
 	RasterizerState LoadRasterizerState(
-		const JSON& dict_PSOSetup_
+		JSON const& dict_PSOSetup_
+	);
+	DepthStencilState LoadDepthStencilState(
+		JSON const& dict_PSOSetup_
 	);
 	GraphicsPipelineState::InputLayout LoadInputLayout(
-		const JSON& dict_PSOSetup_
+		JSON const& dict_PSOSetup_
 	);
 }
 
@@ -170,14 +174,21 @@ namespace Lumina::DX12 {
 			//----	------	------	------	------	----//
 
 			static inline const Section<D3D12_BLEND> Blends_{
+				{ "Zero", D3D12_BLEND_ZERO },
 				{ "One", D3D12_BLEND_ONE },
 				{ "SrcColor", D3D12_BLEND_SRC_COLOR },
 				{ "InvSrcColor", D3D12_BLEND_INV_SRC_COLOR },
 				{ "SrcAlpha", D3D12_BLEND_SRC_ALPHA },
 				{ "InvSrcAlpha", D3D12_BLEND_INV_SRC_ALPHA },
+				{ "DstColor", D3D12_BLEND_DEST_COLOR },
+				{ "InvDstColor", D3D12_BLEND_INV_DEST_COLOR },
+				{ "DstAlpha", D3D12_BLEND_DEST_ALPHA },
+				{ "InvDstAlpha", D3D12_BLEND_INV_DEST_ALPHA },
 			};
 			static inline const Section<D3D12_BLEND_OP> BlendOperations_{
 				{ "Src+Dst", D3D12_BLEND_OP_ADD },
+				{ "Src-Dst", D3D12_BLEND_OP_SUBTRACT },
+				{ "Dst-Src", D3D12_BLEND_OP_REV_SUBTRACT },
 			};
 			static inline const Section<D3D12_LOGIC_OP> LogicOperations_{
 				{ "None", D3D12_LOGIC_OP_NOOP },
@@ -451,7 +462,7 @@ namespace Lumina::DX12 {
 			.DepthWriteMask{ D3D12_DEPTH_WRITE_MASK_ALL },
 			.DepthFunc{ D3D12_COMPARISON_FUNC_LESS_EQUAL },
 		};
-		
+
 		GraphicsPipelineState::InputLayout inputLayout{
 			LoadInputLayout(dict_PSOSetup_)
 		};
@@ -473,14 +484,70 @@ namespace Lumina::DX12 {
 	}
 
 	//////	//////	//////	//////	//////	//////
+	//	LoadBlendState							//
+	//////	//////	//////	//////	//////	//////
+
+	BlendState LoadBlendState0(
+		JSON const& arr_BlendState_
+	) {
+		BlendState blendState{};
+		for (size_t idx_RT{ 0LLU }; idx_RT < arr_BlendState_.size(); ++idx_RT) {
+			auto const& dict_RTBlendSettings{ arr_BlendState_.at(idx_RT) };
+			auto& renderTarget{ blendState.RenderTarget[idx_RT] };
+			{
+				renderTarget.BlendEnable = GetNumber<uint32_t>(dict_RTBlendSettings, "BlendEnable");
+				renderTarget.LogicOpEnable = GetNumber<uint32_t>(dict_RTBlendSettings, "LogicOpEnable");
+				if (renderTarget.BlendEnable) {
+					renderTarget.SrcBlend =
+						Lexicon::LookUp<decltype(renderTarget.SrcBlend)>(
+							dict_RTBlendSettings, "SrcBlend"
+						);
+					renderTarget.DestBlend =
+						Lexicon::LookUp<decltype(renderTarget.DestBlend)>(
+							dict_RTBlendSettings, "DestBlend"
+						);
+					renderTarget.BlendOp =
+						Lexicon::LookUp<decltype(renderTarget.BlendOp)>(
+							dict_RTBlendSettings, "BlendOp"
+						);
+					renderTarget.SrcBlendAlpha =
+						Lexicon::LookUp<decltype(renderTarget.SrcBlendAlpha)>(
+							dict_RTBlendSettings, "SrcBlendAlpha"
+						);
+					renderTarget.DestBlendAlpha =
+						Lexicon::LookUp<decltype(renderTarget.DestBlendAlpha)>(
+							dict_RTBlendSettings, "DestBlendAlpha"
+						);
+					renderTarget.BlendOpAlpha =
+						Lexicon::LookUp<decltype(renderTarget.BlendOpAlpha)>(
+							dict_RTBlendSettings, "BlendOpAlpha"
+						);
+				}
+				renderTarget.LogicOp =
+					Lexicon::LookUp<decltype(renderTarget.LogicOp)>(
+						dict_RTBlendSettings, "LogicOp"
+					);
+				renderTarget.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+			}
+		}
+		return blendState;
+	}
+
+	BlendState LoadBlendState(
+		JSON const& dict_PSOSetup_
+	) {
+		return LoadBlendState0(dict_PSOSetup_.at("BlendState"));
+	}
+
+	//////	//////	//////	//////	//////	//////
 	//	LoadRasterizerState						//
 	//////	//////	//////	//////	//////	//////
 
 	RasterizerState LoadRasterizerState(
-		const JSON& dict_PSOSetup_
+		JSON const& dict_PSOSetup_
 	) {
 		RasterizerState rasterizerState{};
-		const auto& dict_RasterizerState{ dict_PSOSetup_.at("RasterizerState") };
+		auto const& dict_RasterizerState{ dict_PSOSetup_.at("RasterizerState") };
 		{
 			rasterizerState.FillMode =
 				Lexicon::LookUp<decltype(rasterizerState.FillMode)>(
@@ -495,16 +562,43 @@ namespace Lumina::DX12 {
 	}
 
 	//////	//////	//////	//////	//////	//////
+	//	LoadDepthStencilState					//
+	//////	//////	//////	//////	//////	//////
+
+	DepthStencilState LoadDepthStencilState(
+		JSON const& dict_PSOSetup_
+	) {
+		DepthStencilState depthStencilState{};
+		auto const& dict_DepthStencilState{ dict_PSOSetup_.at("DepthStencilState") };
+		{
+			depthStencilState.DepthEnable = GetNumber<uint32_t>(dict_DepthStencilState, "DepthEnable");
+			if (depthStencilState.DepthEnable) {
+				depthStencilState.DepthFunc =
+					Lexicon::LookUp<decltype(depthStencilState.DepthFunc)>(
+						dict_DepthStencilState, "DepthFunc"
+					);
+				depthStencilState.DepthWriteMask =
+					Lexicon::LookUp<decltype(depthStencilState.DepthWriteMask)>(
+						dict_DepthStencilState, "DepthWriteMask"
+					);
+			}
+
+			depthStencilState.StencilEnable = GetNumber<uint32_t>(dict_DepthStencilState, "StencilEnable");
+		}
+		return depthStencilState;
+	}
+
+	//////	//////	//////	//////	//////	//////
 	//	LoadInputLayout							//
 	//////	//////	//////	//////	//////	//////
 
 	GraphicsPipelineState::InputLayout LoadInputLayout(
-		const JSON& dict_PSOSetup_
+		JSON const& dict_PSOSetup_
 	) {
 		GraphicsPipelineState::InputLayout inputLayout{};
 		{
-			const auto& arr_InputLayout{ dict_PSOSetup_.at("InputLayout") };
-			for (const auto& arr_InputElement : arr_InputLayout) {
+			auto const& arr_InputLayout{ dict_PSOSetup_.at("InputLayout") };
+			for (auto const& arr_InputElement : arr_InputLayout) {
 				inputLayout.Append(
 					// Semantic name
 					GetString(arr_InputElement, 0U),

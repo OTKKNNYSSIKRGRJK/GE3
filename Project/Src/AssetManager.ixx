@@ -17,6 +17,8 @@ import : Audio;
 import Lumina.Utils.String;
 import Lumina.Utils.Debug;
 
+import Lumina.DX12.Context;
+
 namespace {
 	template<typename T>
 	using UniPtr = std::unique_ptr<T>;
@@ -27,6 +29,9 @@ namespace Lumina {
 
 	class GraphicsContext;
 	class AudioContext;
+
+	export using AudioStreamHandle = XAudio2::AudioStream::Handle;
+	export using AudioStreamPlayerHandle = XAudio2::AudioStreamPlayer::Handle;
 }
 
 namespace Lumina {
@@ -115,6 +120,22 @@ namespace Lumina {
 			float volume_
 		) -> XAudio2::AudioStreamPlayer::Handle {
 			return Manager_.Play(hndl_Stream_, flag_Loop_, volume_);
+		}
+
+		auto Resume(XAudio2::AudioStreamPlayer::Handle hndl_Stream_) -> void {
+			Manager_.Resume(hndl_Stream_);
+		}
+
+		auto Pause(XAudio2::AudioStreamPlayer::Handle hndl_Stream_) -> void {
+			Manager_.Pause(hndl_Stream_);
+		}
+
+		auto Stop(XAudio2::AudioStreamPlayer::Handle hndl_Stream_) -> void {
+			Manager_.Stop(hndl_Stream_);
+		}
+
+		auto Update() -> void {
+			Manager_.Update();
 		}
 
 	private:
