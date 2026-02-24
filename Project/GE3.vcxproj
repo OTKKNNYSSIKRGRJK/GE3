@@ -180,8 +180,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
       <CompileAs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">CompileAsCppModule</CompileAs>
       <CompileAs Condition="'$(Configuration)|$(Platform)'=='Development|x64'">CompileAsCppModule</CompileAs>
     </ClCompile>
-    <ClCompile Include="Src\Editor.DX12.ixx" />
-    <ClCompile Include="Src\Editor.DX12.RootSignature.cpp" />
     <ClCompile Include="Src\Lumina\Container\Container.Bitset.ixx" />
     <ClCompile Include="Src\Lumina\Container\Container.List.ixx" />
     <ClCompile Include="Src\Lumina\DX12\DX12.Aux.ixx" />
@@ -203,15 +201,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="Src\Lumina\DX12\DX12.Shader.ixx" />
     <ClCompile Include="Src\Lumina\DX12\DX12.Texture.ixx" />
     <ClCompile Include="Src\Lumina\DX12\DX12.Wrapper.ixx" />
-    <ClCompile Include="Src\Lumina\Editor\DX12\Editor.DX12.cpp" />
-    <ClCompile Include="Src\Lumina\Editor\DX12\Editor.DX12.ModuleName.ixx" />
-    <ClCompile Include="Src\Lumina\Editor\DX12\Editor.DX12.RootParameter.cpp" />
-    <ClCompile Include="Src\Lumina\Editor\DX12\Editor.DX12.RootSignature.ixx" />
-    <ClCompile Include="Src\Lumina\Editor\DX12\Editor.DX12.RootParameter.ixx" />
-    <ClCompile Include="Src\Lumina\Editor\DX12\Editor.DX12.RootTable.cpp" />
-    <ClCompile Include="Src\Lumina\Editor\DX12\Editor.DX12.RootTable.ixx" />
-    <ClCompile Include="Src\Lumina\Editor\Editor.ixx" />
-    <ClCompile Include="Src\Lumina\Editor\Editor.Lexicon.ixx" />
     <ClCompile Include="Src\Lumina\Lumina.ixx" />
     <ClCompile Include="Src\Lumina\Math\Math.FractalBrownianMotion.ixx" />
     <ClCompile Include="Src\Lumina\Math\Math.ixx" />
@@ -239,8 +228,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="Src\Lumina\WinApp\WinApp.Context.ixx" />
     <ClCompile Include="Src\Lumina\WinApp\WinApp.ixx" />
     <ClCompile Include="Src\Lumina\WinApp\WinApp.RawInput.ixx" />
-    <ClCompile Include="Src\PipelineEditor.ixx" />
-    <ClCompile Include="Src\RootSignatureEditor.ixx" />
   </ItemGroup>
   <ItemGroup>
     <None Include="..\.gitignore" />
