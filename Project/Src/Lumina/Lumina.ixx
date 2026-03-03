@@ -22,10 +22,13 @@ import Lumina.DX12.Aux;
 
 import Lumina.AssetManager;
 
+#if defined(_DEBUG)
 import Lumina.Utils.ImGui;
+#endif
 
 import Lumina.Utils.Time;
 
+#if defined(_DEBUG)
 namespace {
 	void SetImGuiAppearance() {
 		//ImGui::GetIO().Fonts->AddFontFromFileTTF("C:/Windows/Fonts/consola.ttf", 12.0f);
@@ -77,6 +80,7 @@ namespace {
 		colors[ImGuiCol_TableBorderLight] = ImVec4{ 0.38f, 0.38f, 0.34f, 0.25f };
 	}
 }
+#endif
 
 namespace Lumina {
 	export class Context {
@@ -99,12 +103,12 @@ namespace Lumina {
 
 	bool Context::Run() {
 		if (WinAppContext_.ProcessMessage() == 0) {
-			ID3D12DescriptorHeap* descriptorHeaps[]{ DXContext_.GlobalDescriptorHeap().Get() };
+			[[maybe_unused]] ID3D12DescriptorHeap* descriptorHeaps[]{ DXContext_.GlobalDescriptorHeap().Get() };
 
 			[[maybe_unused]] auto& directQueue{ DXContext_.DirectQueue() };
 
-			auto const& keyboard = MainWindowRawInput_->Keyboard();
-			auto const& mouse = MainWindowRawInput_->Mouse();
+			[[maybe_unused]] auto const& keyboard = MainWindowRawInput_->Keyboard();
+			[[maybe_unused]] auto const& mouse = MainWindowRawInput_->Mouse();
 
 			DXContext_.BeginFrame(CmdList_);
 
@@ -160,43 +164,6 @@ namespace Lumina {
 
 			//----	------	------	------	------	----//
 
-			Lumina::Utils::ImGuiManager::BeginFrame();
-			CmdList_->SetDescriptorHeaps(1U, descriptorHeaps);
-
-			ImGui::Begin("Raw Input Test");
-			ImGui::SeparatorText("Keyboard");
-			ImGui::BulletText("R SHIFT = %d", keyboard.IsPressed(Lumina::WinApp::KEY::SHIFT_RIGHT));
-			ImGui::BulletText("L CTRL = %d", keyboard.IsPressed(Lumina::WinApp::KEY::CTRL_LEFT));
-			ImGui::BulletText("R CTRL = %d", keyboard.IsPressed(Lumina::WinApp::KEY::CTRL_RIGHT));
-
-			ImGui::SeparatorText("Mouse");
-			ImGui::BulletText("PosX = %d", mouse.PosX());
-			ImGui::BulletText("PosY = %d", mouse.PosY());
-			ImGui::BulletText("DeltaX = %d", mouse.DeltaX());
-			ImGui::BulletText("DeltaY = %d", mouse.DeltaY());
-			ImGui::BulletText("LeftButton = %d", mouse.LeftButton());
-			ImGui::BulletText("RightButton = %d", mouse.RightButton());
-			ImGui::BulletText("Wheel = %d", mouse.Wheel());
-			ImGui::BulletText("Wheel = %d", mouse.DeltaWheel());
-			ImGui::End();
-
-			ImGui::Begin("Quaternion");
-			static Lumina::Quaternion pose{};
-			static Lumina::Vec4 vec{ 0.0f, 0.0f, 0.0f, 1.0f };
-			static Lumina::Float3 poseAxis{ 1.0f, 0.0f, 0.0f };
-			static float poseAngle{ 0.0f };
-			ImGui::DragFloat3("Axis", &poseAxis.x, 0.01f);
-			ImGui::DragFloat("Angle", &poseAngle, 0.01f);
-			ImGui::DragFloat4("Vec", vec(), 0.01f);
-			pose = Lumina::Quaternion::RotateAbout(poseAxis, poseAngle);
-			ImGui::DragFloat4("Rotate", &pose.x, 0.0f);
-			ImGui::Text("Re = %f", pose.Re(), 0.0f);
-			ImGui::Text("Im = (%f, %f, %f)", pose.Im().x, pose.Im().y, pose.Im().z, 0.0f);
-			ImGui::DragFloat4("Rotated Vec", Lumina::Quaternion::Rotate(vec, pose)(), 0.0f);
-			ImGui::End();
-
-			//ImGui::ShowStyleEditor();
-
 			static_cast<ID3D12GraphicsCommandList4*>(CmdList_.Get())->EndRenderPass();
 
 			//----	------	------	------	------	----//
@@ -218,7 +185,10 @@ namespace Lumina {
 				D3D12_RENDER_PASS_FLAG_NONE
 			);
 
+			#if defined(_DEBUG)
+			Lumina::Utils::ImGuiManager::BeginFrame();
 			Lumina::Utils::ImGuiManager::EndFrame(CmdList_);
+			#endif
 
 			static_cast<ID3D12GraphicsCommandList4*>(CmdList_.Get())->EndRenderPass();
 
@@ -293,10 +263,13 @@ namespace Lumina {
 
 		//----	------	------	------	------	----//
 
-		auto const& swapChain{ DXContext_.SwapChain() };
+		[[maybe_unused]] auto const& swapChain{ DXContext_.SwapChain() };
+
+		#if defined(_DEBUG)
 		Lumina::Utils::ImGuiManager::Initialize(mainWindow.Handle(), device, swapChain, gpuDH);
 		WinAppContext_.RegisterCallback(Lumina::Utils::ImGuiManager::WindowProcedure);
 		SetImGuiAppearance();
+		#endif
 	}
 
 	void Context::Finalize() {		

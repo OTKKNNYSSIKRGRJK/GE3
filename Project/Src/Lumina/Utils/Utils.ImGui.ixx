@@ -1,3 +1,5 @@
+#if defined(_DEBUG)
+
 module;
 
 #include<Windows.h>
@@ -110,3 +112,5 @@ namespace Lumina::Utils {
 		return ImGui_ImplWin32_WndProcHandler(hWnd_, msg_, wParam_, lParam_);
 	}
 }
+
+#endif
