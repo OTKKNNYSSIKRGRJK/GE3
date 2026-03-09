@@ -37,7 +37,7 @@ namespace Lumina {
 		auto RGBA() const noexcept -> Float4 { return RGBA_; }
 		auto RGBA(Float4&& rgba_) noexcept -> void { RGBA_ = rgba_; }
 
-	public:
+	protected:
 		Vec2 Scale_{ 1.0f, 1.0f };
 		float Rotate_{ 0.0f };
 		Vec2 Translate_{ 0.0f, 0.0f };
