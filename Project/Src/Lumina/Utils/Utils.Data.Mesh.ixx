@@ -10,6 +10,10 @@ import Lumina.Math.Vector;
 import Lumina.Utils.Data;
 
 namespace Lumina::Utils {
+
+	/// @class Mesh
+	/// @brief mesh data (in SoA form, maybe)
+
 	export class Mesh {
 	public:
 		struct Vertex {
