@@ -52,14 +52,6 @@ namespace Lumina::XAudio2 {
 
 		IXAudio2SourceVoice* Source{ nullptr };
 
-		/*AudioStreamPlayer(
-			AudioStream const& audio_,
-			bool flag_Loop_,
-			float volume_
-		) {
-			
-		}*/
-
 	private:
 		static inline AudioManager* Manager_{ nullptr };
 	};
