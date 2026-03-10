@@ -233,6 +233,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="Src\Lumina\MeshManager.ixx" />
     <ClCompile Include="Src\Lumina\Mixins.ixx" />
     <ClCompile Include="Src\Lumina\ParticleSystem.ixx" />
+    <ClCompile Include="Src\Lumina\Scene\Lumina.Scene.ixx" />
     <ClCompile Include="Src\Lumina\Sprite.ixx" />
     <ClCompile Include="Src\Lumina\Utils\Utils.Color.ixx" />
     <ClCompile Include="Src\Lumina\Utils\Utils.Data.ixx" />

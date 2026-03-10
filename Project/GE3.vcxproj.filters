@@ -47,6 +47,9 @@
     <Filter Include="Src\Lumina\WinApp">
       <UniqueIdentifier>{f5ded392-157d-44e9-a316-19d8a9f8b936}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Src\Lumina\Scene">
+      <UniqueIdentifier>{a5de8280-34a7-4be9-a15e-958fc890f80a}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
@@ -250,6 +253,9 @@
     </ClCompile>
     <ClCompile Include="Src\Lumina\DX12\DX12.RenderPass.ixx">
       <Filter>Src\Lumina\DX12</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\Scene\Lumina.Scene.ixx">
+      <Filter>Src\Lumina\Scene</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
