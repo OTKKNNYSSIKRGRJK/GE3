@@ -5,7 +5,7 @@
 import Lumina;
 
 int32_t WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
-	std::unique_ptr<Lumina::Context> context{ new Lumina::Context{} };
+	std::unique_ptr<Lumina::Context> context{ std::make_unique<Lumina::Context>() };
 	context->Initialize();
 
 	while (context->Run());

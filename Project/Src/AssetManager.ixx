@@ -155,16 +155,16 @@ namespace Lumina {
 namespace Lumina {
 	export class AssetManager {
 	public:
-		GraphicsContext& Graphics() { return (*Graphics_); }
-		AudioContext& Audio() { return (*Audio_); }
+		GraphicsContext& Graphics() const { return (*Graphics_); }
+		AudioContext& Audio() const { return (*Audio_); }
 
 	public:
 		void Initialize(DX12::Context const& dx12Context_);
 		void Finalize() noexcept;
 
 	private:
-		UniPtr<GraphicsContext> Graphics_;
-		UniPtr<AudioContext> Audio_;
+		mutable UniPtr<GraphicsContext> Graphics_;
+		mutable UniPtr<AudioContext> Audio_;
 	};
 
 	void AssetManager::Initialize(DX12::Context const& dx12Context_) {
