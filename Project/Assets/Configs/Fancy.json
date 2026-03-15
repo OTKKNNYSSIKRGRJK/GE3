@@ -1,0 +1,37 @@
+{
+  "RS": {
+    "Parameters": [
+      {
+        "ShaderVisibility": "All",
+        "ParameterType": "DescriptorTable",
+        "TableName": "Output"
+      },
+      {
+        "ShaderVisibility": "All",
+        "ParameterType": "DescriptorTable",
+        "TableName": "Params"
+      }
+    ],
+
+    "Output": [
+      {
+        "RangeType": "UAV",
+        "NumDescriptors": 1,
+        "BaseShaderRegister": 0,
+        "RegisterSpace": 0,
+        "OffsetInDescriptorsFromTableStart": 0
+      }
+    ],
+    "Params": [
+      {
+        "RangeType": "CBV",
+        "NumDescriptors": 1,
+        "BaseShaderRegister": 0,
+        "RegisterSpace": 0,
+        "OffsetInDescriptorsFromTableStart": 0
+      }
+    ],
+
+    "StaticSamplers": []
+  }
+}

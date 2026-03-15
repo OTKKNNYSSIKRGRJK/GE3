@@ -1,0 +1,30 @@
+{
+  "BasicParticle": {
+    "BlendState": [
+      {
+        "BlendEnable": 1,
+        "LogicOpEnable": 0,
+        "SrcBlend": "SrcAlpha",
+        "DestBlend": "One",
+        "BlendOp": "Src+Dst",
+        "SrcBlendAlpha": "SrcAlpha",
+        "DestBlendAlpha": "One",
+        "BlendOpAlpha": "Src+Dst",
+        "LogicOp": "None"
+      }
+    ],
+    "RasterizerState": {
+      "FillMode": "Solid",
+      "CullMode": "None"
+    },
+    "DepthStencilState": {
+      "DepthEnable": 0,
+      "StencilEnable": 0
+    },
+    "InputLayout": [
+      [ "POSITION", 0, "float4" ],
+      [ "TEXCOORD", 0, "float2" ]
+    ],
+    "PrimitiveTopologyType": "Triangle"
+  }
+}

@@ -1,0 +1,93 @@
+{
+  "RS": {
+    "Parameters": [
+      {
+        "ShaderVisibility": "Pixel",
+        "ParameterType": "DescriptorTable",
+        "TableName": "Target"
+      },
+      {
+        "ShaderVisibility": "Vertex",
+        "ParameterType": "CBV",
+        "ShaderRegister": 0,
+        "RegisterSpace": 0
+      },
+      {
+        "ShaderVisibility": "Vertex",
+        "ParameterType": "DescriptorTable",
+        "TableName": "Transform"
+      },
+      {
+        "ShaderVisibility": "Pixel",
+        "ParameterType": "DescriptorTable",
+        "TableName": "RippleTexture"
+      },
+      {
+        "ShaderVisibility": "Pixel",
+        "ParameterType": "DescriptorTable",
+        "TableName": "DepthTexture"
+      },
+      {
+        "ShaderVisibility": "Pixel",
+        "ParameterType": "32BitConstants",
+        "ShaderRegister": 0,
+        "RegisterSpace": 0,
+        "Num32BitValues": 1
+      }
+    ],
+    
+    "Target": [
+      {
+        "RangeType": "UAV",
+        "NumDescriptors": 1,
+        "BaseShaderRegister": 0,
+        "RegisterSpace": 0,
+        "OffsetInDescriptorsFromTableStart": 0
+      }
+    ],
+    "Transform": [
+      {
+        "RangeType": "CBV",
+        "NumDescriptors": 1,
+        "BaseShaderRegister": 1,
+        "RegisterSpace": 0,
+        "OffsetInDescriptorsFromTableStart": 0
+      }
+    ],
+    "RippleTexture": [
+      {
+        "RangeType": "SRV",
+        "NumDescriptors": 1,
+        "BaseShaderRegister": 0,
+        "RegisterSpace": 1,
+        "OffsetInDescriptorsFromTableStart": 0
+      }
+    ],
+    "DepthTexture": [
+      {
+        "RangeType": "SRV",
+        "NumDescriptors": 1,
+        "BaseShaderRegister": 1,
+        "RegisterSpace": 1,
+        "OffsetInDescriptorsFromTableStart": 0
+      }
+    ],
+
+    "StaticSamplers": [
+      {
+        "Filter": {
+          "ReductionType": "Standard",
+          "IsAnisotropic": 0,
+          "MinFilter": "Bilinear",
+          "MagFilter": "Bilinear",
+          "MipFilter": "Bilinear"
+        },
+        "TextureAddressU": "Clamp",
+        "TextureAddressV": "Clamp",
+        "TextureAddressW": "Clamp",
+        "ShaderRegister": 0,
+        "ShaderVisibility": "Pixel"
+      }
+    ]
+  }
+}

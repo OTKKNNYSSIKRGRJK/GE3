@@ -1,0 +1,52 @@
+{
+  "RS": {
+    "Parameters": [
+      {
+        "ShaderVisibility": "All",
+        "ParameterType": "DescriptorTable",
+        "TableName": "HeightMaps"
+      },
+      {
+        "ShaderVisibility": "All",
+        "ParameterType": "32BitConstants",
+        "ShaderRegister": 0,
+        "RegisterSpace": 0,
+        "Num32BitValues": 3
+      },
+      {
+        "ShaderVisibility": "All",
+        "ParameterType": "32BitConstants",
+        "ShaderRegister": 1,
+        "RegisterSpace": 0,
+        "Num32BitValues": 3
+      },
+      {
+        "ShaderVisibility": "All",
+        "ParameterType": "DescriptorTable",
+        "TableName": "Propagate"
+      }
+    ],
+    
+    "HeightMaps": [
+      {
+        "RangeType": "UAV",
+        "NumDescriptors": 3,
+        "BaseShaderRegister": 0,
+        "RegisterSpace": 0,
+        "OffsetInDescriptorsFromTableStart": 0
+      }
+    ],
+    
+    "Propagate": [
+      {
+        "RangeType": "CBV",
+        "NumDescriptors": 1,
+        "BaseShaderRegister": 2,
+        "RegisterSpace": 0,
+        "OffsetInDescriptorsFromTableStart": 0
+      }
+    ],
+
+    "StaticSamplers": []
+  }
+}
