@@ -273,6 +273,12 @@
       <Filter>Assets\Shaders</Filter>
     </None>
     <None Include="..\.gitignore" />
+    <None Include="Src\CG3Eval2\Settings.json">
+      <Filter>Src\Lighting</Filter>
+    </None>
+    <None Include="Src\CG3Eval2\Common.hlsli">
+      <Filter>Src\Lighting</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="External\ImGui\backends\imgui_impl_dx12.h">
@@ -321,6 +327,18 @@
     </FxCompile>
     <FxCompile Include="Assets\ShaderTest\TerrainPS.hlsl">
       <Filter>Assets\ShaderTest</Filter>
+    </FxCompile>
+    <FxCompile Include="Src\CG3Eval2\Lighting.PS.hlsl">
+      <Filter>Src\Lighting</Filter>
+    </FxCompile>
+    <FxCompile Include="Src\CG3Eval2\Lighting.VS.hlsl">
+      <Filter>Src\Lighting</Filter>
+    </FxCompile>
+    <FxCompile Include="Src\CG3Eval2\PS.hlsl">
+      <Filter>Src\Lighting</Filter>
+    </FxCompile>
+    <FxCompile Include="Src\CG3Eval2\VS.hlsl">
+      <Filter>Src\Lighting</Filter>
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
