@@ -26,9 +26,6 @@
     <Filter Include="Src\AssetManager">
       <UniqueIdentifier>{17ffc36d-16a9-4211-b085-9bccb97a124e}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Src\Game">
-      <UniqueIdentifier>{b4adbe75-b018-4958-bd53-0a6dc25869cf}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Src\Lumina">
       <UniqueIdentifier>{8c030308-8a90-4d91-8c37-504d3445c5f0}</UniqueIdentifier>
     </Filter>
