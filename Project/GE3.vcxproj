@@ -263,8 +263,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</ExcludedFromBuild>
     </None>
-    <None Include="Src\CG3Eval2\Common.hlsli" />
-    <None Include="Src\CG3Eval2\Settings.json" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="External\ImGui\backends\imgui_impl_dx12.h">
@@ -337,10 +335,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</ExcludedFromBuild>
     </FxCompile>
-    <FxCompile Include="Src\CG3Eval2\Lighting.PS.hlsl" />
-    <FxCompile Include="Src\CG3Eval2\Lighting.VS.hlsl" />
-    <FxCompile Include="Src\CG3Eval2\PS.hlsl" />
-    <FxCompile Include="Src\CG3Eval2\VS.hlsl" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="External\ImGui\LICENSE.txt">
@@ -348,11 +342,6 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Development|x64'">true</ExcludedFromBuild>
     </Text>
-  </ItemGroup>
-  <ItemGroup>
-    <Image Include="Src\CG3Eval2\checkerBoard.png" />
-    <Image Include="Src\CG3Eval2\monsterBall.png" />
-    <Image Include="Src\CG3Eval2\uvChecker.png" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
