@@ -1,3 +1,7 @@
+module;
+
+#include<wrl.h>
+
 export module Lumina.DX12 : GraphicsDevice;
 
 //****	******	******	******	******	****//
@@ -44,8 +48,8 @@ namespace Lumina::DX12 {
 		public Wrapper<GraphicsDevice, ID3D12Device>,
 		public NonCopyable<GraphicsDevice> {
 	public:
-		constexpr auto Factory() const noexcept;
-		constexpr auto Adapter() const noexcept;
+		inline auto Factory() const noexcept;
+		inline auto Adapter() const noexcept;
 
 		//----	------	------	------	------	----//
 
@@ -74,22 +78,22 @@ namespace Lumina::DX12 {
 		//----	------	------	------	------	----//
 
 	public:
-		constexpr GraphicsDevice() noexcept;
+		inline GraphicsDevice() noexcept;
 		virtual ~GraphicsDevice() noexcept;
 
 		//====	======	======	======	======	====//
 
 	private:
-		IDXGIFactory7* Factory_{ nullptr };
-		IDXGIAdapter4* Adapter_{ nullptr };
+		Microsoft::WRL::ComPtr<IDXGIFactory7> Factory_{ nullptr };
+		Microsoft::WRL::ComPtr<IDXGIAdapter4> Adapter_{ nullptr };
 	};
 
 	//----	------	------	------	------	----//
 	//	Implementation							//
 	//----	------	------	------	------	----//
 
-	constexpr auto GraphicsDevice::Factory() const noexcept { return Factory_; }
-	constexpr auto GraphicsDevice::Adapter() const noexcept { return Adapter_; }
+	inline auto GraphicsDevice::Factory() const noexcept { return Factory_; }
+	inline auto GraphicsDevice::Adapter() const noexcept { return Adapter_; }
 
 	//----	------	------	------	------	----//
 
@@ -144,7 +148,7 @@ namespace Lumina::DX12 {
 
 	// Creates a DXGI factory, which is necessary for creating devices and swap chains.
 	void GraphicsDevice::CreateDXGIFactory(std::string_view debugName_) {
-		::CreateDXGIFactory(IID_PPV_ARGS(&Factory_)) ||
+		::CreateDXGIFactory(IID_PPV_ARGS(Factory_.GetAddressOf())) ||
 		Utils::Debug::ThrowIfFailed{
 			"<DX12.GraphicsDevice> Failed to create a DXGI factory!\n"
 		};
@@ -161,7 +165,7 @@ namespace Lumina::DX12 {
 			Factory_->EnumAdapterByGpuPreference(
 				i,
 				DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE,
-				IID_PPV_ARGS(&Adapter_)
+				IID_PPV_ARGS(Adapter_.GetAddressOf())
 			) != DXGI_ERROR_NOT_FOUND;
 			++i
 		) {
@@ -208,9 +212,9 @@ namespace Lumina::DX12 {
 		for (auto const& featureLevel : featureLevels) {
 			HRESULT hr_CreateDevice{
 				::D3D12CreateDevice(
-					Adapter_,
+					Adapter_.Get(),
 					featureLevel.first,
-					IID_PPV_ARGS(&Wrapped_)
+					IID_PPV_ARGS(Wrapped_.GetAddressOf())
 				)
 			};
 			if (SUCCEEDED(hr_CreateDevice)) {
@@ -261,15 +265,15 @@ namespace Lumina::DX12 {
 
 	//----	------	------	------	------	----//
 
-	constexpr GraphicsDevice::GraphicsDevice() noexcept {}
+	inline GraphicsDevice::GraphicsDevice() noexcept {}
 
 	GraphicsDevice::~GraphicsDevice() noexcept {
-		auto& logger{ Logger() };
+		//auto& logger{ Logger() };
 
-		Adapter_->Release();
-		logger.Message<0U>("GraphicsDevice,{},Hardware adapter released successfully.\n", DebugName());
+		//Adapter_->Release();
+		//logger.Message<0U>("GraphicsDevice,{},Hardware adapter released successfully.\n", DebugName());
 
-		Factory_->Release();
-		logger.Message<0U>("GraphicsDevice,{},DXGI factory released successfully.\n", DebugName());
+		//Factory_->Release();
+		//logger.Message<0U>("GraphicsDevice,{},DXGI factory released successfully.\n", DebugName());
 	}
 }

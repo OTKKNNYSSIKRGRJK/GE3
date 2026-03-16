@@ -2,6 +2,7 @@ module;
 
 #include<d3d12.h>
 #include<dxgi1_6.h>
+#include<wrl.h>
 
 //////	//////	//////	//////	//////	//////
 //////	//////	//////	//////	//////	//////
@@ -31,9 +32,9 @@ namespace Lumina::DX12 {
 		requires(std::is_base_of_v<IUnknown, WrappedType>)
 	class Wrapper {
 	public:
-		constexpr WrappedType* operator->() const noexcept { return Wrapped_; }
-		constexpr WrappedType* Get() const noexcept { return Wrapped_; }
-		constexpr WrappedType** GetAddressOf() noexcept { return &Wrapped_; }
+		constexpr WrappedType* operator->() const noexcept { return Wrapped_.Get(); }
+		constexpr WrappedType* Get() const noexcept { return Wrapped_.Get(); }
+		constexpr WrappedType** GetAddressOf() noexcept { return Wrapped_.GetAddressOf(); }
 
 		//----	------	------	------	------	----//
 
@@ -75,7 +76,7 @@ namespace Lumina::DX12 {
 	protected:
 		constexpr Wrapper() noexcept = default;
 		virtual ~Wrapper() noexcept {
-			if (IsInitialized()) {
+			/*if (IsInitialized()) {
 				if (DebugName_.size() > 0LLU) {
 					Logger().Message<0U>(
 						"Wrapper,{},Releasing {} object...\n",
@@ -93,7 +94,7 @@ namespace Lumina::DX12 {
 						typeid(WrappedType).name()
 					);
 				}
-			}
+			}*/
 
 			DebugName_.clear();
 		}
@@ -101,7 +102,7 @@ namespace Lumina::DX12 {
 		//====	======	======	======	======	====//
 
 	protected:
-		WrappedType* Wrapped_{ nullptr };
+		Microsoft::WRL::ComPtr<WrappedType> Wrapped_;
 
 		//----	------	------	------	------	----//
 

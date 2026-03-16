@@ -38,7 +38,7 @@ namespace Lumina::DX12 {
 			std::lock_guard<std::mutex> lockGuard{ Mutex_Signal_ };
 
 			++NextValue_;
-			cmdQueue_->Signal(Wrapped_, NextValue_);
+			cmdQueue_->Signal(Wrapped_.Get(), NextValue_);
 			return NextValue_;
 		}
 

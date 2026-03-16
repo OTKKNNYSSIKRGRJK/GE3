@@ -119,7 +119,7 @@ namespace Lumina::DX12 {
 			.Format{ DXGI_FORMAT_R8G8B8A8_UNORM_SRGB },				// Output to be converted into SRGB
 			.ViewDimension{ D3D12_RTV_DIMENSION_TEXTURE2D },		// Outputted as 2D texture
 		};
-		device_->CreateRenderTargetView(Wrapped_, &rtvDesc, RTVHeap_.CPUHandle(0U));
+		device_->CreateRenderTargetView(Wrapped_.Get(), &rtvDesc, RTVHeap_.CPUHandle(0U));
 
 		D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc{
 			.Format{ DSTexture_.Format() },
@@ -135,7 +135,7 @@ namespace Lumina::DX12 {
 	) {
 
 		cmdList_.TransitionResourceState(
-			Wrapped_,
+			Wrapped_.Get(),
 			D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
 			D3D12_RESOURCE_STATE_RENDER_TARGET
 		);
@@ -154,7 +154,7 @@ namespace Lumina::DX12 {
 		CommandList const& cmdList_
 	) {
 		cmdList_.TransitionResourceState(
-			Wrapped_,
+			Wrapped_.Get(),
 			D3D12_RESOURCE_STATE_RENDER_TARGET,
 			D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE
 		);

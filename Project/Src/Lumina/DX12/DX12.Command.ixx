@@ -226,7 +226,7 @@ namespace Lumina::DX12 {
 
 		BatchedCommandLists_.clear();
 
-		return Fence_->SignalFrom(Wrapped_);
+		return Fence_->SignalFrom(Wrapped_.Get());
 	}
 
 	//----	------	------	------	------	----//
@@ -240,7 +240,7 @@ namespace Lumina::DX12 {
 	}
 	
 	inline DWORD CommandQueue::SignalAndCPUWait() {
-		Fence_->SignalFrom(Wrapped_);
+		Fence_->SignalFrom(Wrapped_.Get());
 		return Fence_->CPUWait();
 	}
 

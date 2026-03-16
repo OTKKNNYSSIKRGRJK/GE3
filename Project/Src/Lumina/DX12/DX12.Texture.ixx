@@ -796,7 +796,7 @@ namespace Lumina::DX12 {
 			[&, this]() {
 				// Orders the intermediate data of the batched textures
 				// to be copied to the resources in the default heap.
-				for (auto const* tex : BatchedTextures_) {
+				for (auto* tex : BatchedTextures_) {
 					auto const& data{ tex->IntermediateData() };
 					// Code extracted from UpdateResource
 					for (uint32_t i{ 0U }; i < data.Num_Subresources(); ++i) {
