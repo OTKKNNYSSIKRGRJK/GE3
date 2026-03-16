@@ -195,6 +195,8 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
       <CompileAs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">CompileAsCppModule</CompileAs>
       <CompileAs Condition="'$(Configuration)|$(Platform)'=='Development|x64'">CompileAsCppModule</CompileAs>
     </ClCompile>
+    <ClCompile Include="Src\CG3Eval2\CG3Eval2.cpp" />
+    <ClCompile Include="Src\CG3Eval2\CG3Eval2.ixx" />
     <ClCompile Include="Src\CG3Eval2\DeferredLighting.cpp" />
     <ClCompile Include="Src\CG3Eval2\DeferredLighting.ixx" />
     <ClCompile Include="Src\Lumina\Container\Container.Bitset.ixx" />

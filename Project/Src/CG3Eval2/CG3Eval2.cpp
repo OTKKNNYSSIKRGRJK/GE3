@@ -1,0 +1,554 @@
+module CG3Eval2;
+
+import <cstdint>;
+
+import <vector>;
+
+import <cassert>;
+
+import Lumina.AssetManager;
+
+import Lumina.Utils.Data;
+import Lumina.Utils.Data.Mesh;
+
+import Lumina.Math;
+
+namespace {
+	using namespace Lumina;
+
+	Mat4 LocalToWorld_{};
+	Mat4 Transpose_WorldToLocal_{};
+	Mat4 ScreenToWorld_{};
+	Vec3 ModelScale_{ 3.0f, 3.0f, 3.0f };
+	Vec3 ModelRotate_{ 0.0f, 0.0f, 0.0f };
+	Vec3 ModelTranslate_{ 0.0f, 0.0f, 0.0f };
+	float ModelShininess_{ 32.0f };
+
+	Vec3 LookAtSrc_{ -20.0f, 5.0f, -15.0f };
+	Vec3 LookAtDst_{ 0.0f, 0.0f, 0.0f };
+
+	std::vector<uint32_t> ActivePtLightList_{};
+
+	Mat4 Inv_Viewport{
+		1.0f / 640.0f, 0.0f, 0.0f, 0.0f,
+		0.0f, -1.0f / 360.0f, 0.0f, 0.0f,
+		0.0f, 0.0f, 1.0f, 0.0f,
+		-1.0f, 1.0f, 0.0f, 1.0f,
+	};
+
+	struct Vertex {
+		Float3 LocalPos;
+		Float2 TexCoord;
+		float TexID;
+		Float3 Normal;
+	};
+
+	template<uint32_t Div1 = 12U, uint32_t Div2 = 24U>
+		requires(Div1 > 0U && Div2 > 0U)
+	void CreateSphere(
+		std::vector<Vertex>& vertices_,
+		std::vector<uint32_t>& indices_,
+		float radius_,
+		Lumina::Float3 const& center_ = { 0.0f, 0.0f, 0.0f }
+	) {
+		vertices_.clear();
+		indices_.clear();
+
+		Lumina::Math::PerlinNoise noise{ 1.0f, 4U, 0.5f };
+
+		constexpr float inv_Div1{ 1.0f / static_cast<float>(Div1) };
+		constexpr float deltaTheta{ 1.0f * std::numbers::pi_v<float> *inv_Div1 };
+		constexpr float inv_Div2{ 1.0f / static_cast<float>(Div2) };
+		constexpr float deltaPhi{ 2.0f * std::numbers::pi_v<float> *inv_Div2 };
+
+		float cosThetas[Div1 + 1]{};
+		float sinThetas[Div1 + 1]{};
+		float cosPhis[Div2 + 1]{};
+		float sinPhis[Div2 + 1]{};
+		for (int i{ 0 }; i <= Div1; ++i) {
+			float const theta{ i * deltaTheta - 0.5f * std::numbers::pi_v<float> };
+			cosThetas[i] = std::cos(theta);
+			sinThetas[i] = std::sin(theta);
+		}
+		for (int i{ 0 }; i <= Div2; ++i) {
+			float const phi{ i * deltaPhi };
+			cosPhis[i] = std::cos(phi);
+			sinPhis[i] = std::sin(phi);
+		}
+
+		for (int i{ 0 }; i <= Div1; ++i) {
+			for (int j{ 0 }; j <= Div2; ++j) {
+				auto& vert = vertices_.emplace_back();
+				{
+					vert.LocalPos.x = cosThetas[i] * cosPhis[j] * radius_ + center_.x;
+					vert.LocalPos.z = cosThetas[i] * sinPhis[j] * radius_ + center_.z;
+					vert.LocalPos.y = sinThetas[i] * radius_ + center_.y;
+
+					vert.Normal.x = cosThetas[i] * cosPhis[j];
+					vert.Normal.z = cosThetas[i] * sinPhis[j];
+					vert.Normal.y = sinThetas[i];
+
+					vert.TexCoord.x = j * inv_Div2;
+					vert.TexCoord.y = 1.0f - i * inv_Div1;
+
+					vert.TexID = noise(i * 3.5f, j * 3.5f, (i + j) * 3.5f);
+				}
+			}
+		}
+
+		for (int i{ 0 }; i < Div1; ++i) {
+			for (int j{ 0 }; j < Div2; ++j) {
+				indices_.emplace_back(i * (Div2 + 1) + j);
+				indices_.emplace_back((i + 1) * (Div2 + 1) + j);
+				indices_.emplace_back((i + 1) * (Div2 + 1) + (j + 1));
+				indices_.emplace_back(i * (Div2 + 1) + j);
+				indices_.emplace_back((i + 1) * (Div2 + 1) + (j + 1));
+				indices_.emplace_back(i * (Div2 + 1) + (j + 1));
+			}
+		}
+	}
+
+	Lumina::Mat4 LookAt(
+		Lumina::Vec3 const& src_,
+		Lumina::Vec3 const& dst_,
+		Lumina::Vec3 const& up_
+	) {
+		Lumina::Vec3 const forward{ Lumina::Vec3{ dst_ - src_ }.Unit() };
+		Lumina::Vec3 const right{ Lumina::Vec3::Cross(up_, forward).Unit() };
+		Lumina::Vec3 const up{ Lumina::Vec3::Cross(forward, right) };
+
+		return {
+			right.x,
+			up.x,
+			forward.x,
+			0.0f,
+
+			right.y,
+			up.y,
+			forward.y,
+			0.0f,
+
+			right.z,
+			up.z,
+			forward.z,
+			0.0f,
+
+			-Lumina::Vec3::Dot(src_, right),
+			-Lumina::Vec3::Dot(src_, up),
+			-Lumina::Vec3::Dot(src_, forward),
+			1.0f,
+		};
+	}
+}
+
+namespace CG3Eval2 {
+	void Scene::Update() {
+		Lighting_.Update(
+			List_DirectionalLight_,
+			List_PointLight_,
+			List_Matrix_World_LightSphere_,
+			ActivePtLightList_
+		);
+	}
+
+	void Scene::Render(
+		[[maybe_unused]] DX12::Context const& dxContext_,
+		DX12::CommandList const& cmdList_
+	) {
+		UB_Constant_Model_.Store(&LocalToWorld_, sizeof(Mat4), 0LLU);
+		UB_Constant_Model_.Store(&Transpose_WorldToLocal_, sizeof(Mat4), sizeof(Mat4));
+		UB_Constant_Scene_.Store(&Constant_Scene_, sizeof(Constant_Scene), 0LLU);
+		cmdList_->CopyBufferRegion(
+			DB_Constant_Scene_.Get(),
+			0LLU,
+			UB_Constant_Scene_.Get(),
+			0LLU,
+			sizeof(Constant_Scene)
+		);
+
+		UB_LightingScene_.Store(&ScreenToWorld_, sizeof(Mat4), 0LLU);
+		UB_LightingScene_.Store(&LookAtSrc_, sizeof(Float3), sizeof(Mat4));
+		UB_LightingScene_.Store(&ModelShininess_, sizeof(Float3), sizeof(Mat4) + sizeof(Float3));
+
+		static D3D12_RESOURCE_BARRIER const barriers_PreRender[]{
+			Lumina::DX12::Barrier::Transition(
+				Canvas_.RenderTexture(0U),
+				D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+				D3D12_RESOURCE_STATE_RENDER_TARGET
+			),
+			Lumina::DX12::Barrier::Transition(
+				Canvas_.RenderTexture(1U),
+				D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+				D3D12_RESOURCE_STATE_RENDER_TARGET
+			),
+			Lumina::DX12::Barrier::Transition(
+				Canvas_.DepthTexture(),
+				D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+				D3D12_RESOURCE_STATE_DEPTH_WRITE
+			),
+		};
+		cmdList_->ResourceBarrier(3U, barriers_PreRender);
+
+		RenderPass_.Begin(cmdList_);
+
+		cmdList_->RSSetViewports(
+			Canvas_.Num_RenderTargets(),
+			Canvas_.Viewports().data()
+		);
+		cmdList_->RSSetScissorRects(
+			Canvas_.Num_RenderTargets(),
+			Canvas_.ScissorRects().data()
+		);
+
+		cmdList_->SetGraphicsRootSignature(RS_.Get());
+		cmdList_->SetGraphicsRootDescriptorTable(0U, GlobalTable_Graphics_.GPUHandle(0U));
+		cmdList_->SetGraphicsRootDescriptorTable(1U, GlobalTable_Graphics_.GPUHandle(96U));
+		cmdList_->SetGraphicsRootDescriptorTable(2U, GlobalTable_ImageTextures_.GPUHandle(0U));
+		cmdList_->SetPipelineState(PSO_.Get());
+		cmdList_->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		cmdList_->IASetVertexBuffers(0U, 1U, &VBV_Mesh_Sphere_);
+		cmdList_->IASetIndexBuffer(&IBV_Mesh_Sphere_);
+
+		RenderPass_.End();
+
+		static D3D12_RESOURCE_BARRIER const barriers_PostRender[]{
+			Lumina::DX12::Barrier::Transition(
+				Canvas_.RenderTexture(0U),
+				D3D12_RESOURCE_STATE_RENDER_TARGET,
+				D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE
+			),
+			Lumina::DX12::Barrier::Transition(
+				Canvas_.RenderTexture(1U),
+				D3D12_RESOURCE_STATE_RENDER_TARGET,
+				D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE
+			),
+			Lumina::DX12::Barrier::Transition(
+				Canvas_.DepthTexture(),
+				D3D12_RESOURCE_STATE_DEPTH_WRITE,
+				D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE
+			),
+		};
+		cmdList_->ResourceBarrier(3U, barriers_PostRender);
+
+		Lighting_.Render(
+			dxContext_.Device(),
+			cmdList_,
+			GlobalTable_Graphics_.GPUHandle(0U + 64U + 96U),
+			LocalHeap_CBV_.CPUHandle(0U),
+			LocalHeap_CBV_.CPUHandle(2U)
+		);
+		
+		D3D12_RESOURCE_BARRIER const barriers[]{
+			D3D12_RESOURCE_BARRIER{
+				.Type{ D3D12_RESOURCE_BARRIER_TYPE_TRANSITION },
+				.Transition{
+					.pResource{ dxContext_.SwapChain().BackBufferResource() },
+					.Subresource{ 0xFFFFFFFF },
+					.StateBefore{ D3D12_RESOURCE_STATE_RENDER_TARGET },
+					.StateAfter{ D3D12_RESOURCE_STATE_COPY_DEST },
+				}
+			},
+			Lumina::DX12::Barrier::Transition(
+				Lighting_.RenderTexture(),
+				D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+				D3D12_RESOURCE_STATE_COPY_SOURCE
+			),
+			D3D12_RESOURCE_BARRIER{
+				.Type{ D3D12_RESOURCE_BARRIER_TYPE_TRANSITION },
+				.Transition{
+					.pResource{ dxContext_.SwapChain().BackBufferResource() },
+					.Subresource{ 0xFFFFFFFF },
+					.StateBefore{ D3D12_RESOURCE_STATE_COPY_DEST },
+					.StateAfter{ D3D12_RESOURCE_STATE_RENDER_TARGET },
+				}
+			},
+			Lumina::DX12::Barrier::Transition(
+				Lighting_.RenderTexture(),
+				D3D12_RESOURCE_STATE_COPY_SOURCE,
+				D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE
+			),
+		};
+		cmdList_->ResourceBarrier(2U, barriers);
+		cmdList_->CopyResource(dxContext_.SwapChain().BackBufferResource(), Lighting_.RenderTexture().Get());
+		cmdList_->ResourceBarrier(2U, barriers + 2);
+	}
+
+	template<>
+	void Scene::Initialize(
+		DX12::Context const& dxContext_,
+		AssetManager const& assetMngr_
+	) {
+		auto const& device{ dxContext_.Device() };
+
+		DB_Constant_Scene_.Initialize(device, (sizeof(Constant_Scene) + 0xFFLLU) & ~0xFFLLU);
+		UB_Constant_Scene_.Initialize(device, DB_Constant_Scene_.SizeInBytes());
+		WorldToView_ = LookAt(LookAtSrc_, LookAtDst_, { 0.0f, 1.0f, 0.0f });
+		ViewToNDC_ = Lumina::Mat4::PerspectiveFOV(
+			0.45f,
+			static_cast<float>(1280.0f) / static_cast<float>(720.0f),
+			0.1f,
+			200.0f
+		);
+		Constant_Scene_.WorldToNDC = WorldToView_ * ViewToNDC_;
+		UB_Constant_Scene_.Store(&Constant_Scene_, sizeof(Constant_Scene), 0LLU);
+
+		LocalToWorld_ = Mat4::SRT(ModelScale_, ModelRotate_, ModelTranslate_);
+		Mat4::Transpose(Transpose_WorldToLocal_, LocalToWorld_.Inv());
+		UB_Constant_Model_.Initialize(device, 256LLU);
+		UB_Constant_Model_.Store(&LocalToWorld_, sizeof(Mat4), 0LLU);
+		UB_Constant_Model_.Store(&Transpose_WorldToLocal_, sizeof(Mat4), sizeof(Mat4));
+
+		ScreenToWorld_ = Inv_Viewport * Constant_Scene_.WorldToNDC.Inv();
+		UB_LightingScene_.Initialize(device, 256LLU);
+		UB_LightingScene_.Store(&ScreenToWorld_, sizeof(Mat4), 0LLU);
+		UB_LightingScene_.Store(&LookAtSrc_, sizeof(Float3), sizeof(Mat4));
+		UB_LightingScene_.Store(&ModelShininess_, sizeof(Float3), sizeof(Mat4) + sizeof(Float3));
+
+		GlobalTable_Graphics_ = dxContext_.GlobalDescriptorHeap().Allocate(192U);
+
+		LocalHeap_CBV_.Initialize(device, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 32U, false);
+		DX12::CBV::Create(device, LocalHeap_CBV_.CPUHandle(0U), DB_Constant_Scene_);
+		DX12::CBV::Create(device, LocalHeap_CBV_.CPUHandle(1U), UB_Constant_Model_);
+		DX12::CBV::Create(device, LocalHeap_CBV_.CPUHandle(2U), UB_LightingScene_);
+
+		device->CopyDescriptorsSimple(
+			1U,
+			GlobalTable_Graphics_.CPUHandle(0U),
+			LocalHeap_CBV_.CPUHandle(0U),
+			D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
+		);
+		device->CopyDescriptorsSimple(
+			1U,
+			GlobalTable_Graphics_.CPUHandle(1U),
+			LocalHeap_CBV_.CPUHandle(1U),
+			D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
+		);
+		/*device->CopyDescriptorsSimple(
+			1U,
+			GlobalTable_Graphics_.CPUHandle(0U + 96U),
+			LocalHeap_CBV_.CPUHandle(0U),
+			D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
+		);*/
+
+		GlobalTable_ImageTextures_ = dxContext_.GlobalDescriptorHeap().Allocate(32U);
+		auto& assetMngr{ const_cast<AssetManager&>(assetMngr_) };
+		std::vector<uint32_t> texIDs{};
+		assetMngr.Graphics().LoadImageTextures(
+			texIDs,
+			{
+				{ "CG3.Tex0", "CG3Eval2/monsterBall.png" },
+				{ "CG3.Tex1", "CG3Eval2/checkerBoard.png" },
+			}
+		);
+		for (uint32_t idx{ 0U }; idx < static_cast<uint32_t>(texIDs.size()); ++idx) {
+			device->CopyDescriptorsSimple(
+				1U,
+				GlobalTable_ImageTextures_.CPUHandle(idx),
+				assetMngr.Graphics().CPUHandle(texIDs.at(idx)),
+				D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
+			);
+		}
+
+		Canvas_.AllocateTextures(2U, true);
+		Canvas_.RenderTexture(0U).Initialize(device, 1280U, 720U);
+		Canvas_.RenderTexture(1U).Initialize(device, 1280U, 720U, DXGI_FORMAT_R8G8B8A8_UNORM);
+		Canvas_.DepthTexture().Initialize(device, 1280U, 720U);
+		Canvas_.TransitionResourceStates(device, dxContext_.DirectQueue());
+		Canvas_.CreateViews(device);
+		Canvas_.Viewport(0U) = D3D12_VIEWPORT{
+			.TopLeftX{ 0.0f },
+			.TopLeftY{ 0.0f },
+			.Width{ 1280.0f },
+			.Height{ 720.0f },
+			.MinDepth{ 0.0f },
+			.MaxDepth{ 1.0f },
+		};
+		Canvas_.ScissorRect(0U) = D3D12_RECT{
+			.left{ 0 },
+			.top{ 0 },
+			.right{ 1280 },
+			.bottom{ 720 },
+		};
+		Canvas_.Viewport(1U) = Canvas_.Viewport(0U);
+		Canvas_.ScissorRect(1U) = Canvas_.ScissorRect(0U);
+
+		DX12::SRV<void>::Create(device, GlobalTable_Graphics_.CPUHandle(0U + 64U + 96U), Canvas_.RenderTexture(0U));
+		DX12::SRV<void>::Create(device, GlobalTable_Graphics_.CPUHandle(1U + 64U + 96U), Canvas_.RenderTexture(1U));
+		DX12::SRV<void>::Create<DXGI_FORMAT_R24_UNORM_X8_TYPELESS>(device, GlobalTable_Graphics_.CPUHandle(2U + 64U + 96U), Canvas_.DepthTexture());
+
+		RenderPass_.Initialize(2U, true);
+		RenderPass_.RenderTarget(0).BeginningEvent().ClearTarget(
+			DXGI_FORMAT_R8G8B8A8_UNORM_SRGB,
+			{ 0.0f, 0.0f, 0.0f, 0.0f }
+		);
+		RenderPass_.RenderTarget(0).EndingEvent().Preserve();
+		RenderPass_.RenderTarget(1).BeginningEvent().ClearTarget(
+			DXGI_FORMAT_R8G8B8A8_UNORM,
+			{ 0.0f, 0.0f, 0.0f, 0.0f }
+		);
+		RenderPass_.RenderTarget(1).EndingEvent().Preserve();
+		RenderPass_.DepthStencil().DepthBeginningEvent().ClearTarget(
+			DXGI_FORMAT_D24_UNORM_S8_UINT,
+			{ .Depth{ 1.0f }, }
+		);
+		RenderPass_.DepthStencil().DepthEndingEvent().Preserve();
+		RenderPass_.DepthStencil().StencilBeginningEvent().NoAccess();
+		RenderPass_.DepthStencil().StencilEndingEvent().NoAccess();
+		for (uint32_t idx{ 0U }; idx < Canvas_.Num_RenderTargets(); ++idx) {
+			RenderPass_.RenderTarget(idx).View() = Canvas_.RTV(idx);
+		}
+		RenderPass_.DepthStencil().View() = Canvas_.DSV();
+
+		auto settings{ Utils::LoadFromFile<nlohmann::json>("Settings.json", "CG3Eval2") };
+		auto graphicsRSSetup{ DX12::LoadRootSignatureSetup(settings.at("General Graphics RS Test")) };
+		RS_.Initialize(device, graphicsRSSetup, "CG3Eval2::Graphics RS");
+
+		dxContext_.Compile(
+			VertexShader_,
+			L"CG3Eval2/VS.hlsl",
+			L"vs_6_6",
+			L"main",
+			"CG3Eval2::VS"
+		);
+		dxContext_.Compile(
+			PixelShader_,
+			L"CG3Eval2/PS.hlsl",
+			L"ps_6_6",
+			L"main",
+			"CG3Eval2::PS"
+		);
+		DX12::GraphicsPipelineState::Setup graphicsPSOSetup{};
+		DX12::BlendState blendState{ .IndependentBlendEnable{ true }, };
+		blendState.RenderTarget[0] = {
+			.BlendEnable{ true },
+			.LogicOpEnable{ false },
+			.SrcBlend{ D3D12_BLEND_SRC_ALPHA },
+			.DestBlend{ D3D12_BLEND_INV_SRC_ALPHA },
+			.BlendOp{ D3D12_BLEND_OP_ADD },
+			.SrcBlendAlpha{ D3D12_BLEND_ONE },
+			.DestBlendAlpha{ D3D12_BLEND_ONE },
+			.BlendOpAlpha{ D3D12_BLEND_OP_ADD },
+			.RenderTargetWriteMask{ D3D12_COLOR_WRITE_ENABLE_ALL },
+		};
+		blendState.RenderTarget[1] = {
+			.BlendEnable{ true },
+			.LogicOpEnable{ false },
+			.SrcBlend{ D3D12_BLEND_SRC_ALPHA },
+			.DestBlend{ D3D12_BLEND_INV_SRC_ALPHA },
+			.BlendOp{ D3D12_BLEND_OP_ADD },
+			.SrcBlendAlpha{ D3D12_BLEND_ONE },
+			.DestBlendAlpha{ D3D12_BLEND_ONE },
+			.BlendOpAlpha{ D3D12_BLEND_OP_ADD },
+			.RenderTargetWriteMask{ D3D12_COLOR_WRITE_ENABLE_ALL },
+		};
+		DX12::RasterizerState rasterizerState{
+			.FillMode{ D3D12_FILL_MODE_SOLID },
+			.CullMode{ D3D12_CULL_MODE_BACK },
+		};
+		DX12::DepthStencilState depthStencilState{
+			.DepthEnable{ true },
+			.DepthWriteMask{ D3D12_DEPTH_WRITE_MASK_ALL },
+			.DepthFunc{ D3D12_COMPARISON_FUNC_LESS_EQUAL },
+		};
+		DX12::GraphicsPipelineState::InputLayout inputLayout{};
+		inputLayout.Append("POSITION", 0U, DXGI_FORMAT_R32G32B32_FLOAT);
+		inputLayout.Append("TEXCOORD", 0U, DXGI_FORMAT_R32G32_FLOAT);
+		inputLayout.Append("TEXID", 0U, DXGI_FORMAT_R32_FLOAT);
+		inputLayout.Append("NORMAL", 0U, DXGI_FORMAT_R32G32B32_FLOAT);
+		std::vector<DXGI_FORMAT> rtvFormats{
+			DXGI_FORMAT_R8G8B8A8_UNORM_SRGB,
+			DXGI_FORMAT_R8G8B8A8_UNORM,
+		};
+		graphicsPSOSetup <<
+			RS_ <<
+			VertexShader_ <<
+			PixelShader_ <<
+			blendState <<
+			rasterizerState <<
+			depthStencilState <<
+			inputLayout <<
+			D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE <<
+			rtvFormats <<
+			DX12::GraphicsPipelineState::DefaultDSVFormat;
+		PSO_.Initialize(
+			device,
+			graphicsPSOSetup,
+			"CG3Eval2::GraphicsPSO"
+		);
+
+		std::vector<Vertex> sphereVertices;
+		std::vector<uint32_t> sphereIndices;
+		CreateSphere<16U, 32U>(sphereVertices, sphereIndices, 0.5f, { 0.0f, 1.0f, 0.0f });
+		Num_Vertices_Sphere_ = static_cast<uint32_t>(sphereVertices.size());
+		Num_Indices_Sphere_ = static_cast<uint32_t>(sphereIndices.size());
+
+		DB_VB_Mesh_Sphere_.Initialize(
+			device,
+			sizeof(Vertex) * Num_Vertices_Sphere_,
+			"Mesh::Sphere::VB"
+		);
+		DB_IB_Mesh_Sphere_.Initialize(
+			device,
+			sizeof(uint32_t) * Num_Indices_Sphere_,
+			"Mesh::Sphere::IB"
+		);
+
+		VBV_Mesh_Sphere_ = DX12::VBV::Create<Vertex>(DB_VB_Mesh_Sphere_);
+		IBV_Mesh_Sphere_ = DX12::IBV::Create(DB_IB_Mesh_Sphere_);
+
+		DX12::UploadBuffer ub_Mesh_Sphere_VB{};
+		ub_Mesh_Sphere_VB.Initialize(device, DB_VB_Mesh_Sphere_.SizeInBytes());
+		ub_Mesh_Sphere_VB.Store(
+			sphereVertices.data(),
+			sizeof(Vertex) * Num_Vertices_Sphere_,
+			0LLU
+		);
+		DX12::UploadBuffer ub_Mesh_Sphere_IB{};
+		ub_Mesh_Sphere_IB.Initialize(device, DB_IB_Mesh_Sphere_.SizeInBytes());
+		ub_Mesh_Sphere_IB.Store(
+			sphereIndices.data(),
+			sizeof(uint32_t) * Num_Indices_Sphere_,
+			0LLU
+		);
+
+		Lighting_.Initialize(dxContext_, 1280U, 720U);
+		List_DirectionalLight_.Initialize(32U);
+		{
+			auto& light = List_DirectionalLight_.New();
+			{
+				light.Direction = { 1.0f, 0.0f, 0.0f };
+				light.DiffuseRGB = { 1.0f, 1.0f, 1.0f };
+				light.DiffuseIntensity = 0.25f;
+				light.SpecularRGB = { 1.0f, 1.0f, 1.0f };
+				light.SpecularIntensity = 2.0f;
+			}
+		}
+		List_PointLight_.Initialize(128U);
+		ActivePtLightList_.clear();
+		ActivePtLightList_.emplace_back(List_PointLight_.Size());
+		{
+			auto& light = List_PointLight_.New();
+			{
+				light.WorldPosition = { 0.0f, 1.0f, -4.0f };
+				light.DiffuseRGB = { 1.0f, 0.25f, 0.0f };
+				light.DiffuseIntensity = 3.0f;
+				light.SpecularRGB = { 1.0f, 0.25f, 0.0f };
+				light.SpecularIntensity = 5.0f;
+			}
+		}
+		List_Matrix_World_LightSphere_.Initialize(128U);
+		{
+			auto& lightSphere = List_Matrix_World_LightSphere_.New();
+
+			float const r{ Lumina::LightSphereRadius(1024.0f, 2.0f, 1.0f, 1.0f, 0.5f) };
+			lightSphere = {
+				r, 0.0f, 0.0f, 0.0f,
+				0.0f, r, 0.0f, 0.0f,
+				0.0f, 0.0f, r, 0.0f,
+				-5.0f, 0.0f, 0.0f, 1.0f,
+			};
+		}
+
+		DX12::SRV<void>::Create(device, GlobalTable_Graphics_.CPUHandle(3U + 64U + 96U), Lighting_.RenderTexture());
+	}
+}
