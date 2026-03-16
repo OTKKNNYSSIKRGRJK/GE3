@@ -2,6 +2,7 @@ module;
 
 #include<xaudio2.h>
 #include<mmsystem.h>
+#include<wrl.h>
 
 #pragma comment(lib, "xaudio2.lib")
 #pragma comment(lib, "winmm.lib")
@@ -82,7 +83,7 @@ namespace Lumina::XAudio2 {
 		void Finalize() noexcept;
 
 	private:
-		IXAudio2* XAudio2_{ nullptr };
+		Microsoft::WRL::ComPtr<IXAudio2> XAudio2_{ nullptr };
 		IXAudio2MasteringVoice* MasteringVoice_{ nullptr };
 
 		std::vector<AudioStream> Array_Streams_{};
@@ -130,7 +131,6 @@ namespace Lumina::XAudio2 {
 		::MFShutdown();
 
 		MasteringVoice_->DestroyVoice();
-		XAudio2_->Release();
 
 		::CoUninitialize();
 	}
@@ -139,29 +139,28 @@ namespace Lumina::XAudio2 {
 		int handle_Stream{ static_cast<int>(Array_Streams_.size()) };
 		auto& stream{ Array_Streams_.emplace_back() };
 
-		IMFSourceReader* sourceReader{ nullptr };
+		Microsoft::WRL::ComPtr<IMFSourceReader> sourceReader{ nullptr };
 		::MFCreateSourceReaderFromURL(filePath_.data(), nullptr, &sourceReader);
 
-		IMFMediaType* mediaType{ nullptr };
+		Microsoft::WRL::ComPtr<IMFMediaType> mediaType{ nullptr };
 		::MFCreateMediaType(&mediaType);
 		mediaType->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Audio);
 		mediaType->SetGUID(MF_MT_SUBTYPE, MFAudioFormat_PCM);
 		sourceReader->SetCurrentMediaType(
 			static_cast<uint32_t>(MF_SOURCE_READER_FIRST_AUDIO_STREAM),
 			nullptr,
-			mediaType
+			mediaType.Get()
 		);
-		mediaType->Release();
 		mediaType = nullptr;
 		sourceReader->GetCurrentMediaType(
 			static_cast<uint32_t>(MF_SOURCE_READER_FIRST_AUDIO_STREAM),
 			&mediaType
 		);
 
-		::MFCreateWaveFormatExFromMFMediaType(mediaType, &(stream.WaveFormat), nullptr);
+		::MFCreateWaveFormatExFromMFMediaType(mediaType.Get(), &(stream.WaveFormat), nullptr);
 
 		while (true) {
-			IMFSample* sample{ nullptr };
+			Microsoft::WRL::ComPtr<IMFSample> sample{ nullptr };
 			DWORD streamFlags{};
 			sourceReader->ReadSample(
 				static_cast<uint32_t>(MF_SOURCE_READER_FIRST_AUDIO_STREAM),
@@ -173,7 +172,7 @@ namespace Lumina::XAudio2 {
 			);
 			if (streamFlags & MF_SOURCE_READERF_ENDOFSTREAM) { break; }
 
-			IMFMediaBuffer* mediaBuffer{ nullptr };
+			Microsoft::WRL::ComPtr<IMFMediaBuffer> mediaBuffer{ nullptr };
 			sample->ConvertToContiguousBuffer(&mediaBuffer);
 
 			byte* buffer{ nullptr };
@@ -186,13 +185,7 @@ namespace Lumina::XAudio2 {
 				bufferLengthInBytes
 			);
 			mediaBuffer->Unlock();
-
-			mediaBuffer->Release();
-			sample->Release();
 		}
-
-		mediaType->Release();
-		sourceReader->Release();
 
 		return *reinterpret_cast<AudioStream::Handle*>(&handle_Stream);
 	}

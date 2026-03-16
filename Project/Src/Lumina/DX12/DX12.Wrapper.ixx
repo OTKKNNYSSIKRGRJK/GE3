@@ -76,26 +76,6 @@ namespace Lumina::DX12 {
 	protected:
 		constexpr Wrapper() noexcept = default;
 		virtual ~Wrapper() noexcept {
-			/*if (IsInitialized()) {
-				if (DebugName_.size() > 0LLU) {
-					Logger().Message<0U>(
-						"Wrapper,{},Releasing {} object...\n",
-						DebugName_,
-						typeid(WrappedType).name()
-					);
-				}
-
-				Wrapped_->Release();
-
-				if (DebugName_.size() > 0LLU) {
-					Logger().Message<0U>(
-						"Wrapper,{},{} object released successfully.\n",
-						DebugName_,
-						typeid(WrappedType).name()
-					);
-				}
-			}*/
-
 			DebugName_.clear();
 		}
 

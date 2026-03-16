@@ -111,15 +111,14 @@ namespace Lumina::DX12 {
 
 		D3D12_ROOT_SIGNATURE_DESC const rsDesc{ rsSetup_() };
 
-		ID3DBlob* rsBlob{ nullptr };
-		ID3DBlob* errorBlob{ nullptr };
+		Microsoft::WRL::ComPtr<ID3DBlob> rsBlob{ nullptr };
+		Microsoft::WRL::ComPtr<ID3DBlob> errorBlob{ nullptr };
 
 		constexpr auto msg_Failure{
 			[](HRESULT hr_SerializeRS_, ID3DBlob* errorBlob_) -> std::string {
 				if (SUCCEEDED(hr_SerializeRS_)) { return ""; }
 
 				std::string msg{ reinterpret_cast<char*>(errorBlob_->GetBufferPointer()) };
-				errorBlob_->Release();
 
 				return msg;
 			}
@@ -133,7 +132,7 @@ namespace Lumina::DX12 {
 				&errorBlob
 			)
 		};
-		hr_SerializeRS || Utils::Debug::ThrowIfFailed{ msg_Failure(hr_SerializeRS, errorBlob) };
+		hr_SerializeRS || Utils::Debug::ThrowIfFailed{ msg_Failure(hr_SerializeRS, errorBlob.Get()) };
 		Logger().Message<0U>(
 			"RootSignature,{},Root signature serializad successfully.\n",
 			debugName_
@@ -154,8 +153,6 @@ namespace Lumina::DX12 {
 			"RootSignature,{},Root signature created successfully.\n",
 			debugName_
 		);
-
-		rsBlob->Release();
 
 		SetDebugName(debugName_);
 	}

@@ -99,7 +99,7 @@ namespace Lumina::DX12 {
 
 	#if defined(_DEBUG)
 	void GraphicsDevice::SetBreakOnMessages(D3D12_MESSAGE_SEVERITY minSeverity_) const {
-		ID3D12InfoQueue* infoQueue{ nullptr };
+		Microsoft::WRL::ComPtr<ID3D12InfoQueue> infoQueue{ nullptr };
 		if (SUCCEEDED(Wrapped_->QueryInterface(IID_PPV_ARGS(&infoQueue)))) {
 			for (
 				D3D12_MESSAGE_SEVERITY severity : {
@@ -115,8 +115,6 @@ namespace Lumina::DX12 {
 					(static_cast<int32_t>(severity) <= static_cast<int32_t>(minSeverity_))
 				);
 			}
-
-			infoQueue->Release();
 		}
 	}
 
@@ -125,7 +123,7 @@ namespace Lumina::DX12 {
 		std::vector<D3D12_MESSAGE_SEVERITY> const& severities_,
 		std::vector<D3D12_MESSAGE_CATEGORY> const& categories_
 	) const {
-		ID3D12InfoQueue* infoQueue{ nullptr };
+		Microsoft::WRL::ComPtr<ID3D12InfoQueue> infoQueue{ nullptr };
 		if (SUCCEEDED(Wrapped_->QueryInterface(IID_PPV_ARGS(&infoQueue)))) {
 			D3D12_INFO_QUEUE_FILTER msgFilter{
 				.DenyList{
@@ -138,8 +136,6 @@ namespace Lumina::DX12 {
 				},
 			};
 			infoQueue->PushStorageFilter(&msgFilter);
-
-			infoQueue->Release();
 		}
 	}
 	#endif
@@ -266,14 +262,5 @@ namespace Lumina::DX12 {
 	//----	------	------	------	------	----//
 
 	inline GraphicsDevice::GraphicsDevice() noexcept {}
-
-	GraphicsDevice::~GraphicsDevice() noexcept {
-		//auto& logger{ Logger() };
-
-		//Adapter_->Release();
-		//logger.Message<0U>("GraphicsDevice,{},Hardware adapter released successfully.\n", DebugName());
-
-		//Factory_->Release();
-		//logger.Message<0U>("GraphicsDevice,{},DXGI factory released successfully.\n", DebugName());
-	}
+	GraphicsDevice::~GraphicsDevice() noexcept {}
 }

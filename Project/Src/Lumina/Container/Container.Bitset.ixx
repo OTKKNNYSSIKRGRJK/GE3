@@ -4,6 +4,7 @@ export module Lumina.Container.Bitset;
 
 import <memory>;
 import <cassert>;
+import <array>;
 
 //////	//////	//////	//////	//////	//////
 
@@ -18,7 +19,7 @@ namespace Lumina {
 		constexpr Bitset<N>& Set(uint32_t pos_, bool val_ = true);
 		constexpr Bitset<N>& Set(const Bitset<N>& bitset_);
 		Bitset<N>& SetAllZero() {
-			std::memset(Data_, 0, sizeof(uint8_t) * DataLength());
+			Data_.fill(0);
 			return (*this);
 		}
 
@@ -33,7 +34,7 @@ namespace Lumina {
 		~Bitset() noexcept;
 
 	private:
-		uint8_t* Data_{ nullptr };
+		std::array<uint8_t, N> Data_;
 	};
 
 	template<uint32_t N>
@@ -43,7 +44,7 @@ namespace Lumina {
 
 	template<uint32_t N>
 	constexpr const uint8_t* Bitset<N>::operator()() const noexcept {
-		return Data_;
+		return Data_.data();
 	}
 
 	template<uint32_t N>
@@ -58,7 +59,7 @@ namespace Lumina {
 
 	template<uint32_t N>
 	constexpr Bitset<N>& Bitset<N>::Set(const Bitset<N>& bitset_) {
-		std::memcpy(Data_, bitset_.Data_, sizeof(uint8_t) * DataLength());
+		Data_ = bitset_.Data_;
 		return *this;
 	}
 
@@ -74,18 +75,8 @@ namespace Lumina {
 	template<uint32_t N>
 	Bitset<N>::Bitset() {
 		static_assert(N > 0U);
-
-		assert(Data_ == nullptr);
-		Data_ = new uint8_t[DataLength()];
-		assert(Data_ != nullptr);
-		std::memset(Data_, 0, sizeof(uint8_t) * DataLength());
 	}
 
 	template<uint32_t N>
-	Bitset<N>::~Bitset() noexcept {
-		if (Data_ != nullptr) {
-			delete[] Data_;
-			Data_ = nullptr;
-		}
-	}
+	Bitset<N>::~Bitset() noexcept {}
 }

@@ -1,6 +1,7 @@
 module;
 
 #include<d3d12.h>
+#include<wrl.h>
 
 // dxcapi.h				| DirectX shader compiler API
 // dxcompiler.lib		| For HLSL compilation
@@ -111,14 +112,14 @@ export namespace Lumina::DX12 {
 		//----	------	------	------	------	----//
 
 	public:
-		constexpr Compiler() noexcept;
+		Compiler() noexcept;
 		virtual ~Compiler() noexcept;
 
 		//====	======	======	======	======	====//
 
 	private:
 		IDxcUtils* Utils_{ nullptr };
-		IDxcIncludeHandler* IncludeHandler_{ nullptr };
+		Microsoft::WRL::ComPtr<IDxcIncludeHandler> IncludeHandler_{ nullptr };
 	};
 }
 
@@ -225,7 +226,7 @@ namespace Lumina::DX12 {
 				&shaderSourceBuffer,
 				args.data(),
 				static_cast<uint32_t>(args.size()),
-				IncludeHandler_,
+				IncludeHandler_.Get(),
 				IID_PPV_ARGS(&shaderResult)
 			)
 		};
@@ -290,10 +291,7 @@ namespace Lumina::DX12 {
 
 	//----	------	------	------	------	----//
 
-	constexpr Shader::Compiler::Compiler() noexcept {}
+	Shader::Compiler::Compiler() noexcept {}
 
-	Shader::Compiler::~Compiler() noexcept {
-		IncludeHandler_->Release();
-		Utils_->Release();
-	}
+	Shader::Compiler::~Compiler() noexcept {}
 }

@@ -1,3 +1,7 @@
+module;
+
+#include<wrl.h>
+
 export module Lumina.MeshManager;
 
 import <cstdint>;
@@ -62,7 +66,7 @@ namespace Lumina {
 
 			auto& meshShaderAsset{ MeshShaderAssets_.emplace_back() };
 			
-			meshShaderAsset.LocalHeap_.reset(new DX12::DescriptorHeap{});
+			meshShaderAsset.LocalHeap_ = std::make_unique<DX12::DescriptorHeap>();
 			meshShaderAsset.LocalHeap_->Initialize(
 				device,
 				D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
@@ -70,7 +74,7 @@ namespace Lumina {
 				false
 			);
 
-			meshShaderAsset.Positions_.reset(new DX12::DefaultBuffer{});
+			meshShaderAsset.Positions_ = std::make_unique<DX12::DefaultBuffer>();
 			meshShaderAsset.Positions_->Initialize(
 				device,
 				sizeof(Float3) * mesh_.Positions.size(),
@@ -82,7 +86,7 @@ namespace Lumina {
 				*meshShaderAsset.Positions_
 			);
 			auto& uploadBuf_Positions{ UploadBuffers_.emplace_back() };
-			uploadBuf_Positions.reset(new DX12::UploadBuffer{});
+			uploadBuf_Positions = std::make_unique<DX12::UploadBuffer>();
 			uploadBuf_Positions->Initialize(
 				device,
 				meshShaderAsset.Positions_->SizeInBytes()
@@ -97,7 +101,7 @@ namespace Lumina {
 				uploadBuf_Positions->Get()
 			);
 
-			meshShaderAsset.TexCoords_.reset(new DX12::DefaultBuffer{});
+			meshShaderAsset.TexCoords_ = std::make_unique<DX12::DefaultBuffer>();
 			meshShaderAsset.TexCoords_->Initialize(
 				device,
 				sizeof(Float2) * mesh_.TexCoords.size(),
@@ -109,7 +113,7 @@ namespace Lumina {
 				*meshShaderAsset.TexCoords_
 			);
 			auto& uploadBuf_TexCoords{ UploadBuffers_.emplace_back() };
-			uploadBuf_TexCoords.reset(new DX12::UploadBuffer{});
+			uploadBuf_TexCoords = std::make_unique<DX12::UploadBuffer>();
 			uploadBuf_TexCoords->Initialize(
 				device,
 				meshShaderAsset.TexCoords_->SizeInBytes()
@@ -124,7 +128,7 @@ namespace Lumina {
 				uploadBuf_TexCoords->Get()
 			);
 
-			meshShaderAsset.Normals_.reset(new DX12::DefaultBuffer{});
+			meshShaderAsset.Normals_ = std::make_unique<DX12::DefaultBuffer>();
 			meshShaderAsset.Normals_->Initialize(
 				device,
 				sizeof(Float3) * mesh_.Normals.size(),
@@ -136,7 +140,7 @@ namespace Lumina {
 				*meshShaderAsset.Normals_
 			);
 			auto& uploadBuf_Normals{ UploadBuffers_.emplace_back() };
-			uploadBuf_Normals.reset(new DX12::UploadBuffer{});
+			uploadBuf_Normals = std::make_unique<DX12::UploadBuffer>();
 			uploadBuf_Normals->Initialize(
 				device,
 				meshShaderAsset.Normals_->SizeInBytes()
@@ -151,7 +155,7 @@ namespace Lumina {
 				uploadBuf_Normals->Get()
 			);
 
-			meshShaderAsset.Tangents_.reset(new DX12::DefaultBuffer{});
+			meshShaderAsset.Tangents_ = std::make_unique<DX12::DefaultBuffer>();
 			meshShaderAsset.Tangents_->Initialize(
 				device,
 				sizeof(Float3) * mesh_.Tangents.size(),
@@ -163,7 +167,7 @@ namespace Lumina {
 				*meshShaderAsset.Tangents_
 			);
 			auto& uploadBuf_Tangents{ UploadBuffers_.emplace_back() };
-			uploadBuf_Tangents.reset(new DX12::UploadBuffer{});
+			uploadBuf_Tangents = std::make_unique<DX12::UploadBuffer>();
 			uploadBuf_Tangents->Initialize(
 				device,
 				meshShaderAsset.Tangents_->SizeInBytes()
@@ -179,7 +183,7 @@ namespace Lumina {
 			);
 
 			meshShaderAsset.Num_Vertices_ = static_cast<uint32_t>(mesh_.Vertices.size());
-			meshShaderAsset.VertexBuffer_.reset(new DX12::DefaultBuffer{});
+			meshShaderAsset.VertexBuffer_ = std::make_unique<DX12::DefaultBuffer>();
 			meshShaderAsset.VertexBuffer_->Initialize(
 				DX12Context_->Device(),
 				sizeof(Utils::Mesh::Vertex) * meshShaderAsset.Num_Vertices_,
@@ -187,7 +191,7 @@ namespace Lumina {
 			);
 			meshShaderAsset.VBV_ = DX12::VBV::Create<Utils::Mesh::Vertex>(*meshShaderAsset.VertexBuffer_);
 			auto& uploadBuf_Vertices{ UploadBuffers_.emplace_back() };
-			uploadBuf_Vertices.reset(new DX12::UploadBuffer{});
+			uploadBuf_Vertices = std::make_unique<DX12::UploadBuffer>();
 			uploadBuf_Vertices->Initialize(
 				DX12Context_->Device(),
 				meshShaderAsset.VertexBuffer_->SizeInBytes()
@@ -298,47 +302,6 @@ namespace Lumina {
 			auto config{ Utils::LoadFromFile<NLohmannJSON>("Assets/Configs/MeshCommon.json") };
 			auto&& rsSetup{ DX12::LoadRootSignatureSetup(config.at("RS")) };
 			RS_.Initialize(device, rsSetup);
-
-			/*DX12Context_->Compile(
-				VS_,
-				L"Assets/Shaders/Model.VS.hlsl",
-				L"vs_6_6",
-				L"main",
-				"Model.VS"
-			);
-			DX12Context_->Compile(
-				PS_,
-				L"Assets/Shaders/Model.PS.hlsl",
-				L"ps_6_6",
-				L"main",
-				"Model.PS"
-			);
-
-			auto&& rasterizerState{ DX12::LoadRasterizerState(config.at("Model.PSO")) };
-			auto&& depthStencilState{ DX12::LoadDepthStencilState(config.at("Model.PSO")) };
-			auto&& inputLayout{ DX12::LoadInputLayout(config.at("Model.PSO")) };
-
-			PSOs_.resize(static_cast<uint32_t>(BlendMode::Count));
-			for (uint32_t i{ 0U }; i < static_cast<uint32_t>(BlendMode::Count); ++i) {
-				auto&& arr_BlendState{ config.at("BlendStates").at(i) };
-				BlendModeNames_.emplace_back(arr_BlendState.at(0).at("Name"));
-				auto&& blendState{ DX12::LoadBlendState0(arr_BlendState) };
-
-				PSOs_[i].reset(new DX12::GraphicsPSO{});
-				PSOs_[i]->Initialize(
-					device,
-					RS_,
-					VS_,
-					PS_,
-					blendState,
-					rasterizerState,
-					depthStencilState,
-					inputLayout,
-					D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
-					DX12::GraphicsPSO::DefaultRTVFormats,
-					DX12::GraphicsPSO::DefaultDSVFormat
-				);
-			}*/
 
 			std::vector<D3D12_INDIRECT_ARGUMENT_DESC> argDescs{};
 			auto& arg0{ argDescs.emplace_back(D3D12_INDIRECT_ARGUMENT_TYPE_CONSTANT) };
@@ -557,9 +520,7 @@ namespace Lumina {
 	public:
 		MeshManager(){}
 
-		~MeshManager() {
-			CommandSignature_->Release();
-		}
+		~MeshManager() {}
 
 	private:
 		DX12::RootSignature RS_{};
@@ -588,7 +549,7 @@ namespace Lumina {
 		uint32_t Count_BatchedVertices_{ 0U };
 
 		DX12::Context const* DX12Context_{ nullptr };
-		ID3D12GraphicsCommandList* CommandList_{ nullptr };
+		Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> CommandList_{ nullptr };
 
 		uint32_t MaxNum_Batches_{ 2048U };
 		uint32_t MaxNum_BatchedVertices_{ 65536U };

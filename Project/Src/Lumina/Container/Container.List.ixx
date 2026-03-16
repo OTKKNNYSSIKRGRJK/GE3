@@ -4,15 +4,16 @@ export module Lumina.Container.List;
 
 import <memory>;
 import <cassert>;
+import <vector>;
 
 namespace Lumina {
 	export template<typename T>
 	class List {
 	protected:
-		T* Table_Element{ nullptr };
-		bool* Table_IsActive{ nullptr };
-		int* Table_Prev{ nullptr };
-		int* Table_Next{ nullptr };
+		std::vector<T> Table_Element;
+		std::vector<int> Table_IsActive;
+		std::vector<int> Table_Prev;
+		std::vector<int> Table_Next;
 
 		uint32_t Capacity_{ 32U };
 
@@ -24,19 +25,13 @@ namespace Lumina {
 		void Initialize(uint32_t capacity_) {
 			if (capacity_ > 0) { Capacity_ = capacity_; }
 
-			assert(Table_Element == nullptr);
-			Table_Element = new T[Capacity_];
+			Table_Element.resize(Capacity_);
+			Table_IsActive.resize(Capacity_);
+			Table_Prev.resize(Capacity_);
+			Table_Next.resize(Capacity_);
 
-			assert(Table_IsActive == nullptr);
-			Table_IsActive = new bool[Capacity_];
+			Table_IsActive.assign(Capacity_, 0);
 
-			assert(Table_Prev == nullptr);
-			Table_Prev = new int[Capacity_];
-
-			assert(Table_Next == nullptr);
-			Table_Next = new int[Capacity_];
-
-			std::memset(Table_IsActive, 0, sizeof(bool) * Capacity_);
 			for (uint32_t i{ 0U }; i < Capacity_; ++i) {
 				Table_Prev[i] = i - 1;
 				Table_Next[i] = i + 1;
@@ -81,27 +76,7 @@ namespace Lumina {
 		explicit List() { Initialize(32U); }
 		explicit List(uint32_t capacity_) { Initialize(capacity_); }
 
-		virtual ~List() noexcept {
-			if (Table_Element != nullptr) {
-				delete[] Table_Element;
-				Table_Element = nullptr;
-			}
-
-			if (Table_IsActive != nullptr) {
-				delete[] Table_IsActive;
-				Table_IsActive = nullptr;
-			}
-
-			if (Table_Prev != nullptr) {
-				delete[] Table_Prev;
-				Table_Prev = nullptr;
-			}
-
-			if (Table_Next != nullptr) {
-				delete[] Table_Next;
-				Table_Next = nullptr;
-			}
-		}
+		virtual ~List() noexcept {}
 
 		// Returns an unused entry.
 		[[nodiscard]] T& NewElement() {

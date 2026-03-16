@@ -36,7 +36,7 @@ namespace Lumina {
 
 	public:
 		static inline Engine& Generator() {
-			static UniPtr<Engine> engine{ new Engine{} };
+			static UniPtr<Engine> engine{ std::make_unique<Engine>() };
 			return *engine;
 		}
 	};

@@ -131,7 +131,7 @@ namespace Lumina::DX12 {
 			auto backBufferIndex{ Owner_->GetCurrentBackBufferIndex() };
 
 			cmdList_.TransitionResourceState(
-				Buffers_.at(backBufferIndex),
+				Buffers_.at(backBufferIndex).Get(),
 				D3D12_RESOURCE_STATE_PRESENT,
 				D3D12_RESOURCE_STATE_RENDER_TARGET
 			);
@@ -203,7 +203,7 @@ namespace Lumina::DX12 {
 
 			auto backBufferIndex{ Owner_->GetCurrentBackBufferIndex() };
 			cmdList_.TransitionResourceState(
-				Buffers_.at(backBufferIndex),
+				Buffers_.at(backBufferIndex).Get(),
 				D3D12_RESOURCE_STATE_RENDER_TARGET,
 				D3D12_RESOURCE_STATE_PRESENT
 			);
@@ -279,7 +279,7 @@ namespace Lumina::DX12 {
 			for (uint32_t idx_Buffer{ 0U }; idx_Buffer < Num_Buffers_; ++idx_Buffer) {
 				auto& buffer{ Buffers_.emplace_back() };
 
-				Owner_->GetBuffer(idx_Buffer, IID_PPV_ARGS(&buffer)) ||
+				Owner_->GetBuffer(idx_Buffer, IID_PPV_ARGS(buffer.GetAddressOf())) ||
 				Utils::Debug::ThrowIfFailed{
 					std::format(
 						"<DX12.FrameBufferSwapChain - {}> Failed to obtain buffer #{} from the swap chain!\n",
@@ -318,7 +318,7 @@ namespace Lumina::DX12 {
 			};
 			for (uint32_t i{ 0U }; i < Num_Buffers_; ++i) {
 				D3D12_CPU_DESCRIPTOR_HANDLE rtvCPUHandle{ RTVHeap_.Allocate(1U).CPUHandle(0U) };
-				device_->CreateRenderTargetView(Buffers_[i], &RTVDesc_, rtvCPUHandle);
+				device_->CreateRenderTargetView(Buffers_[i].Get(), &RTVDesc_, rtvCPUHandle);
 			}
 		}
 
@@ -362,18 +362,6 @@ namespace Lumina::DX12 {
 	public:
 		Impl(FrameBufferSwapChain& owner_) : Owner_{ owner_ } {}
 		~Impl() noexcept {
-			for (auto&& it{ Buffers_.cbegin() }; it != Buffers_.cend(); ++it) {
-				auto* buffer{ *it };
-				buffer->Release();
-
-				#if defined(_DEBUG)
-				char str[64]{ 0 };
-				uint32_t size{ 64U };
-				buffer->GetPrivateData(WKPDID_D3DDebugObjectName, &size, str);
-				Logger().Message<0U>("FrameBufferSwapChain,{},{} Released.\n", Owner_.DebugName(), str);
-				#endif
-			}
-
 			Buffers_.clear();
 		}
 
@@ -381,7 +369,7 @@ namespace Lumina::DX12 {
 
 	private:
 		DXGI_SWAP_CHAIN_DESC1 Desc_{};
-		std::vector<ID3D12Resource*> Buffers_{};
+		std::vector<Microsoft::WRL::ComPtr<ID3D12Resource>> Buffers_{};
 		DescriptorHeap RTVHeap_{};
 		D3D12_RENDER_TARGET_VIEW_DESC RTVDesc_{};
 		DepthTexture2D DepthTexture_{};
@@ -442,8 +430,8 @@ namespace Lumina::DX12 {
 	D3D12_CPU_DESCRIPTOR_HANDLE FrameBufferSwapChain::BackBufferRTVCPUHandle() const noexcept { return Impl_->RTVHeap_.CPUHandle(Wrapped_->GetCurrentBackBufferIndex()); }
 	D3D12_CPU_DESCRIPTOR_HANDLE FrameBufferSwapChain::RTVCPUHandle(uint32_t index_) const noexcept { return Impl_->RTVHeap_.CPUHandle(index_); }
 	D3D12_CPU_DESCRIPTOR_HANDLE FrameBufferSwapChain::DSVCPUHandle() const noexcept { return Impl_->DSVHeap_.CPUHandle(0U); }
-	ID3D12Resource* FrameBufferSwapChain::BufferResource(uint32_t index_) const { return Impl_->Buffers_.at(index_); }
-	ID3D12Resource* FrameBufferSwapChain::BackBufferResource() const { return Impl_->Buffers_.at(Wrapped_->GetCurrentBackBufferIndex()); }
+	ID3D12Resource* FrameBufferSwapChain::BufferResource(uint32_t index_) const { return Impl_->Buffers_.at(index_).Get(); }
+	ID3D12Resource* FrameBufferSwapChain::BackBufferResource() const { return Impl_->Buffers_.at(Wrapped_->GetCurrentBackBufferIndex()).Get(); }
 
 	//----	------	------	------	------	----//
 
