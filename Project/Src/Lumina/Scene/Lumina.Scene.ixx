@@ -55,7 +55,7 @@ namespace Lumina {
 				LoadedScenes_.emplace(
 					name_,
 					SceneNode{
-						.Data{ new SceneType{ params_... } }
+						.Data{ std::make_unique<SceneType>(params_...) }
 					}
 				);
 			}

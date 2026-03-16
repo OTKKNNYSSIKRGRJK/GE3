@@ -1,17 +1,21 @@
-#if defined(_DEBUG)
-
 module;
+
+#if defined(_DEBUG)
 
 #include<Windows.h>
 
 #include<External/ImGui/backends/imgui_impl_dx12.h>
 #include<External/ImGui/backends/imgui_impl_win32.h>
 
+#endif
+
 //////	//////	//////	//////	//////	//////
 //////	//////	//////	//////	//////	//////
 //////	//////	//////	//////	//////	//////
 
 export module Lumina.Utils.ImGui;
+
+#if defined(_DEBUG)
 
 export import <External/ImGui/imgui.h>;
 export import <External/ImGui/imgui_internal.h>;

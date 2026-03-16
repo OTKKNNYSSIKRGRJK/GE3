@@ -135,13 +135,13 @@ namespace Lumina::DX12 {
 
 		Textures_.resize(Num_RenderTargets_);
 		for (auto& renderTex : Textures_) {
-			renderTex.reset(new RenderTexture2D{});
+			renderTex = std::make_unique<RenderTexture2D>();
 		}
 
 		Flag_UseDepthTest_ = !!flag_UseDepthTest_;
 		if (Flag_UseDepthTest_) {
 			auto& depthTex{ Textures_.emplace_back() };
-			depthTex.reset(new DepthTexture2D{});
+			depthTex = std::make_unique<DepthTexture2D>();
 		}
 
 		Viewports_.resize(Num_RenderTargets_);
@@ -222,14 +222,10 @@ namespace Lumina::DX12 {
 
 	Canvas::~Canvas() {
 		for (uint32_t idx{ 0U }; idx < Num_RenderTargets_; ++idx) {
-			auto* renderTex{ static_cast<RenderTexture2D*>(Textures_[idx].release()) };
-			delete renderTex;
-			renderTex = nullptr;
+			Textures_[idx].reset(nullptr);
 		}
 		if (Flag_UseDepthTest_) {
-			auto* depthTex{ static_cast<DepthTexture2D*>(Textures_.back().release()) };
-			delete depthTex;
-			depthTex = nullptr;
+			Textures_.back().reset(nullptr);
 		}
 	}
 }

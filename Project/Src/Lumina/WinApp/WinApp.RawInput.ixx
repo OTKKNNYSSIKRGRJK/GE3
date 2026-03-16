@@ -140,7 +140,7 @@ namespace Lumina::WinApp {
 
 		//----	------	------	------	------	----//
 
-	private:
+	public:
 		RawKeyboard() noexcept;
 	public:
 		~RawKeyboard() noexcept;
@@ -270,7 +270,7 @@ namespace Lumina::WinApp {
 
 		//----	------	------	------	------	----//
 
-	private:
+	public:
 		RawMouse() noexcept;
 	public:
 		~RawMouse() noexcept;
@@ -484,11 +484,11 @@ namespace Lumina::WinApp {
 
 	void RawInput::Initialize(HWND hWnd_) {
 		if (Keyboard_ == nullptr) {
-			Keyboard_.reset(new RawKeyboard{});
+			Keyboard_ = std::make_unique<RawKeyboard>();
 			Keyboard_->Initialize(hWnd_);
 		}
 		if (Mouse_ == nullptr) {
-			Mouse_.reset(new RawMouse{});
+			Mouse_ = std::make_unique<RawMouse>();
 			Mouse_->Initialize(hWnd_);
 		}
 

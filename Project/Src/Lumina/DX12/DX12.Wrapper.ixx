@@ -15,6 +15,7 @@ import <type_traits>;
 
 import <memory>;
 
+import <string>;
 import <format>;
 
 import : Debug;
@@ -53,11 +54,7 @@ namespace Lumina::DX12 {
 	public:
 		constexpr std::string_view DebugName() const noexcept { return DebugName_; }
 		constexpr void SetDebugName(std::string_view debugName_) {
-			if (DebugName_ == nullptr) {
-				DebugName_ = new char[debugName_.size() + 1LLU];
-				debugName_.copy(DebugName_, debugName_.size());
-				DebugName_[debugName_.size()] = '\0';
-			}
+			DebugName_ = debugName_;
 
 			#if defined(_DEBUG)
 			if constexpr (
@@ -66,8 +63,8 @@ namespace Lumina::DX12 {
 			) {
 				Wrapped_->SetPrivateData(
 					WKPDID_D3DDebugObjectName,
-					static_cast<uint32_t>(DebugName().size()),
-					DebugName_
+					static_cast<uint32_t>(DebugName_.size()),
+					DebugName_.data()
 				);
 			}
 			#endif
@@ -79,7 +76,7 @@ namespace Lumina::DX12 {
 		constexpr Wrapper() noexcept = default;
 		virtual ~Wrapper() noexcept {
 			if (IsInitialized()) {
-				if (DebugName_ != nullptr) {
+				if (DebugName_.size() > 0LLU) {
 					Logger().Message<0U>(
 						"Wrapper,{},Releasing {} object...\n",
 						DebugName_,
@@ -89,7 +86,7 @@ namespace Lumina::DX12 {
 
 				Wrapped_->Release();
 
-				if (DebugName_ != nullptr) {
+				if (DebugName_.size() > 0LLU) {
 					Logger().Message<0U>(
 						"Wrapper,{},{} object released successfully.\n",
 						DebugName_,
@@ -98,10 +95,7 @@ namespace Lumina::DX12 {
 				}
 			}
 
-			if (DebugName_ != nullptr) {
-				delete[] DebugName_;
-				DebugName_ = nullptr;
-			}
+			DebugName_.clear();
 		}
 
 		//====	======	======	======	======	====//
@@ -112,6 +106,6 @@ namespace Lumina::DX12 {
 		//----	------	------	------	------	----//
 
 	private:
-		char* DebugName_{ nullptr };
+		std::string DebugName_;
 	};
 }

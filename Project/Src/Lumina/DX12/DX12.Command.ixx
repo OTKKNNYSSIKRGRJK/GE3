@@ -106,7 +106,7 @@ namespace Lumina::DX12 {
 
 		std::vector<ID3D12CommandList*> BatchedCommandLists_{};
 
-		Fence* Fence_{ nullptr };
+		std::unique_ptr<Fence> Fence_{ nullptr };
 	};
 
 	//////	//////	//////	//////	//////	//////
@@ -285,7 +285,7 @@ namespace Lumina::DX12 {
 				debugName_
 			)
 		};
-		Fence_ = new Fence{};
+		Fence_ = std::make_unique<Fence>();
 		Fence_->Initialize(
 			*Device_,
 			std::format("{}.Fence", debugName_)
@@ -299,9 +299,8 @@ namespace Lumina::DX12 {
 	constexpr CommandQueue::CommandQueue() noexcept {}
 
 	CommandQueue::~CommandQueue() noexcept {
-		if (Fence_ != nullptr) {
-			delete Fence_;
-			Fence_ = nullptr;
+		if (Fence_.get() != nullptr) {
+			Fence_.reset(nullptr);
 		}
 	}
 }

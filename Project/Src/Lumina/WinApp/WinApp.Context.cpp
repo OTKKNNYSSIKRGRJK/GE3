@@ -69,13 +69,13 @@ namespace Lumina::WinApp {
 
 		WindowEX& windowInst{
 			*static_cast<WindowEX*>(
-				Array_WindowInstances_.emplace_back(new WindowEX{}).get()
+				Array_WindowInstances_.emplace_back(std::make_unique<WindowEX>()).get()
 			)
 		};
 		windowInst.Initialize(WindowClass_.Name(), windowConfig_);
 		windowInst.ID = static_cast<uint32_t>(Array_WindowInstances_.size()) - 1U;
 
-		windowInst.RawInputContext = UniPtr<RawInput>{ new RawInput{} };
+		windowInst.RawInputContext = std::make_unique<RawInput>();
 		windowInst.RawInputContext->Initialize(windowInst.Handle());
 		RegisterCallback(windowInst.RawInputContext->Callback());
 

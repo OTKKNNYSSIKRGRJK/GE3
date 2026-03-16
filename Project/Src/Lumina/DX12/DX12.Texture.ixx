@@ -82,7 +82,7 @@ export namespace Lumina::DX12 {
 
 		//----	------	------	------	------	----//
 
-	private:
+	public:
 		ImageSet(
 			std::string_view filePath_,
 			DirectX::WIC_FLAGS flags_
@@ -112,7 +112,7 @@ export namespace Lumina::DX12 {
 
 		//----	------	------	------	------	----//
 
-	private:
+	public:
 		MipChain(
 			const ImageSet& imgSet_,
 			DirectX::TEX_FILTER_FLAGS flags_TexFilter_
@@ -200,7 +200,7 @@ export namespace Lumina::DX12 {
 		D3D12_RESOURCE_DESC ResourceDesc_{};
 
 		STATUS Status_{ STATUS::READY_TO_UPLOAD };
-		Intermediate* IntermediateData_{ nullptr };
+		UniPtr<Intermediate> IntermediateData_{ nullptr };
 	};
 
 	//////	//////	//////	//////	//////	//////
@@ -266,9 +266,7 @@ namespace Lumina::DX12 {
 		std::string_view filePath_,
 		DirectX::WIC_FLAGS flags_
 	) {
-		return UniPtr<ImageSet>{
-			new ImageSet{ filePath_, flags_ }
-		};
+		return std::make_unique<ImageSet>(filePath_, flags_);
 	}
 
 	//----	------	------	------	------	----//
@@ -299,9 +297,7 @@ namespace Lumina::DX12 {
 		const ImageSet& imgSet_,
 		DirectX::TEX_FILTER_FLAGS flags_TexFilter_
 	) {
-		return UniPtr<MipChain>{
-			new MipChain{ imgSet_, flags_TexFilter_ }
-		};
+		return std::make_unique<MipChain>(imgSet_, flags_TexFilter_);
 	}
 
 	//----	------	------	------	------	----//
@@ -390,7 +386,7 @@ namespace Lumina::DX12 {
 
 		//----	------	------	------	------	----//
 
-	private:
+	public:
 		ResourceMetadata(
 			const GraphicsDevice& device_,
 			const ImageTexture& tex_,
@@ -436,7 +432,7 @@ namespace Lumina::DX12 {
 
 		//----	------	------	------	------	----//
 
-	private:
+	public:
 		Intermediate(
 			const GraphicsDevice& device_,
 			const ImageTexture& tex_,
@@ -618,13 +614,11 @@ namespace Lumina::DX12 {
 	}
 
 	void ImageTexture::Intermediate::AnalyzeSubresourceData(const GraphicsDevice& device_) {
-		Metadata_ = UniPtr<ResourceMetadata>{
-			new ResourceMetadata{
-				device_,
-				*ImageTexture_,
-				Subresources_
-			}
-		};
+		Metadata_ = std::make_unique<ResourceMetadata>(
+			device_,
+			*ImageTexture_,
+			Subresources_
+		);
 	}
 
 	// Copies subresource data into the intermediate buffer.
@@ -706,14 +700,13 @@ namespace Lumina::DX12 {
 		const MipChain& mipChain_
 	) {
 		if (IntermediateData_ == nullptr) {
-			IntermediateData_ = new Intermediate{ device_, *this, mipChain_ };
+			IntermediateData_ = std::make_unique<Intermediate>(device_, *this, mipChain_);
 		}
 	}
 
 	inline void ImageTexture::ReleaseIntermediateData() noexcept {
-		if (IntermediateData_ != nullptr) {
-			delete IntermediateData_;
-			IntermediateData_ = nullptr;
+		if (IntermediateData_.get() != nullptr) {
+			IntermediateData_.reset(nullptr);
 		}
 	}
 
@@ -752,7 +745,7 @@ namespace Lumina::DX12 {
 		MipChain const& mipChain_,
 		std::string_view debugName_
 	) {
-		auto imgTex{ UniPtr<ImageTexture>{ new ImageTexture{} } };
+		auto imgTex{ std::make_unique<ImageTexture>() };
 		imgTex->Initialize(device_, mipChain_, debugName_);
 		return imgTex;
 	}

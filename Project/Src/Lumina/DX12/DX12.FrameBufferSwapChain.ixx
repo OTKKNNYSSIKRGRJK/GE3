@@ -100,7 +100,7 @@ export namespace Lumina::DX12 {
 		//====	======	======	======	======	====//
 
 	private:
-		Impl* Impl_{ nullptr };
+		std::unique_ptr<Impl> Impl_{ nullptr };
 	};
 }
 
@@ -463,7 +463,7 @@ namespace Lumina::DX12 {
 			)
 		};
 
-		Impl_ = new Impl{ *this };
+		Impl_ = std::make_unique<Impl>(*this);
 		Impl_->Initialize(graphicsQueue_, windowInstance_, num_Buffers_, debugName_);
 
 		#if defined(_DEBUG)
@@ -476,9 +476,6 @@ namespace Lumina::DX12 {
 	constexpr FrameBufferSwapChain::FrameBufferSwapChain() noexcept {}
 
 	FrameBufferSwapChain::~FrameBufferSwapChain() {
-		if (Impl_ != nullptr) {
-			delete Impl_;
-			Impl_ = nullptr;
-		}
+		Impl_.reset(nullptr);
 	}
 }

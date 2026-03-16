@@ -64,11 +64,10 @@ namespace Lumina::DX12 {
 			int32_t flag_UseDepthStencil_
 		) {
 			Flag_UseDepthStencil_ = !!flag_UseDepthStencil_;
-			DescCollection_.reset(
+			DescCollection_ = 
 				(Flag_UseDepthStencil_) ?
-				(new DescCollectionWithDepthStencil{}) :
-				(new DescCollection{})
-			);
+				(std::make_unique<DescCollectionWithDepthStencil>()) :
+				(std::make_unique<DescCollection>());
 			DescCollection_->RenderTargetDescs_.resize(num_RenderTargets_);
 		}
 
