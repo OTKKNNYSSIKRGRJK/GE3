@@ -50,6 +50,9 @@
     <Filter Include="Src\Lumina\Scene">
       <UniqueIdentifier>{a5de8280-34a7-4be9-a15e-958fc890f80a}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Src\Lighting">
+      <UniqueIdentifier>{372e2f33-31c3-44fa-a5d0-cdf5b366265c}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
@@ -257,6 +260,12 @@
     <ClCompile Include="Src\Lumina\Scene\Lumina.Scene.ixx">
       <Filter>Src\Lumina\Scene</Filter>
     </ClCompile>
+    <ClCompile Include="Src\CG3Eval2\DeferredLighting.cpp">
+      <Filter>Src\Lighting</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\CG3Eval2\DeferredLighting.ixx">
+      <Filter>Src\Lighting</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include=".editorconfig" />
@@ -264,6 +273,12 @@
       <Filter>Assets\Shaders</Filter>
     </None>
     <None Include="..\.gitignore" />
+    <None Include="Src\CG3Eval2\Common.hlsli">
+      <Filter>Src\Lighting</Filter>
+    </None>
+    <None Include="Src\CG3Eval2\Settings.json">
+      <Filter>Src\Lighting</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="External\ImGui\backends\imgui_impl_dx12.h">
@@ -313,10 +328,33 @@
     <FxCompile Include="Assets\ShaderTest\TerrainPS.hlsl">
       <Filter>Assets\ShaderTest</Filter>
     </FxCompile>
+    <FxCompile Include="Src\CG3Eval2\Lighting.PS.hlsl">
+      <Filter>Src\Lighting</Filter>
+    </FxCompile>
+    <FxCompile Include="Src\CG3Eval2\Lighting.VS.hlsl">
+      <Filter>Src\Lighting</Filter>
+    </FxCompile>
+    <FxCompile Include="Src\CG3Eval2\PS.hlsl">
+      <Filter>Src\Lighting</Filter>
+    </FxCompile>
+    <FxCompile Include="Src\CG3Eval2\VS.hlsl">
+      <Filter>Src\Lighting</Filter>
+    </FxCompile>
   </ItemGroup>
   <ItemGroup>
     <Text Include="External\ImGui\LICENSE.txt">
       <Filter>External\ImGui</Filter>
     </Text>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="Src\CG3Eval2\checkerBoard.png">
+      <Filter>Src\Lighting</Filter>
+    </Image>
+    <Image Include="Src\CG3Eval2\monsterBall.png">
+      <Filter>Src\Lighting</Filter>
+    </Image>
+    <Image Include="Src\CG3Eval2\uvChecker.png">
+      <Filter>Src\Lighting</Filter>
+    </Image>
   </ItemGroup>
 </Project>
