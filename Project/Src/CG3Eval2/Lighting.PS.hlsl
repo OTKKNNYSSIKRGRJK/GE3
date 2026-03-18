@@ -58,63 +58,53 @@ cbuffer CBV_Scene : register(b0, space1) {
 	float4x4 ScreenToWorld;
 	float3 WorldPos_Camera;
 	float ModelShininess;
+	int IsUsingBlinnPhong;
 }
 
 float3 CalcDiffuse(
 	in LIGHT light_,
 	in float3 norm_,
-	in float3 lightDir_,
-	float inv_LightSrcDist_
+	in float3 lightDir_
 ) {
 	float NDotL = saturate(dot(norm_, -lightDir_));
 	return
 		light_.Color *
 		light_.Intensity *
-		NDotL *
-		(inv_LightSrcDist_ * inv_LightSrcDist_);
+		NDotL;
 }
 
-//float3 CalcSpecular(
-//	in LIGHT light_,
-//	in float3 viewSpacePos_,
-//	in float3 norm_,
-//	in float3 lightDir_,
-//	float inv_LightDist_
-//) {
-//	float3 V = -normalize(viewSpacePos_);
-//	float3 H = normalize(-lightDir_ + V);
-//	float NDotH = saturate(dot(norm_, H));
-//	return
-//		light_.Color *
-//		light_.Intensity *
-//		//pow(NDotH, Material.Shininess) *
-//		(inv_LightDist_ * inv_LightDist_);
-//}
-
-float3 CalcSpecular(
+float3 CalcSpecularBlinnPhong(
 	in LIGHT light_,
 	in float3 worldPos_,
 	in float3 norm_,
-	in float3 lightDir_,
-	float inv_LightDist_
+	in float3 lightDir_
 ) {
 	float3 dir_ToEye = normalize(WorldPos_Camera.xyz - worldPos_);
-	
-	//float3 refl = reflect(lightDir_, norm_);
-	//float dot_R_E = saturate(dot(refl, dir_ToEye));
-	//return
-	//	light_.Color *
-	//	light_.Intensity *
-	//	pow(dot_R_E, ModelShininess) *
-	//	(inv_LightDist_ * inv_LightDist_);
-	
+		
 	float3 halfVec = normalize(-lightDir_ + dir_ToEye);
 	float dot_N_H = saturate(dot(norm_, halfVec));
 	return
 		light_.Color *
 		light_.Intensity *
-		pow(dot_N_H, ModelShininess) *
-		(inv_LightDist_ * inv_LightDist_);
+		pow(dot_N_H, ModelShininess);
+}
+
+float3 CalcSpecularPhong(
+	in LIGHT light_,
+	in float3 worldPos_,
+	in float3 norm_,
+	in float3 lightDir_
+) {
+	float3 dir_ToEye = normalize(WorldPos_Camera.xyz - worldPos_);
+	
+	float3 refl = reflect(lightDir_, norm_);
+	float dot_R_E = saturate(dot(refl, dir_ToEye));
+	return
+		light_.Color *
+		light_.Intensity *
+		pow(dot_R_E, ModelShininess);
+	
+	
 }
 
 //static float Inv_0xFFFFFF = 1.0f / float(0xFFFFFF);
@@ -127,7 +117,6 @@ PSOutput CalcPointLight(VSOutput input_) {
 	float4 albedo = SRV_GBuffer_Albedo.Sample(Sampler_Default, input_.SVPos.xy * Inv_WH);
 	float3 normal = SRV_GBuffer_Normal.Sample(Sampler_Default, input_.SVPos.xy * Inv_WH).xyz;
 	normal = normal * 2.0f - 1.0f;
-	
 	
 	POINT_LIGHT pointLight;
 	LoadPointLight(pointLight, input_.InstanceID);
@@ -144,19 +133,28 @@ PSOutput CalcPointLight(VSOutput input_) {
 	float3 light_Diffuse = CalcDiffuse(
 		pointLight.Diffuse,
 		normal,
-		lightDir,
-		inv_LightDist
+		lightDir
 	);
 	
-	float3 light_Specular = CalcSpecular(
-		pointLight.Specular,
-		worldPos_Target.xyz,
-		normal,
-		lightDir,
-		inv_LightDist
-	);
+	float3 light_Specular;
+	if (IsUsingBlinnPhong) {
+		light_Specular = CalcSpecularBlinnPhong(
+			pointLight.Specular,
+			worldPos_Target.xyz,
+			normal,
+			lightDir
+		);
+	}
+	else {
+		light_Specular = CalcSpecularPhong(
+			pointLight.Specular,
+			worldPos_Target.xyz,
+			normal,
+			lightDir
+		);
+	}
 	
-	output.Color = albedo * float4(light_Diffuse + light_Specular, 1.0f);
+	output.Color = albedo * float4((light_Diffuse + light_Specular) * (inv_LightDist * inv_LightDist), 1.0f);
 	
 	return output;
 }
@@ -179,17 +177,26 @@ PSOutput CalcDirectionalLight(VSOutput input_) {
 	float3 light_Diffuse = CalcDiffuse(
 		directionalLight.Diffuse,
 		normal,
-		directionalLight.Direction,
-		1.0f
+		directionalLight.Direction
 	);
 	
-	float3 light_Specular = CalcSpecular(
-		directionalLight.Specular,
-		worldPos_Target.xyz,
-		normal,
-		directionalLight.Direction,
-		1.0f
-	);
+	float3 light_Specular;
+	if (IsUsingBlinnPhong) {
+		light_Specular = CalcSpecularBlinnPhong(
+			directionalLight.Specular,
+			worldPos_Target.xyz,
+			normal,
+			directionalLight.Direction
+		);
+	}
+	else {
+		light_Specular = CalcSpecularPhong(
+			directionalLight.Specular,
+			worldPos_Target.xyz,
+			normal,
+			directionalLight.Direction
+		);
+	}
 	
 	float3 light = light_Diffuse + light_Specular;
 	

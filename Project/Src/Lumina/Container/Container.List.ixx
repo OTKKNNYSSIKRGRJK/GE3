@@ -9,7 +9,7 @@ namespace Lumina {
 	export template<typename T>
 	class List {
 	protected:
-		T* Elements_{ nullptr };
+		typename T* Elements_{ nullptr };
 		bool* Table_IsActive_{ nullptr };
 		int* Table_Prev_{ nullptr };
 		int* Table_Next_{ nullptr };
@@ -120,7 +120,7 @@ namespace Lumina {
 
 	public:
 		// Returns an unused entry.
-		[[nodiscard]] T& New() {
+		[[nodiscard]] typename T& New() {
 			assert(!IsFull());
 
 			int i{ Inactive_First_ };
@@ -166,18 +166,20 @@ namespace Lumina {
 		constexpr uint32_t Capacity() const noexcept { return Capacity_; }
 		constexpr bool IsFull() const noexcept { return (Inactive_First_ == -1); }
 
-		constexpr T const* Data() const noexcept { return Elements_; }
+		constexpr typename T const* Data() const noexcept { return Elements_; }
+
+		constexpr typename T& At(uint32_t idx_) noexcept { return Elements_[idx_]; }
 
 		class Iterator {
 			friend List;
 
 		private:
-			List<T> const* Iteratee_{ nullptr };
+			List<typename T> const* Iteratee_{ nullptr };
 			int Index_Current{ -1 };
 			int Index_Next{ -1 };
 
 		public:
-			explicit Iterator(List<T> const& iteratee_) : Iteratee_{ &iteratee_ } {}
+			explicit Iterator(List<typename T> const& iteratee_) : Iteratee_{ &iteratee_ } {}
 			~Iterator() = default;
 
 			constexpr void Begin() {
@@ -190,7 +192,7 @@ namespace Lumina {
 				Index_Next = (Index_Next == -1) ? (-1) : (Iteratee_->Table_Next_[Index_Next]);
 			}
 
-			inline T& operator*() {
+			inline typename T& operator*() {
 				assert(Index_Current != -1);
 				return Iteratee_->Elements_[Index_Current];
 			};

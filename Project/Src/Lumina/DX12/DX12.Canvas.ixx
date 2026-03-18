@@ -58,7 +58,8 @@ namespace Lumina::DX12 {
 		~Canvas();
 
 	private:
-		std::vector<std::unique_ptr<Texture2D>> Textures_{};
+		std::vector<std::unique_ptr<RenderTexture2D>> RenderTextures_;
+		std::unique_ptr<DepthTexture2D> DepthTexture_;
 
 		std::vector<D3D12_VIEWPORT> Viewports_{};
 		std::vector<D3D12_RECT> ScissorRects_{};
@@ -72,20 +73,20 @@ namespace Lumina::DX12 {
 
 	inline auto Canvas::RenderTexture(uint32_t idx_)
 		noexcept -> RenderTexture2D& {
-		return static_cast<RenderTexture2D&>(*(Textures_[idx_]));
+		return *(RenderTextures_[idx_]);
 	}
 	inline auto Canvas::RenderTexture(uint32_t idx_)
 		const noexcept -> RenderTexture2D const& {
-		return static_cast<RenderTexture2D const&>(*(Textures_[idx_]));
+		return *(RenderTextures_[idx_]);
 	}
 
 	inline auto Canvas::DepthTexture()
 		noexcept -> DepthTexture2D& {
-		return static_cast<DepthTexture2D&>(*(Textures_.back()));
+		return *DepthTexture_;
 	}
 	inline auto Canvas::DepthTexture()
 		const noexcept -> DepthTexture2D const& {
-		return static_cast<DepthTexture2D const&>(*(Textures_.back()));
+		return *DepthTexture_;
 	}
 
 	constexpr auto Canvas::Viewport(uint32_t idx_)
@@ -133,15 +134,13 @@ namespace Lumina::DX12 {
 		Num_RenderTargets_ = (num_RenderTargets_ < 1U) ? (1U) : (num_RenderTargets_);
 		Num_RenderTargets_ = (Num_RenderTargets_ < 8U) ? (Num_RenderTargets_) : (8U);
 
-		Textures_.resize(Num_RenderTargets_);
-		for (auto& renderTex : Textures_) {
-			renderTex = std::make_unique<RenderTexture2D>();
+		for (uint32_t i{ 0U }; i < Num_RenderTargets_; ++i) {
+			RenderTextures_.emplace_back(std::make_unique<RenderTexture2D>());
 		}
 
 		Flag_UseDepthTest_ = !!flag_UseDepthTest_;
 		if (Flag_UseDepthTest_) {
-			auto& depthTex{ Textures_.emplace_back() };
-			depthTex = std::make_unique<DepthTexture2D>();
+			DepthTexture_ = std::make_unique<DepthTexture2D>();
 		}
 
 		Viewports_.resize(Num_RenderTargets_);
@@ -155,7 +154,7 @@ namespace Lumina::DX12 {
 		std::vector<D3D12_RESOURCE_BARRIER> barriers{};
 		for (uint32_t idx{ 0U }; idx < Num_RenderTargets_; ++idx) {
 			barriers.emplace_back(
-				Lumina::DX12::Barrier::Transition(
+				Barrier::Transition(
 					RenderTexture(idx),
 					D3D12_RESOURCE_STATE_RENDER_TARGET,
 					D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE
@@ -164,7 +163,7 @@ namespace Lumina::DX12 {
 		}
 		if (Flag_UseDepthTest_) {
 			barriers.emplace_back(
-				Lumina::DX12::Barrier::Transition(
+				Barrier::Transition(
 					DepthTexture(),
 					D3D12_RESOURCE_STATE_DEPTH_WRITE,
 					D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE
@@ -221,11 +220,5 @@ namespace Lumina::DX12 {
 	}
 
 	Canvas::~Canvas() {
-		for (uint32_t idx{ 0U }; idx < Num_RenderTargets_; ++idx) {
-			Textures_[idx].reset(nullptr);
-		}
-		if (Flag_UseDepthTest_) {
-			Textures_.back().reset(nullptr);
-		}
 	}
 }

@@ -82,6 +82,8 @@ namespace {
 }
 #endif
 
+import CG3Eval2;
+
 namespace Lumina {
 	export class Context {
 	public:
@@ -99,11 +101,14 @@ namespace Lumina {
 
 		Lumina::DX12::CommandAllocator CmdAllocator_{};
 		Lumina::DX12::CommandList CmdList_{};
+
+		std::unique_ptr<CG3Eval2::Scene> CG3Eval2Scene_{};
 	};
 
 	bool Context::Run() {
 		if (WinAppContext_.ProcessMessage() == 0) {
 			[[maybe_unused]] ID3D12DescriptorHeap* descriptorHeaps[]{ DXContext_.GlobalDescriptorHeap().Get() };
+			CmdList_->SetDescriptorHeaps(1U, descriptorHeaps);
 
 			[[maybe_unused]] auto& directQueue{ DXContext_.DirectQueue() };
 
@@ -112,59 +117,66 @@ namespace Lumina {
 
 			DXContext_.BeginFrame(CmdList_);
 
+			#if defined(_DEBUG)
+			Lumina::Utils::ImGuiManager::BeginFrame();
+			#endif
+
+			CG3Eval2Scene_->Update();
+			CG3Eval2Scene_->Render(DXContext_, CmdList_);
+
 			auto rtv{ DXContext_.SwapChain().BackBufferRTVCPUHandle() };
 			auto dsv{ DXContext_.SwapChain().DSVCPUHandle() };
 
-			D3D12_RENDER_PASS_BEGINNING_ACCESS beginning_RTClear{
-				.Type{ D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR },
-				.Clear{
-					.ClearValue{
-						.Format{ DXGI_FORMAT_R8G8B8A8_UNORM_SRGB },
-						.Color{ 0.0f, 0.0f, 0.0f, 0.0f, },
-					},
-				},
-			};
+			//D3D12_RENDER_PASS_BEGINNING_ACCESS beginning_RTClear{
+			//	.Type{ D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR },
+			//	.Clear{
+			//		.ClearValue{
+			//			.Format{ DXGI_FORMAT_R8G8B8A8_UNORM_SRGB },
+			//			.Color{ 0.0f, 0.0f, 0.0f, 0.0f, },
+			//		},
+			//	},
+			//};
 
-			D3D12_RENDER_PASS_BEGINNING_ACCESS beginning_DSClear{
-				.Type{ D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR },
-				.Clear{
-					.ClearValue{
-						.Format{ DXGI_FORMAT_D24_UNORM_S8_UINT },
-						.DepthStencil{
-							.Depth{ 1.0f },
-						},
-					},
-				},
-			};
+			//D3D12_RENDER_PASS_BEGINNING_ACCESS beginning_DSClear{
+			//	.Type{ D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_CLEAR },
+			//	.Clear{
+			//		.ClearValue{
+			//			.Format{ DXGI_FORMAT_D24_UNORM_S8_UINT },
+			//			.DepthStencil{
+			//				.Depth{ 1.0f },
+			//			},
+			//		},
+			//	},
+			//};
 
 			D3D12_RENDER_PASS_ENDING_ACCESS ending_Preserve{
 				.Type{ D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_PRESERVE },
 			};
 
-			[[maybe_unused]] D3D12_RENDER_PASS_RENDER_TARGET_DESC renderTargetDesc{
-				.cpuDescriptor{ rtv },
-				.BeginningAccess{ beginning_RTClear },
-				.EndingAccess{ ending_Preserve },
-			};
+			//[[maybe_unused]] D3D12_RENDER_PASS_RENDER_TARGET_DESC renderTargetDesc{
+			//	.cpuDescriptor{ rtv },
+			//	.BeginningAccess{ beginning_RTClear },
+			//	.EndingAccess{ ending_Preserve },
+			//};
 
-			[[maybe_unused]] D3D12_RENDER_PASS_DEPTH_STENCIL_DESC depthStencilDesc{
-				.cpuDescriptor{ dsv },
-				.DepthBeginningAccess{ beginning_DSClear },
-				.StencilBeginningAccess{.Type{ D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_NO_ACCESS } },
-				.DepthEndingAccess{ ending_Preserve },
-				.StencilEndingAccess{.Type{ D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_NO_ACCESS } },
-			};
+			//[[maybe_unused]] D3D12_RENDER_PASS_DEPTH_STENCIL_DESC depthStencilDesc{
+			//	.cpuDescriptor{ dsv },
+			//	.DepthBeginningAccess{ beginning_DSClear },
+			//	.StencilBeginningAccess{.Type{ D3D12_RENDER_PASS_BEGINNING_ACCESS_TYPE_NO_ACCESS } },
+			//	.DepthEndingAccess{ ending_Preserve },
+			//	.StencilEndingAccess{.Type{ D3D12_RENDER_PASS_ENDING_ACCESS_TYPE_NO_ACCESS } },
+			//};
 
-			static_cast<ID3D12GraphicsCommandList4*>(CmdList_.Get())->BeginRenderPass(
-				1U,
-				&renderTargetDesc,
-				&depthStencilDesc,
-				D3D12_RENDER_PASS_FLAG_NONE
-			);
+			//static_cast<ID3D12GraphicsCommandList4*>(CmdList_.Get())->BeginRenderPass(
+			//	1U,
+			//	&renderTargetDesc,
+			//	&depthStencilDesc,
+			//	D3D12_RENDER_PASS_FLAG_NONE
+			//);
 
-			//----	------	------	------	------	----//
+			////----	------	------	------	------	----//
 
-			static_cast<ID3D12GraphicsCommandList4*>(CmdList_.Get())->EndRenderPass();
+			//static_cast<ID3D12GraphicsCommandList4*>(CmdList_.Get())->EndRenderPass();
 
 			//----	------	------	------	------	----//
 
@@ -186,7 +198,6 @@ namespace Lumina {
 			);
 
 			#if defined(_DEBUG)
-			Lumina::Utils::ImGuiManager::BeginFrame();
 			Lumina::Utils::ImGuiManager::EndFrame(CmdList_);
 			#endif
 
@@ -270,6 +281,9 @@ namespace Lumina {
 		WinAppContext_.RegisterCallback(Lumina::Utils::ImGuiManager::WindowProcedure);
 		SetImGuiAppearance();
 		#endif
+
+		CG3Eval2Scene_ = std::make_unique<CG3Eval2::Scene>();
+		CG3Eval2Scene_->Initialize(DXContext_, AssetManager_);
 	}
 
 	void Context::Finalize() {		

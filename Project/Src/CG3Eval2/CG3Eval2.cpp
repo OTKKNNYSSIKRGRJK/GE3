@@ -13,6 +13,10 @@ import Lumina.Utils.Data.Mesh;
 
 import Lumina.Math;
 
+#if defined(_DEBUG)
+import Lumina.Utils.ImGui;
+#endif
+
 namespace {
 	using namespace Lumina;
 
@@ -143,6 +147,125 @@ namespace {
 
 namespace CG3Eval2 {
 	void Scene::Update() {
+		#if defined(_DEBUG)
+
+		ImGui::Begin("CG3");
+
+		bool srtChanged = 0;
+		srtChanged |= ImGui::DragFloat3("Model.Scale", ModelScale_(), 0.01f);
+		srtChanged |= ImGui::DragFloat3("Model.Rotate", ModelRotate_(), 0.01f);
+		srtChanged |= ImGui::DragFloat3("Model.Translate", ModelTranslate_(), 0.01f);
+		if (srtChanged) {
+			LocalToWorld_ = Mat4::SRT(ModelScale_, ModelRotate_, ModelTranslate_);
+			Mat4::Transpose(Transpose_WorldToLocal_, LocalToWorld_.Inv());
+		}
+
+		ImGui::DragFloat("Model.Shininess", &ModelShininess_, 0.01f, 0.0f);
+		if (ModelShininess_ < 0.25f) { ModelShininess_ = 0.25f; }
+
+		ImGui::Separator();
+
+		bool cameraChanged = 0;
+		cameraChanged |= ImGui::DragFloat3("LookAt.Src", LookAtSrc_(), 0.1f);
+		cameraChanged |= ImGui::DragFloat3("LookAt.Dst", LookAtDst_(), 0.1f);
+		if (cameraChanged) {
+			WorldToView_ = LookAt(LookAtSrc_, LookAtDst_, { 0.0f, 1.0f, 0.0f });
+			Constant_Scene_.WorldToNDC = WorldToView_ * ViewToNDC_;
+			ScreenToWorld_ = Inv_Viewport * Constant_Scene_.WorldToNDC.Inv();
+		}
+
+		ImGui::Separator();
+
+		static int selectedDirLight = 0;
+		if (ImGui::Button("Add Directional Light")) {
+			if (!List_DirectionalLight_.IsFull()) {
+				auto& light = List_DirectionalLight_.New();
+				{
+					light.Direction = { 1.0f, 0.0f, 0.0f };
+					light.DiffuseRGB = { 1.0f, 1.0f, 1.0f };
+					light.DiffuseIntensity = 0.25f;
+					light.SpecularRGB = { 1.0f, 1.0f, 1.0f };
+					light.SpecularIntensity = 2.0f;
+				}
+				selectedDirLight = List_DirectionalLight_.Size() - 1;
+			}
+		}
+		ImGui::SliderInt("Directional Light", &selectedDirLight, 0, List_DirectionalLight_.Size() - 1);
+		auto& dirLight = List_DirectionalLight_.At(selectedDirLight);
+		if (ImGui::DragFloat3("Direction##DirLight", &dirLight.Direction.x, 0.01f)) {
+			Lumina::Vec3 tmp{ &dirLight.Direction.x };
+			tmp = tmp.Unit();
+			std::memcpy(&dirLight.Direction, &tmp, sizeof(Lumina::Float3));
+		};
+		ImGui::ColorEdit3("Diffuse Color##DirLight", &dirLight.DiffuseRGB.x);
+		ImGui::DragFloat("Diffuse Intensity##DirLight", &dirLight.DiffuseIntensity, 0.01f, 0.0f);
+		if (dirLight.DiffuseIntensity < 0.0f) { dirLight.DiffuseIntensity = 0.0f; }
+		ImGui::ColorEdit3("Specular Color##DirLight", &dirLight.SpecularRGB.x);
+		ImGui::DragFloat("Specular Intensity##DirLight", &dirLight.SpecularIntensity, 0.01f, 0.0f);
+		if (dirLight.SpecularIntensity < 0.0f) { dirLight.SpecularIntensity = 0.0f; }
+
+		static int selectedPointLight = 0;
+		if (ImGui::Button("Add Point Light")) {
+			ActivePtLightList_.emplace_back(List_PointLight_.Size());
+			if (!List_PointLight_.IsFull()) {
+				auto& light = List_PointLight_.New();
+				{
+					light.WorldPosition = { 0.0f, 1.0f, -4.0f };
+					light.DiffuseRGB = { 1.0f, 0.25f, 0.0f };
+					light.DiffuseIntensity = 3.0f;
+					light.SpecularRGB = { 1.0f, 0.25f, 0.0f };
+					light.SpecularIntensity = 5.0f;
+				}
+				auto& lightSphere = List_Matrix_World_LightSphere_.New();
+				{
+					float const r{ Lumina::LightSphereRadius(1024.0f, 2.0f, 1.0f, 1.0f, 0.5f) };
+					lightSphere = {
+						r, 0.0f, 0.0f, 0.0f,
+						0.0f, r, 0.0f, 0.0f,
+						0.0f, 0.0f, r, 0.0f,
+						-5.0f, 0.0f, 0.0f, 1.0f,
+					};
+				}
+				selectedPointLight = List_PointLight_.Size() - 1;
+			}
+		}
+		ImGui::SliderInt("Point Light", &selectedPointLight, 0, List_PointLight_.Size() - 1);
+		auto& ptLight = List_PointLight_.At(selectedPointLight);
+		auto& ptLightSphere = List_Matrix_World_LightSphere_.At(selectedPointLight);
+		if (ImGui::DragFloat3("WorldPos##PtLight", &ptLight.WorldPosition.x, 0.01f)) {
+			ptLightSphere[3][0] = ptLight.WorldPosition.x;
+			ptLightSphere[3][1] = ptLight.WorldPosition.y;
+			ptLightSphere[3][2] = ptLight.WorldPosition.z;
+		};
+		ImGui::ColorEdit3("Diffuse Color##PtLight", &ptLight.DiffuseRGB.x);
+		if (ImGui::DragFloat("Diffuse Intensity##PtLight", &ptLight.DiffuseIntensity, 0.01f, 0.0f)) {
+			if (ptLight.DiffuseIntensity < 0.0f) { ptLight.DiffuseIntensity = 0.0f; }
+			float intensity{ std::max<float>(ptLight.DiffuseIntensity, ptLight.SpecularIntensity) };
+			float const r{ Lumina::LightSphereRadius(1024.0f, intensity, 1.0f, 1.0f, 0.5f) };
+			ptLightSphere[0][0] = r;
+			ptLightSphere[1][1] = r;
+			ptLightSphere[2][2] = r;
+		}
+		ImGui::ColorEdit3("Specular Color##PtLight", &ptLight.SpecularRGB.x);
+		if (ImGui::DragFloat("Specular Intensity##PtLight", &ptLight.SpecularIntensity, 0.01f, 0.0f)) {
+			if (ptLight.DiffuseIntensity < 0.0f) { ptLight.DiffuseIntensity = 0.0f; }
+			float intensity{ std::max<float>(ptLight.DiffuseIntensity, ptLight.SpecularIntensity) };
+			float const r{ Lumina::LightSphereRadius(1024.0f, intensity, 1.0f, 1.0f, 0.5f) };
+			ptLightSphere[0][0] = r;
+			ptLightSphere[1][1] = r;
+			ptLightSphere[2][2] = r;
+		}
+
+		ImGui::End();
+
+		ImGui::Begin("G-Buffers");
+		ImGui::Image(GlobalTable_Graphics_.GPUHandle(0U + 64U + 96U).ptr, { 480.0f, 270.0f });
+		ImGui::Image(GlobalTable_Graphics_.GPUHandle(1U + 64U + 96U).ptr, { 480.0f, 270.0f });
+		//ImGui::Image(GlobalTable_Graphics_.GPUHandle(3U + 64U + 96U).ptr, { 640.0f, 360.0f });
+		ImGui::End();
+
+		#endif
+
 		Lighting_.Update(
 			List_DirectionalLight_,
 			List_PointLight_,
@@ -208,6 +331,7 @@ namespace CG3Eval2 {
 		cmdList_->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 		cmdList_->IASetVertexBuffers(0U, 1U, &VBV_Mesh_Sphere_);
 		cmdList_->IASetIndexBuffer(&IBV_Mesh_Sphere_);
+		cmdList_->DrawIndexedInstanced(Num_Indices_Sphere_, 1U, 0U, 0U, 0U);
 
 		RenderPass_.End();
 
@@ -336,8 +460,8 @@ namespace CG3Eval2 {
 		assetMngr.Graphics().LoadImageTextures(
 			texIDs,
 			{
-				{ "CG3.Tex0", "CG3Eval2/monsterBall.png" },
-				{ "CG3.Tex1", "CG3Eval2/checkerBoard.png" },
+				{ "CG3.Tex0", "Src/CG3Eval2/monsterBall.png" },
+				{ "CG3.Tex1", "Src/CG3Eval2/checkerBoard.png" },
 			}
 		);
 		for (uint32_t idx{ 0U }; idx < static_cast<uint32_t>(texIDs.size()); ++idx) {
@@ -399,20 +523,20 @@ namespace CG3Eval2 {
 		}
 		RenderPass_.DepthStencil().View() = Canvas_.DSV();
 
-		auto settings{ Utils::LoadFromFile<nlohmann::json>("Settings.json", "CG3Eval2") };
+		auto settings{ Utils::LoadFromFile<nlohmann::json>("Settings.json", "Src/CG3Eval2") };
 		auto graphicsRSSetup{ DX12::LoadRootSignatureSetup(settings.at("General Graphics RS Test")) };
 		RS_.Initialize(device, graphicsRSSetup, "CG3Eval2::Graphics RS");
 
 		dxContext_.Compile(
 			VertexShader_,
-			L"CG3Eval2/VS.hlsl",
+			L"Src/CG3Eval2/VS.hlsl",
 			L"vs_6_6",
 			L"main",
 			"CG3Eval2::VS"
 		);
 		dxContext_.Compile(
 			PixelShader_,
-			L"CG3Eval2/PS.hlsl",
+			L"Src/CG3Eval2/PS.hlsl",
 			L"ps_6_6",
 			L"main",
 			"CG3Eval2::PS"
@@ -550,5 +674,24 @@ namespace CG3Eval2 {
 		}
 
 		DX12::SRV<void>::Create(device, GlobalTable_Graphics_.CPUHandle(3U + 64U + 96U), Lighting_.RenderTexture());
+
+		DX12::CommandAllocator cmdAlloc{};
+		cmdAlloc.Initialize(device);
+		DX12::CommandList cmdList;
+		cmdList.Initialize(device, cmdAlloc);
+
+		cmdList->CopyBufferRegion(
+			DB_Constant_Scene_.Get(),
+			0LLU,
+			UB_Constant_Scene_.Get(),
+			0LLU,
+			sizeof(Constant_Scene)
+		);
+		cmdList->CopyResource(DB_VB_Mesh_Sphere_.Get(), ub_Mesh_Sphere_VB.Get());
+		cmdList->CopyResource(DB_IB_Mesh_Sphere_.Get(), ub_Mesh_Sphere_IB.Get());
+
+		dxContext_.DirectQueue() << cmdList;
+		dxContext_.DirectQueue().CPUWait(dxContext_.DirectQueue().ExecuteBatchedCommandLists());
+		cmdList.Reset(cmdAlloc);
 	}
 }
