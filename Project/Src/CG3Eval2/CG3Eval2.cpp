@@ -27,6 +27,7 @@ namespace {
 	Vec3 ModelRotate_{ 0.0f, 0.0f, 0.0f };
 	Vec3 ModelTranslate_{ 0.0f, 0.0f, 0.0f };
 	float ModelShininess_{ 32.0f };
+	int IsUsingBlinnPhong_{ 1 };
 
 	Vec3 LookAtSrc_{ -20.0f, 5.0f, -15.0f };
 	Vec3 LookAtDst_{ 0.0f, 0.0f, 0.0f };
@@ -173,6 +174,10 @@ namespace CG3Eval2 {
 			Constant_Scene_.WorldToNDC = WorldToView_ * ViewToNDC_;
 			ScreenToWorld_ = Inv_Viewport * Constant_Scene_.WorldToNDC.Inv();
 		}
+
+		ImGui::Separator();
+
+		ImGui::Checkbox("IsUsingBlinnPhong", reinterpret_cast<bool*>(&IsUsingBlinnPhong_));
 
 		ImGui::Separator();
 
@@ -427,6 +432,7 @@ namespace CG3Eval2 {
 		UB_LightingScene_.Store(&ScreenToWorld_, sizeof(Mat4), 0LLU);
 		UB_LightingScene_.Store(&LookAtSrc_, sizeof(Float3), sizeof(Mat4));
 		UB_LightingScene_.Store(&ModelShininess_, sizeof(Float3), sizeof(Mat4) + sizeof(Float3));
+		UB_LightingScene_.Store(&IsUsingBlinnPhong_, sizeof(Float3), sizeof(Mat4) + sizeof(Float3) + sizeof(float));
 
 		GlobalTable_Graphics_ = dxContext_.GlobalDescriptorHeap().Allocate(192U);
 
