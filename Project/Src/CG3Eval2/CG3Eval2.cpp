@@ -684,7 +684,7 @@ namespace CG3Eval2 {
 		DX12::SRV<void>::Create(device, GlobalTable_Graphics_.CPUHandle(3U + 64U + 96U), Lighting_.RenderTexture());
 
 		Skybox_ = std::make_unique<Lumina::Skybox>();
-		Skybox_->Initialize(dxContext_, device, assetMngr, "");
+		Skybox_->Initialize(dxContext_, device, assetMngr, "Assets/Skybox.dds");
 
 		DX12::CommandAllocator cmdAlloc{};
 		cmdAlloc.Initialize(device);
