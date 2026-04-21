@@ -340,6 +340,8 @@ namespace CG3Eval2 {
 		cmdList_->IASetIndexBuffer(&IBV_Mesh_Sphere_);
 		cmdList_->DrawIndexedInstanced(Num_Indices_Sphere_, 1U, 0U, 0U, 0U);
 
+		Skybox_->Render(cmdList_, GlobalTable_Graphics_);
+
 		RenderPass_.End();
 
 		static D3D12_RESOURCE_BARRIER const barriers_PostRender[]{

@@ -528,7 +528,7 @@ namespace Lumina::DX12 {
 		const ImageTexture& tex_,
 		const std::vector<D3D12_SUBRESOURCE_DATA>& subresources_
 	) {
-		const auto num_Subresources{ subresources_.size() };
+		auto const num_Subresources{ subresources_.size() };
 
 		const size_t sizeInBytes_Memory{
 			static_cast<size_t>(
