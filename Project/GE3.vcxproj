@@ -199,6 +199,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="Src\CG3Eval2\CG3Eval2.ixx" />
     <ClCompile Include="Src\CG3Eval2\DeferredLighting.cpp" />
     <ClCompile Include="Src\CG3Eval2\DeferredLighting.ixx" />
+    <ClCompile Include="Src\CG4\Skybox.ixx" />
     <ClCompile Include="Src\Lumina\Container\Container.Bitset.ixx" />
     <ClCompile Include="Src\Lumina\Container\Container.List.ixx" />
     <ClCompile Include="Src\Lumina\DX12\DX12.Aux.ixx" />

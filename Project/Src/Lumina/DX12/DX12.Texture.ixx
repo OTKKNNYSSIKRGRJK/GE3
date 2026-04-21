@@ -65,7 +65,7 @@ export namespace Lumina::DX12 {
 	//	ImageSet								//
 	//////	//////	//////	//////	//////	//////
 
-	class ImageSet : private DirectX::ScratchImage {
+	class ImageSet : public DirectX::ScratchImage {
 	public:
 		inline const DirectX::Image* operator()() const noexcept { return GetImages(); }
 
@@ -95,7 +95,7 @@ export namespace Lumina::DX12 {
 	//	MipChain								//
 	//////	//////	//////	//////	//////	//////
 
-	class MipChain : private DirectX::ScratchImage {
+	class MipChain : public DirectX::ScratchImage {
 	public:
 		inline const DirectX::Image* operator()() const noexcept { return GetImages(); }
 
@@ -106,7 +106,7 @@ export namespace Lumina::DX12 {
 
 	public:
 		[[nodiscard]] static UniPtr<MipChain> Create(
-			const ImageSet& imgSet_,
+			ImageSet&& imgSet_,
 			DirectX::TEX_FILTER_FLAGS flags_TexFilter_ = DirectX::TEX_FILTER_SRGB
 		);
 
@@ -114,7 +114,7 @@ export namespace Lumina::DX12 {
 
 	public:
 		MipChain(
-			const ImageSet& imgSet_,
+			ImageSet&& imgSet_,
 			DirectX::TEX_FILTER_FLAGS flags_TexFilter_
 		);
 	public:
@@ -198,6 +198,7 @@ export namespace Lumina::DX12 {
 
 	private:
 		D3D12_RESOURCE_DESC ResourceDesc_{};
+		int IsCubeMap_{ 0 };
 
 		STATUS Status_{ STATUS::READY_TO_UPLOAD };
 		UniPtr<Intermediate> IntermediateData_{ nullptr };
@@ -272,15 +273,28 @@ namespace Lumina::DX12 {
 	//----	------	------	------	------	----//
 
 	ImageSet::ImageSet(std::string_view filePath_, DirectX::WIC_FLAGS flags_) {
-		DirectX::LoadFromWICFile(
-			Utils::String::Convert(filePath_).data(),
-			flags_,
-			nullptr,
-			static_cast<DirectX::ScratchImage&>(*this)
-		) ||
-		Utils::Debug::ThrowIfFailed{
-			std::format("<DX12.ImageSet> Failed to load \"{}\"!\n", filePath_)
-		};
+		if (filePath_.ends_with(".dds")) {
+			DirectX::LoadFromDDSFile(
+				Utils::String::Convert(filePath_).data(),
+				DirectX::DDS_FLAGS_NONE,
+				nullptr,
+				static_cast<DirectX::ScratchImage&>(*this)
+			) ||
+			Utils::Debug::ThrowIfFailed{
+				std::format("<DX12.ImageSet> Failed to load \"{}\"!\n", filePath_)
+			};
+		}
+		else {
+			DirectX::LoadFromWICFile(
+				Utils::String::Convert(filePath_).data(),
+				flags_,
+				nullptr,
+				static_cast<DirectX::ScratchImage&>(*this)
+			) ||
+			Utils::Debug::ThrowIfFailed{
+				std::format("<DX12.ImageSet> Failed to load \"{}\"!\n", filePath_)
+			};
+		}
 		Logger().Message<0U>(
 			"ImageSet,\"{}\",Image loaded successfully.\n",
 			filePath_
@@ -294,29 +308,34 @@ namespace Lumina::DX12 {
 	//////	//////	//////	//////	//////	//////
 
 	UniPtr<MipChain> MipChain::Create(
-		const ImageSet& imgSet_,
+		ImageSet&& imgSet_,
 		DirectX::TEX_FILTER_FLAGS flags_TexFilter_
 	) {
-		return std::make_unique<MipChain>(imgSet_, flags_TexFilter_);
+		return std::make_unique<MipChain>(std::move(imgSet_), flags_TexFilter_);
 	}
 
 	//----	------	------	------	------	----//
 
 	MipChain::MipChain(
-		const ImageSet& imgSet_,
+		ImageSet&& imgSet_,
 		DirectX::TEX_FILTER_FLAGS flags_TexFilter_
 	) {
-		DirectX::GenerateMipMaps(
-			imgSet_(),
-			imgSet_.Count(),
-			imgSet_.Metadata(),
-			flags_TexFilter_,
-			0LLU,
-			static_cast<DirectX::ScratchImage&>(*this)
-		) ||
-		Utils::Debug::ThrowIfFailed{
-			"<DX12.MipChain> Failed to generate mipmaps!\n"
-		};
+		if (DirectX::IsCompressed(imgSet_.Metadata().format)) {
+			static_cast<DirectX::ScratchImage&>(*this) = std::move(imgSet_);
+		}
+		else {
+			DirectX::GenerateMipMaps(
+				imgSet_(),
+				imgSet_.Count(),
+				imgSet_.Metadata(),
+				flags_TexFilter_,
+				0LLU,
+				static_cast<DirectX::ScratchImage&>(*this)
+			) ||
+			Utils::Debug::ThrowIfFailed{
+				"<DX12.MipChain> Failed to generate mipmaps!\n"
+			};
+		}
 		Logger().Message<0U>(
 			"MipChain,,Mip chain generated successfully.\n"
 		);
@@ -684,12 +703,27 @@ namespace Lumina::DX12 {
 	inline const ImageTexture::Intermediate& ImageTexture::IntermediateData() const noexcept { return *IntermediateData_; }
 
 	inline D3D12_SHADER_RESOURCE_VIEW_DESC ImageTexture::SRVDesc() const noexcept {
-		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{
-			.Format{ ResourceDesc_.Format },
-			.ViewDimension{ D3D12_SRV_DIMENSION_TEXTURE2D },
-			.Shader4ComponentMapping{ D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING },
-			.Texture2D{ .MipLevels{ static_cast<uint32_t>(ResourceDesc_.MipLevels) }, },
-		};
+		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
+		if (IsCubeMap_) {
+			srvDesc = {
+				//.Format{ ResourceDesc_.Format },
+				.ViewDimension{ D3D12_SRV_DIMENSION_TEXTURECUBE },
+				//.Shader4ComponentMapping{ D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING },
+				.TextureCube{
+					.MostDetailedMip{ 0 },
+					.MipLevels{ UINT_MAX },
+					.ResourceMinLODClamp{ 0.0f },
+				},
+			};
+		}
+		else{
+			srvDesc = {
+				.Format{ ResourceDesc_.Format },
+				.ViewDimension{ D3D12_SRV_DIMENSION_TEXTURE2D },
+				.Shader4ComponentMapping{ D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING },
+				.Texture2D{ .MipLevels{ static_cast<uint32_t>(ResourceDesc_.MipLevels) }, },
+			};
+		}
 		return srvDesc;
 	}
 
@@ -730,6 +764,7 @@ namespace Lumina::DX12 {
 
 		// Reobtains the resource description.
 		ResourceDesc_ = Wrapped_->GetDesc();
+		IsCubeMap_ = mipChainMetadata.IsCubemap();
 
 		CreateIntermediateData(device_, mipChain_);
 		Logger().Message<0U>(

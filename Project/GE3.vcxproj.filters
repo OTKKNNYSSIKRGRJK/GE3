@@ -53,6 +53,9 @@
     <Filter Include="Src\Lighting">
       <UniqueIdentifier>{372e2f33-31c3-44fa-a5d0-cdf5b366265c}</UniqueIdentifier>
     </Filter>
+    <Filter Include="CG4">
+      <UniqueIdentifier>{88da2095-4e6e-44c4-b1f7-3e3337c91a76}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
@@ -265,6 +268,15 @@
     </ClCompile>
     <ClCompile Include="Src\CG3Eval2\DeferredLighting.ixx">
       <Filter>Src\Lighting</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\CG3Eval2\CG3Eval2.cpp">
+      <Filter>Src</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\CG3Eval2\CG3Eval2.ixx">
+      <Filter>Src</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\CG4\Skybox.ixx">
+      <Filter>CG4</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

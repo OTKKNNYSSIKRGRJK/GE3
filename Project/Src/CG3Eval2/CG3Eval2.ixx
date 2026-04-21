@@ -12,6 +12,8 @@ import Lumina.Math;
 import Lumina.DeferredLighting;
 import Lumina.Container.List;
 
+import Lumina.Skybox;
+
 namespace CG3Eval2 {
 	struct Constant_Scene {
 		Lumina::Mat4 WorldToNDC;
@@ -68,5 +70,7 @@ namespace CG3Eval2 {
 		Lumina::List<Lumina::DirectionalLight> List_DirectionalLight_;
 		Lumina::List<Lumina::PointLight> List_PointLight_;
 		Lumina::List<Lumina::Mat4> List_Matrix_World_LightSphere_;
+
+		std::unique_ptr<Lumina::Skybox> Skybox_;
 	};
 }

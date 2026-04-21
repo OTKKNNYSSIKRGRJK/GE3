@@ -1,0 +1,53 @@
+{
+  "RS": {
+    "Parameters": [
+      {
+        "ShaderVisibility": "Vertex",
+        "ParameterType": "DescriptorTable",
+        "TableName": "Constants"
+      },
+      {
+        "ShaderVisibility": "Pixel",
+        "ParameterType": "DescriptorTable",
+        "TableName": "TextureCube"
+      }
+    ],
+
+    "Constants": [
+      {
+        "RangeType": "CBV",
+        "NumDescriptors": 1,
+        "BaseShaderRegister": 0,
+        "RegisterSpace": 0,
+        "OffsetInDescriptorsFromTableStart": -1
+      }
+    ],
+
+    "TextureCube": [
+      {
+        "RangeType": "SRV",
+        "NumDescriptors": 1,
+        "BaseShaderRegister": 0,
+        "RegisterSpace": 0,
+        "OffsetInDescriptorsFromTableStart": -1
+      }
+    ],
+
+    "StaticSamplers": [
+      {
+        "Filter": {
+          "ReductionType": "Standard",
+          "IsAnisotropic": 0,
+          "MinFilter": "Bilinear",
+          "MagFilter": "Bilinear",
+          "MipFilter": "Bilinear"
+        },
+        "TextureAddressU": "Wrap",
+        "TextureAddressV": "Wrap",
+        "TextureAddressW": "Wrap",
+        "ShaderRegister": 0,
+        "ShaderVisibility": "Pixel"
+      }
+    ]
+  }
+}

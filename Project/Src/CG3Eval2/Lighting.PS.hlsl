@@ -103,8 +103,6 @@ float3 CalcSpecularPhong(
 		light_.Color *
 		light_.Intensity *
 		pow(dot_R_E, ModelShininess);
-	
-	
 }
 
 //static float Inv_0xFFFFFF = 1.0f / float(0xFFFFFF);
