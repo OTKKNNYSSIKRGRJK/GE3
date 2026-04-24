@@ -367,6 +367,7 @@ namespace CG3Eval2 {
 			dxContext_.Device(),
 			cmdList_,
 			GlobalTable_Graphics_.GPUHandle(0U + 64U + 96U),
+			Skybox_->GlobalTable().GPUHandle(0U),
 			LocalHeap_CBV_.CPUHandle(0U),
 			LocalHeap_CBV_.CPUHandle(2U)
 		);

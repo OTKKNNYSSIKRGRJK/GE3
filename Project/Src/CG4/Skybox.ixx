@@ -17,6 +17,9 @@ import Lumina.Utils.Data;
 namespace Lumina {
 	export class Skybox {
 	public:
+		auto GlobalTable() const noexcept -> DX12::DescriptorTable const& { return SRV_Textures_; }
+
+	public:
 		void Render(
 			DX12::CommandList const& cmdList_,
 			DX12::DescriptorTable const& cbvTable_

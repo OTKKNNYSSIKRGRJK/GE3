@@ -77,6 +77,14 @@ namespace Lumina {
 			D3D12_CPU_DESCRIPTOR_HANDLE localCBV_WorldToNDC_,
 			D3D12_CPU_DESCRIPTOR_HANDLE localCBV_Scene_
 		);
+		void Render(
+			DX12::GraphicsDevice const& device_,
+			DX12::CommandList const& cmdList_,
+			D3D12_GPU_DESCRIPTOR_HANDLE globalSRV_Arr_GBuffer_,
+			D3D12_GPU_DESCRIPTOR_HANDLE globalSRV_Cubemap_,
+			D3D12_CPU_DESCRIPTOR_HANDLE localCBV_WorldToNDC_,
+			D3D12_CPU_DESCRIPTOR_HANDLE localCBV_Scene_
+		);
 
 	public:
 		void Initialize(
@@ -100,8 +108,10 @@ namespace Lumina {
 		DX12::Shader VS_Fullscreen_{};
 		DX12::Shader PS_DirectionalLight_{};
 		DX12::Shader PS_PointLight_{};
+		DX12::Shader PS_EnvMap_{};
 		DX12::GraphicsPSO GraphicsPSO_DirectionalLight_{};
 		DX12::GraphicsPSO GraphicsPSO_PointLight_{};
+		DX12::GraphicsPSO GraphicsPSO_EnvMap_{};
 
 		DX12::DescriptorTable GlobalTable_{};
 

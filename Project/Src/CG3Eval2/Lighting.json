@@ -25,6 +25,11 @@
         "ShaderVisibility": "Pixel",
         "ParameterType": "DescriptorTable",
         "TableName": "P.Scene"
+      },
+      {
+        "ShaderVisibility": "Pixel",
+        "ParameterType": "DescriptorTable",
+        "TableName": "P.Cubemap"
       }
     ],
 
@@ -83,6 +88,16 @@
         "NumDescriptors": 1,
         "BaseShaderRegister": 0,
         "RegisterSpace": 1,
+        "OffsetInDescriptorsFromTableStart": -1
+      }
+    ],
+    "P.Cubemap": [
+      {
+        "Name": "Cubemap",
+        "RangeType": "SRV",
+        "NumDescriptors": 1,
+        "BaseShaderRegister": 0,
+        "RegisterSpace": 17,
         "OffsetInDescriptorsFromTableStart": -1
       }
     ],

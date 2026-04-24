@@ -206,32 +206,32 @@ PSOutput CalcDirectionalLight(VSOutput input_) {
 	return output;
 }
 
-//float3 CalcEnv(
-//	in float3 worldPos_,
-//	in float3 norm_
-//) {
-//	const float3 dir_EyeToTarget = normalize(worldPos_ - WorldPos_Camera.xyz);
+float4 CalcEnv(
+	in float3 worldPos_,
+	in float3 norm_
+) {
+	const float3 dir_EyeToTarget = normalize(worldPos_ - WorldPos_Camera.xyz);
 	
-//	const float3 refl = reflect(dir_EyeToTarget, norm_);
-//	const float4 envColor = SRV_EnvironmentMap.Sample(Sampler_Default, refl);
+	const float3 refl = reflect(dir_EyeToTarget, norm_);
+	const float4 envColor = SRV_EnvironmentMap.Sample(Sampler_Default, refl);
 	
-//	return envColor;
-//}
+	return envColor;
+}
 
-//PSOutput CalcEnvironmentalLight(VSOutput input_) {
-//	PSOutput output;
+PSOutput CalcEnvironmentalLight(VSOutput input_) {
+	PSOutput output;
 	
-//	const float4 albedo = SRV_GBuffer_Albedo.Sample(Sampler_Default, input_.SVPos.xy * Inv_WH);
-//	float3 normal = SRV_GBuffer_Normal.Sample(Sampler_Default, input_.SVPos.xy * Inv_WH).xyz;
-//	normal = normal * 2.0f - 1.0f;
+	const float4 albedo = SRV_GBuffer_Albedo.Sample(Sampler_Default, input_.SVPos.xy * Inv_WH);
+	float3 normal = SRV_GBuffer_Normal.Sample(Sampler_Default, input_.SVPos.xy * Inv_WH).xyz;
+	normal = normal * 2.0f - 1.0f;
 	
-//	float depth = SRV_GBuffer_Depth.Load(int3(input_.SVPos.xy, 0.0f));
+	float depth = SRV_GBuffer_Depth.Load(int3(input_.SVPos.xy, 0.0f));
 	
-//	float4 worldPos_Target = mul(float4(input_.SVPos.xy, depth, 1.0f), ScreenToWorld);
-//	worldPos_Target /= worldPos_Target.w;
+	float4 worldPos_Target = mul(float4(input_.SVPos.xy, depth, 1.0f), ScreenToWorld);
+	worldPos_Target /= worldPos_Target.w;
 	
-//	float3 envColor = CalcEnv(worldPos_Target.xyz, normal);
-//	output.Color = envColor;
+	float4 envColor = CalcEnv(worldPos_Target.xyz, normal);
+	output.Color = envColor;
 	
-//	return output;
-//}
+	return output;
+}

@@ -80,6 +80,7 @@ namespace Lumina {
 			V_Index = 2U,
 			P_GBuffer = 3U,
 			P_Scene = 4U,
+			P_Cubemap = 5U,
 		};
 	}
 
@@ -214,6 +215,110 @@ namespace Lumina {
 		cmdList_->ResourceBarrier(1U, barriers_PostLightingRender);
 	}
 
+
+	void DeferredLighting::Render(
+		DX12::GraphicsDevice const& device_,
+		DX12::CommandList const& cmdList_,
+		D3D12_GPU_DESCRIPTOR_HANDLE globalSRV_Arr_GBuffer_,
+		D3D12_GPU_DESCRIPTOR_HANDLE globalSRV_Cubemap_,
+		D3D12_CPU_DESCRIPTOR_HANDLE localCBV_WorldToNDC_,
+		D3D12_CPU_DESCRIPTOR_HANDLE localCBV_Scene_
+	) {
+		device_->CopyDescriptorsSimple(
+			1U,
+			GlobalTable_.CPUHandle(GlobalTableEntry::CBV_Matrix_WorldToNDC),
+			localCBV_WorldToNDC_,
+			D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
+		);
+		device_->CopyDescriptorsSimple(
+			1U,
+			GlobalTable_.CPUHandle(GlobalTableEntry::CBV_Scene),
+			localCBV_Scene_,
+			D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
+		);
+
+		D3D12_RESOURCE_BARRIER const barriers_PreLightingRender[]{
+			Lumina::DX12::Barrier::Transition(
+				Canvas_.RenderTexture(0U),
+				D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+				D3D12_RESOURCE_STATE_RENDER_TARGET
+			),
+		};
+		D3D12_RESOURCE_BARRIER const barriers_PostLightingRender[]{
+			Lumina::DX12::Barrier::Transition(
+				Canvas_.RenderTexture(0U),
+				D3D12_RESOURCE_STATE_RENDER_TARGET,
+				D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE
+			),
+		};
+
+		cmdList_->ResourceBarrier(1U, barriers_PreLightingRender);
+
+		RenderPass_.Begin(cmdList_);
+		{
+			cmdList_->RSSetViewports(1U, &Canvas_.Viewport(0U));
+			cmdList_->RSSetScissorRects(1U, &Canvas_.ScissorRect(0U));
+
+			cmdList_->SetGraphicsRootSignature(RootSignature_.Get());
+			cmdList_->SetGraphicsRootDescriptorTable(
+				static_cast<uint32_t>(RootParameterEntry::V_Transform),
+				GlobalTable_.GPUHandle(GlobalTableEntry::SRV_Array_WorldMatrix_LightSphere)
+			);
+			cmdList_->SetGraphicsRootDescriptorTable(
+				static_cast<uint32_t>(RootParameterEntry::V_Index),
+				GlobalTable_.GPUHandle(GlobalTableEntry::SRV_Array_Index_ActivePointLight)
+			);
+			cmdList_->SetGraphicsRootDescriptorTable(
+				static_cast<uint32_t>(RootParameterEntry::P_GBuffer),
+				globalSRV_Arr_GBuffer_
+			);
+			cmdList_->SetGraphicsRootDescriptorTable(
+				static_cast<uint32_t>(RootParameterEntry::P_Scene),
+				GlobalTable_.GPUHandle(GlobalTableEntry::CBV_Scene)
+			);
+			cmdList_->SetGraphicsRootDescriptorTable(
+				static_cast<uint32_t>(RootParameterEntry::P_Cubemap),
+				globalSRV_Cubemap_
+			);
+
+			cmdList_->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+			cmdList_->SetPipelineState(GraphicsPSO_DirectionalLight_.Get());
+			cmdList_->SetGraphicsRootDescriptorTable(
+				static_cast<uint32_t>(RootParameterEntry::P_Light),
+				GlobalTable_.GPUHandle(GlobalTableEntry::SRV_Array_DirectionalLight)
+			);
+			cmdList_->IASetVertexBuffers(0U, 1U, &VBV_Rect_);
+			cmdList_->DrawInstanced(6U, Num_ActiveDirectionalLights_, 0U, 0U);
+
+			cmdList_->SetPipelineState(GraphicsPSO_PointLight_.Get());
+			cmdList_->SetGraphicsRootDescriptorTable(
+				static_cast<uint32_t>(RootParameterEntry::P_Light),
+				GlobalTable_.GPUHandle(GlobalTableEntry::SRV_Array_PointLight)
+			);
+			cmdList_->IASetVertexBuffers(0U, 1U, &VBV_LightSphere_);
+			cmdList_->IASetIndexBuffer(&IBV_LightSphere_);
+			if (Num_ActivePointLights_ > 0U) {
+				cmdList_->DrawIndexedInstanced(
+					Num_IndicesPerSphere_,
+					Num_ActivePointLights_,
+					0U, 0U, 0U
+				);
+			}
+
+			cmdList_->SetPipelineState(GraphicsPSO_EnvMap_.Get());
+			/*cmdList_->SetGraphicsRootDescriptorTable(
+				static_cast<uint32_t>(RootParameterEntry::P_Light),
+				GlobalTable_.GPUHandle(GlobalTableEntry::SRV_Array_DirectionalLight)
+			);*/
+			cmdList_->IASetVertexBuffers(0U, 1U, &VBV_Rect_);
+			cmdList_->DrawInstanced(6U, 1U, 0U, 0U);
+		}
+		RenderPass_.End();
+
+		cmdList_->ResourceBarrier(1U, barriers_PostLightingRender);
+	}
+
 	void DeferredLighting::Initialize(
 		DX12::Context const& dxContext_,
 		uint32_t canvasWidth_,
@@ -291,6 +396,13 @@ namespace Lumina {
 			L"CalcPointLight",
 			"Lighting.PtLight.PS"
 		);
+		dxContext_.Compile(
+			PS_EnvMap_,
+			L"Src/CG3Eval2/Lighting.PS.hlsl",
+			L"ps_6_6",
+			L"CalcEnvironmentalLight",
+			"Lighting.EnvMap.PS"
+		);
 
 		Lumina::DX12::BlendState blendState{};
 		blendState.RenderTarget[0] = {
@@ -333,6 +445,22 @@ namespace Lumina {
 			RootSignature_,
 			VS_Fullscreen_,
 			PS_DirectionalLight_,
+			blendState,
+			Lumina::DX12::RasterizerState{
+				.FillMode{ D3D12_FILL_MODE_SOLID },
+				.CullMode{ D3D12_CULL_MODE_NONE },
+			},
+			depthStencilState,
+			inputLayout,
+			D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
+			{ DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, },
+			DXGI_FORMAT_UNKNOWN
+		);
+		GraphicsPSO_EnvMap_.Initialize(
+			device,
+			RootSignature_,
+			VS_Fullscreen_,
+			PS_EnvMap_,
 			blendState,
 			Lumina::DX12::RasterizerState{
 				.FillMode{ D3D12_FILL_MODE_SOLID },
