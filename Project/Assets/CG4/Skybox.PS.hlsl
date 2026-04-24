@@ -1,11 +1,12 @@
 struct VSOutput {
 	float4 Position : SV_Position;
+	float3 ProjectionSpacePos : POSITION0;
 	float3 TexCoord : TEXCOORD0;
 };
 
 struct PSOutput {
 	float4 Diffuse : SV_TARGET0;
-	float4 Normal : SV_TARGET1;
+	//float4 Normal : SV_TARGET1;
 };
 
 TextureCube<float4> Texture : register(t0);
@@ -15,6 +16,6 @@ PSOutput main(VSOutput input_) {
 	PSOutput output;
 	float4 texColor = Texture.Sample(Sampler, input_.TexCoord);
 	output.Diffuse = texColor;
-	output.Normal = float4(input_.Position.xyz, 0.0f);
+	//output.Normal = float4(0.0f, 0.0f, 0.0f, 0.0f);
 	return output;
 }

@@ -4,6 +4,7 @@ struct VSInput {
 
 struct VSOutput {
 	float4 Position : SV_Position;
+	float3 ProjectionSpacePos : POSITION0;
 	float3 TexCoord : TEXCOORD0;
 };
 

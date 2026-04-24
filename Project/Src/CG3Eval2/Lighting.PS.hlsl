@@ -164,7 +164,8 @@ PSOutput CalcDirectionalLight(VSOutput input_) {
 	PSOutput output;
 	
 	const float4 albedo = SRV_GBuffer_Albedo.Sample(Sampler_Default, input_.SVPos.xy * Inv_WH);
-	float3 normal = SRV_GBuffer_Normal.Sample(Sampler_Default, input_.SVPos.xy * Inv_WH).xyz;
+	float4 normalAndMetalic = SRV_GBuffer_Normal.Sample(Sampler_Default, input_.SVPos.xy * Inv_WH);
+	float3 normal = normalAndMetalic.xyz;
 	normal = normal * 2.0f - 1.0f;
 	
 	float depth = SRV_GBuffer_Depth.Load(int3(input_.SVPos.xy, 0.0f));
@@ -199,7 +200,8 @@ PSOutput CalcDirectionalLight(VSOutput input_) {
 		);
 	}
 	
-	float3 light = light_Diffuse + light_Specular;
+	float metalic = normalAndMetalic.w;
+	float3 light = light_Diffuse + light_Specular * metalic;
 	
 	output.Color = albedo * float4(light, 1.0f);
 	
@@ -222,7 +224,8 @@ PSOutput CalcEnvironmentalLight(VSOutput input_) {
 	PSOutput output;
 	
 	const float4 albedo = SRV_GBuffer_Albedo.Sample(Sampler_Default, input_.SVPos.xy * Inv_WH);
-	float3 normal = SRV_GBuffer_Normal.Sample(Sampler_Default, input_.SVPos.xy * Inv_WH).xyz;
+	float4 normalAndMetalic = SRV_GBuffer_Normal.Sample(Sampler_Default, input_.SVPos.xy * Inv_WH);
+	float3 normal = normalAndMetalic.xyz;
 	normal = normal * 2.0f - 1.0f;
 	
 	float depth = SRV_GBuffer_Depth.Load(int3(input_.SVPos.xy, 0.0f));
@@ -230,8 +233,18 @@ PSOutput CalcEnvironmentalLight(VSOutput input_) {
 	float4 worldPos_Target = mul(float4(input_.SVPos.xy, depth, 1.0f), ScreenToWorld);
 	worldPos_Target /= worldPos_Target.w;
 	
+	DIRECTIONAL_LIGHT directionalLight;
+	LoadDirectionalLight(directionalLight, input_.InstanceID);
+	
+	float3 light_Diffuse = CalcDiffuse(
+		directionalLight.Diffuse,
+		normal,
+		directionalLight.Direction
+	);
+	
 	float4 envColor = CalcEnv(worldPos_Target.xyz, normal);
-	output.Color = envColor;
+	float metalic = normalAndMetalic.w;
+	output.Color = envColor * metalic;
 	
 	return output;
 }

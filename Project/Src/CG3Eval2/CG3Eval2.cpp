@@ -319,6 +319,9 @@ namespace CG3Eval2 {
 		};
 		cmdList_->ResourceBarrier(3U, barriers_PreRender);
 
+		//auto rtv{ dxContext_.SwapChain().BackBufferRTVCPUHandle() };
+		//auto dsv{ dxContext_.SwapChain().DSVCPUHandle() };
+
 		RenderPass_.Begin(cmdList_);
 
 		cmdList_->RSSetViewports(
