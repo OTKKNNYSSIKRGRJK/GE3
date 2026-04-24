@@ -155,6 +155,7 @@ export namespace Lumina::DX12 {
 
 		inline uint32_t Width() const noexcept;
 		inline uint32_t Height() const noexcept;
+		inline bool IsCubemap() const noexcept { return IsCubemap_; }
 
 		inline STATUS Status() const noexcept;
 		inline const Intermediate& IntermediateData() const noexcept;
@@ -198,7 +199,7 @@ export namespace Lumina::DX12 {
 
 	private:
 		D3D12_RESOURCE_DESC ResourceDesc_{};
-		int IsCubeMap_{ 0 };
+		int IsCubemap_{ 0 };
 
 		STATUS Status_{ STATUS::READY_TO_UPLOAD };
 		UniPtr<Intermediate> IntermediateData_{ nullptr };
@@ -704,7 +705,7 @@ namespace Lumina::DX12 {
 
 	inline D3D12_SHADER_RESOURCE_VIEW_DESC ImageTexture::SRVDesc() const noexcept {
 		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
-		if (IsCubeMap_) {
+		if (IsCubemap_) {
 			srvDesc = {
 				//.Format{ ResourceDesc_.Format },
 				.ViewDimension{ D3D12_SRV_DIMENSION_TEXTURECUBE },
@@ -753,10 +754,13 @@ namespace Lumina::DX12 {
 	) {
 		auto const& mipChainMetadata{ mipChain_.Metadata() };
 
+		IsCubemap_ = mipChainMetadata.IsCubemap();
+
 		DefaultTexture2D::Initialize(
 			device_,
 			static_cast<uint32_t>(mipChainMetadata.width),
 			static_cast<uint32_t>(mipChainMetadata.height),
+			static_cast<uint32_t>(mipChainMetadata.arraySize),
 			static_cast<uint16_t>(mipChainMetadata.mipLevels),
 			mipChainMetadata.format,
 			debugName_
@@ -764,7 +768,6 @@ namespace Lumina::DX12 {
 
 		// Reobtains the resource description.
 		ResourceDesc_ = Wrapped_->GetDesc();
-		IsCubeMap_ = mipChainMetadata.IsCubemap();
 
 		CreateIntermediateData(device_, mipChain_);
 		Logger().Message<0U>(

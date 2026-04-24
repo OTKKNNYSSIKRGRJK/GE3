@@ -10,6 +10,9 @@ struct PSOutput {
 Texture2D<float4> SRV_GBuffer_Albedo : register(t0, space16);
 Texture2D<float4> SRV_GBuffer_Normal : register(t1, space16);
 Texture2D<float> SRV_GBuffer_Depth : register(t2, space16);
+Texture2D<float> SRV_GBuffer_Roughness : register(t3, space16);
+
+TextureCube<float4> SRV_EnvironmentMap : register(t0, space17);
 
 SamplerState Sampler_Default : register(s0);
 
@@ -79,9 +82,9 @@ float3 CalcSpecularBlinnPhong(
 	in float3 norm_,
 	in float3 lightDir_
 ) {
-	float3 dir_ToEye = normalize(WorldPos_Camera.xyz - worldPos_);
+	float3 dir_TargetToEye = normalize(WorldPos_Camera.xyz - worldPos_);
 		
-	float3 halfVec = normalize(-lightDir_ + dir_ToEye);
+	float3 halfVec = normalize(-lightDir_ + dir_TargetToEye);
 	float dot_N_H = saturate(dot(norm_, halfVec));
 	return
 		light_.Color *
@@ -95,10 +98,10 @@ float3 CalcSpecularPhong(
 	in float3 norm_,
 	in float3 lightDir_
 ) {
-	float3 dir_ToEye = normalize(WorldPos_Camera.xyz - worldPos_);
+	float3 dir_TargetToEye = normalize(WorldPos_Camera.xyz - worldPos_);
 	
 	float3 refl = reflect(lightDir_, norm_);
-	float dot_R_E = saturate(dot(refl, dir_ToEye));
+	float dot_R_E = saturate(dot(refl, dir_TargetToEye));
 	return
 		light_.Color *
 		light_.Intensity *
@@ -202,3 +205,33 @@ PSOutput CalcDirectionalLight(VSOutput input_) {
 	
 	return output;
 }
+
+//float3 CalcEnv(
+//	in float3 worldPos_,
+//	in float3 norm_
+//) {
+//	const float3 dir_EyeToTarget = normalize(worldPos_ - WorldPos_Camera.xyz);
+	
+//	const float3 refl = reflect(dir_EyeToTarget, norm_);
+//	const float4 envColor = SRV_EnvironmentMap.Sample(Sampler_Default, refl);
+	
+//	return envColor;
+//}
+
+//PSOutput CalcEnvironmentalLight(VSOutput input_) {
+//	PSOutput output;
+	
+//	const float4 albedo = SRV_GBuffer_Albedo.Sample(Sampler_Default, input_.SVPos.xy * Inv_WH);
+//	float3 normal = SRV_GBuffer_Normal.Sample(Sampler_Default, input_.SVPos.xy * Inv_WH).xyz;
+//	normal = normal * 2.0f - 1.0f;
+	
+//	float depth = SRV_GBuffer_Depth.Load(int3(input_.SVPos.xy, 0.0f));
+	
+//	float4 worldPos_Target = mul(float4(input_.SVPos.xy, depth, 1.0f), ScreenToWorld);
+//	worldPos_Target /= worldPos_Target.w;
+	
+//	float3 envColor = CalcEnv(worldPos_Target.xyz, normal);
+//	output.Color = envColor;
+	
+//	return output;
+//}

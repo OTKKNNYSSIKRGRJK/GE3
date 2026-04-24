@@ -252,11 +252,24 @@ namespace Lumina::DX12 {
 
 		else {
 			Format = (viewFormat_ == DXGI_FORMAT_UNKNOWN) ? (tex2D_.Format()) : (viewFormat_);
-			ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-			Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-			Texture2D = D3D12_TEX2D_SRV{
-				.MipLevels{ static_cast<uint32_t>(tex2D_.MipLevels()) },
-			};
+			
+			// The resource and view creation should be revised!
+			if (tex2D_.ArraySize() == 6) {
+				ViewDimension = D3D12_SRV_DIMENSION_TEXTURECUBE,
+				Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING,
+				TextureCube = {
+					.MostDetailedMip{ 0 },
+					.MipLevels{ UINT_MAX },
+					.ResourceMinLODClamp{ 0.0f },
+				};
+			}
+			else if (tex2D_.ArraySize() == 1) {
+				ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+				Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+				Texture2D = D3D12_TEX2D_SRV{
+					.MipLevels{ static_cast<uint32_t>(tex2D_.MipLevels()) },
+				};
+			}
 		}
 	}
 }

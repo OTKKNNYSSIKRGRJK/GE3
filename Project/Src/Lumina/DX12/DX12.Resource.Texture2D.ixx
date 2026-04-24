@@ -70,6 +70,7 @@ namespace Lumina::DX12 {
 	public:
 		constexpr auto Width() const noexcept -> uint64_t;
 		constexpr auto Height() const noexcept -> uint32_t;
+		constexpr auto ArraySize() const noexcept -> uint16_t { return static_cast<uint16_t>(ArraySize_); }
 		constexpr auto MipLevels() const noexcept -> uint32_t;
 		constexpr auto Format() const noexcept -> DXGI_FORMAT;
 		constexpr auto Flags() const noexcept -> D3D12_RESOURCE_FLAGS;
@@ -80,6 +81,7 @@ namespace Lumina::DX12 {
 		auto VerifySize(
 			uint64_t width_,
 			uint32_t height_,
+			uint32_t arrSize_,
 			std::string_view debugName_
 		) -> void;
 		auto GenerateResourceDesc(
@@ -100,6 +102,7 @@ namespace Lumina::DX12 {
 			GraphicsDevice const& device_,
 			uint64_t width_,
 			uint32_t height_,
+			uint32_t arrSize_,
 			uint16_t mipLevels_,
 			DXGI_FORMAT format_,
 			DXGI_SAMPLE_DESC const& sampleDesc_,
@@ -117,6 +120,7 @@ namespace Lumina::DX12 {
 	protected:
 		uint64_t Width_{};
 		uint32_t Height_{};
+		uint32_t ArraySize_{};
 
 		uint32_t MipLevels_{};
 		DXGI_FORMAT Format_{};
@@ -158,9 +162,10 @@ namespace Lumina::DX12 {
 	auto CommonTexture2D<Settings>::VerifySize(
 		uint64_t width_,
 		uint32_t height_,
+		uint32_t arrSize_,
 		std::string_view debugName_
 	) -> void {
-		(width_ && height_) ||
+		(width_ && height_ && arrSize_) ||
 		Utils::Debug::ThrowIfFalse{
 			std::format(
 				"<DX12.CommonTexture2D - {}> Both width and height must be nonzero!\n",
@@ -169,6 +174,7 @@ namespace Lumina::DX12 {
 		};
 		Width_ = width_;
 		Height_ = height_;
+		ArraySize_ = arrSize_;
 	}
 
 	template<ResourceSettings Settings>
@@ -184,7 +190,7 @@ namespace Lumina::DX12 {
 			.Dimension{ D3D12_RESOURCE_DIMENSION_TEXTURE2D },
 			.Width{ Width_ },
 			.Height{ Height_ },
-			.DepthOrArraySize{ 1U },
+			.DepthOrArraySize{ static_cast<uint16_t>(ArraySize_) },
 			.MipLevels{ static_cast<uint16_t>(MipLevels_) },
 			.Format{ Format_ },
 			.SampleDesc{ sampleDesc_ },
@@ -221,6 +227,7 @@ namespace Lumina::DX12 {
 		GraphicsDevice const& device_,
 		uint64_t width_,
 		uint32_t height_,
+		uint32_t arrSize_,
 		uint16_t mipLevels_,
 		DXGI_FORMAT format_,
 		DXGI_SAMPLE_DESC const& sampleDesc_,
@@ -228,7 +235,7 @@ namespace Lumina::DX12 {
 	) {
 		WrapperType::ThrowIfInitialized(debugName_);
 
-		VerifySize(width_, height_, debugName_);
+		VerifySize(width_, height_, arrSize_, debugName_);
 		auto&& resDesc{ GenerateResourceDesc(mipLevels_, format_, sampleDesc_) };
 		CreateD3D12Resource(device_, resDesc, debugName_);
 
@@ -271,6 +278,7 @@ namespace Lumina::DX12 {
 			GraphicsDevice const& device_,
 			uint32_t width_,
 			uint32_t height_,
+			uint32_t arrSize_,
 			uint16_t mipLevels_,
 			DXGI_FORMAT format_,
 			std::string_view debugName_ = "DefaultTex2D"
@@ -291,6 +299,7 @@ namespace Lumina::DX12 {
 		GraphicsDevice const& device_,
 		uint32_t width_,
 		uint32_t height_,
+		uint32_t arrSize_,
 		uint16_t mipLevels_,
 		DXGI_FORMAT format_,
 		std::string_view debugName_
@@ -299,6 +308,7 @@ namespace Lumina::DX12 {
 			device_,
 			width_,
 			height_,
+			arrSize_,
 			mipLevels_,
 			format_,
 			SampleDesc_NoMultisampling,
@@ -407,7 +417,7 @@ namespace Lumina::DX12 {
 	) {
 		ParentType::ThrowIfInitialized(debugName_);
 
-		ParentType::VerifySize(width_, height_, debugName_);
+		ParentType::VerifySize(width_, height_, 1U, debugName_);
 		auto&& resDesc{
 			ParentType::GenerateResourceDesc(
 				1U,
@@ -512,7 +522,7 @@ namespace Lumina::DX12 {
 	) {
 		ParentType::ThrowIfInitialized(debugName_);
 
-		ParentType::VerifySize(width_, height_, debugName_);
+		ParentType::VerifySize(width_, height_, 1U, debugName_);
 		auto&& resDesc{
 			ParentType::GenerateResourceDesc(
 				1U,
@@ -620,7 +630,7 @@ namespace Lumina::DX12 {
 	) {
 		ParentType::ThrowIfInitialized(debugName_);
 
-		ParentType::VerifySize(width_, height_, debugName_);
+		ParentType::VerifySize(width_, height_, 1U, debugName_);
 		auto&& resDesc{
 			ParentType::GenerateResourceDesc(
 				1U,
@@ -731,7 +741,7 @@ namespace Lumina::DX12 {
 	) {
 		ParentType::ThrowIfInitialized(debugName_);
 
-		ParentType::VerifySize(width_, height_, debugName_);
+		ParentType::VerifySize(width_, height_, 1U, debugName_);
 		auto&& resDesc{
 			ParentType::GenerateResourceDesc(
 				1U,

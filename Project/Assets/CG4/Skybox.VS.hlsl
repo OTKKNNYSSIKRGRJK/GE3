@@ -13,7 +13,7 @@ cbuffer Constants : register(b0) {
 
 VSOutput main(VSInput input_) {
 	VSOutput output;
-	output.Position = mul(input_.Position, WVP).xyww;
+	output.Position = mul(float4(input_.Position.xyz * 1000.0f, 1.0f), WVP).xyww;
 	output.TexCoord = input_.Position.xyz;
 	return output;
 }
