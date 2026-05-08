@@ -13,6 +13,7 @@ import Lumina.DeferredLighting;
 import Lumina.Container.List;
 
 import Lumina.Skybox;
+import Lumina.SimpleFX;
 
 namespace CG3Eval2 {
 	struct Constant_Scene {
@@ -72,5 +73,6 @@ namespace CG3Eval2 {
 		Lumina::List<Lumina::Mat4> List_Matrix_World_LightSphere_;
 
 		std::unique_ptr<Lumina::Skybox> Skybox_;
+		std::unique_ptr<Lumina::SimpleFX> SimpleFX_;
 	};
 }

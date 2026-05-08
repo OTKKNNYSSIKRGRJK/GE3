@@ -25,7 +25,7 @@ namespace {
 		D3D12_GPU_DESCRIPTOR_HANDLE cbv_SceneVars_,
 		D3D12_GPU_DESCRIPTOR_HANDLE cbv_VP_,
 		Lumina::DX12::DescriptorTable const& table_Textures_,
-		Lumina::DX12::DescriptorTable const& table_Textures2_,
+		[[maybe_unused]] Lumina::DX12::DescriptorTable const& table_Textures2_,
 		D3D12_VERTEX_BUFFER_VIEW const& particleMeshVBV_,
 		D3D12_INDEX_BUFFER_VIEW const& particleMeshIBV_,
 		uint32_t num_Inst_
@@ -37,7 +37,7 @@ namespace {
 		cmdList_->SetGraphicsRootDescriptorTable(1U, cbv_SceneVars_);
 		cmdList_->SetGraphicsRootDescriptorTable(2U, cbv_VP_);
 		cmdList_->SetGraphicsRootDescriptorTable(3U, table_Textures_.GPUHandle(0U));
-		cmdList_->SetGraphicsRootDescriptorTable(4U, table_Textures2_.GPUHandle(0U));
+		//cmdList_->SetGraphicsRootDescriptorTable(4U, table_Textures2_.GPUHandle(0U));
 		cmdList_->IASetVertexBuffers(0U, 1U, &particleMeshVBV_);
 		cmdList_->IASetIndexBuffer(&particleMeshIBV_);
 		cmdList_->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -95,7 +95,7 @@ public:
 public:
 	void Update(
 		Lumina::DX12::CommandList const& cmdList_,
-		Lumina::Mat4 const& viewToWorld_,
+		Lumina::Mat4 const& viewToWorld_NoTranslate_,
 		ParticleUpdateFunc updateFunc_ = nullptr,
 		void const* updateFuncParam_ = nullptr
 	);
@@ -142,7 +142,7 @@ typename Lumina::List<T> const& ParticleSystem<T>::InstanceList() const noexcept
 template<Concept_Particle T>
 void ParticleSystem<T>::Update(
 	Lumina::DX12::CommandList const& cmdList_,
-	Lumina::Mat4 const& viewToWorld_,
+	Lumina::Mat4 const& viewToWorld_NoTranslate_,
 	ParticleUpdateFunc updateFunc_,
 	void const* updateFuncParam_
 ) {
@@ -180,7 +180,7 @@ void ParticleSystem<T>::Update(
 				)
 			};
 
-			Lumina::Mat4::Multiply(transform, transform, viewToWorld_);
+			Lumina::Mat4::Multiply(transform, transform, viewToWorld_NoTranslate_);
 			transform[3][0] = particle.Translate.x;
 			transform[3][1] = particle.Translate.y;
 			transform[3][2] = particle.Translate.z;

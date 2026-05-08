@@ -14,6 +14,7 @@ import Lumina.Utils.Data.Mesh;
 import Lumina.Math;
 
 import Lumina.Skybox;
+import Lumina.SimpleFX;
 
 #if defined(_DEBUG)
 import Lumina.Utils.ImGui;
@@ -166,6 +167,9 @@ namespace CG3Eval2 {
 		ImGui::DragFloat("Model.Shininess", &ModelShininess_, 0.01f, 0.0f);
 		if (ModelShininess_ < 0.25f) { ModelShininess_ = 0.25f; }
 
+		static Lumina::Vec3 fxTranslate{ (LookAtSrc_ + LookAtDst_) * 0.5f };
+		ImGui::DragFloat3("FX Translate", fxTranslate(), 0.01f);
+
 		ImGui::Separator();
 
 		bool cameraChanged = 0;
@@ -279,6 +283,8 @@ namespace CG3Eval2 {
 			List_Matrix_World_LightSphere_,
 			ActivePtLightList_
 		);
+
+		SimpleFX_->Update({ fxTranslate.x, fxTranslate.y, fxTranslate.z });
 	}
 
 	void Scene::Render(
@@ -408,6 +414,19 @@ namespace CG3Eval2 {
 		cmdList_->ResourceBarrier(2U, barriers);
 		cmdList_->CopyResource(dxContext_.SwapChain().BackBufferResource(), Lighting_.RenderTexture().Get());
 		cmdList_->ResourceBarrier(2U, barriers + 2);
+
+
+		auto rtv{ dxContext_.SwapChain().BackBufferRTVCPUHandle() };
+		auto dsv{ dxContext_.SwapChain().DSVCPUHandle() };
+		cmdList_->OMSetRenderTargets(1U, &rtv, false, &dsv);
+
+		Mat4 const viewToWorld_NoTranslate{
+			WorldToView_[0][0], WorldToView_[1][0], WorldToView_[2][0], 0.0f,
+			WorldToView_[0][1], WorldToView_[1][1], WorldToView_[2][1], 0.0f,
+			WorldToView_[0][2], WorldToView_[1][2], WorldToView_[2][2], 0.0f,
+			0.0f, 0.0f, 0.0f, 1.0f,
+		};
+		SimpleFX_->Render(cmdList_, LocalHeap_CBV_, viewToWorld_NoTranslate);
 	}
 
 	template<>
@@ -691,6 +710,9 @@ namespace CG3Eval2 {
 
 		Skybox_ = std::make_unique<Lumina::Skybox>();
 		Skybox_->Initialize(dxContext_, device, assetMngr, "Assets/Skybox.dds");
+
+		SimpleFX_ = std::make_unique<Lumina::SimpleFX>();
+		SimpleFX_->Initialize(dxContext_, device, assetMngr);
 
 		DX12::CommandAllocator cmdAlloc{};
 		cmdAlloc.Initialize(device);
