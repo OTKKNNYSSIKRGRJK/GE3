@@ -177,8 +177,8 @@ namespace CG3Eval2 {
 		cameraChanged |= ImGui::DragFloat3("LookAt.Dst", LookAtDst_(), 0.1f);
 		if (cameraChanged) {
 			WorldToView_ = LookAt(LookAtSrc_, LookAtDst_, { 0.0f, 1.0f, 0.0f });
-			Constant_Scene_.WorldToNDC = WorldToView_ * ViewToNDC_;
-			ScreenToWorld_ = Inv_Viewport * Constant_Scene_.WorldToNDC.Inv();
+			Constant_Scene_.WorldToProjective = WorldToView_ * ViewToNDC_;
+			ScreenToWorld_ = Inv_Viewport * Constant_Scene_.WorldToProjective.Inv();
 		}
 
 		ImGui::Separator();
@@ -427,6 +427,7 @@ namespace CG3Eval2 {
 			0.0f, 0.0f, 0.0f, 1.0f,
 		};
 		SimpleFX_->Render(cmdList_, LocalHeap_CBV_, viewToWorld_NoTranslate);
+		SimpleFX2_->Render(cmdList_, Constant_Scene_.WorldToProjective, viewToWorld_NoTranslate);
 	}
 
 	template<>
@@ -445,7 +446,7 @@ namespace CG3Eval2 {
 			0.1f,
 			200.0f
 		);
-		Constant_Scene_.WorldToNDC = WorldToView_ * ViewToNDC_;
+		Constant_Scene_.WorldToProjective = WorldToView_ * ViewToNDC_;
 		UB_Constant_Scene_.Store(&Constant_Scene_, sizeof(Constant_Scene), 0LLU);
 
 		LocalToWorld_ = Mat4::SRT(ModelScale_, ModelRotate_, ModelTranslate_);
@@ -454,7 +455,7 @@ namespace CG3Eval2 {
 		UB_Constant_Model_.Store(&LocalToWorld_, sizeof(Mat4), 0LLU);
 		UB_Constant_Model_.Store(&Transpose_WorldToLocal_, sizeof(Mat4), sizeof(Mat4));
 
-		ScreenToWorld_ = Inv_Viewport * Constant_Scene_.WorldToNDC.Inv();
+		ScreenToWorld_ = Inv_Viewport * Constant_Scene_.WorldToProjective.Inv();
 		UB_LightingScene_.Initialize(device, 256LLU);
 		UB_LightingScene_.Store(&ScreenToWorld_, sizeof(Mat4), 0LLU);
 		UB_LightingScene_.Store(&LookAtSrc_, sizeof(Float3), sizeof(Mat4));
@@ -713,6 +714,10 @@ namespace CG3Eval2 {
 
 		SimpleFX_ = std::make_unique<Lumina::SimpleFX>();
 		SimpleFX_->Initialize(dxContext_, device, assetMngr);
+
+		SimpleFX2_ = std::make_unique<Lumina::SimpleFX2>();
+		SimpleFX2_->Initialize(dxContext_, device, assetMngr);
+		SimpleFX2_->ResetRing({ 72, 2.0f, 1.0f });
 
 		DX12::CommandAllocator cmdAlloc{};
 		cmdAlloc.Initialize(device);

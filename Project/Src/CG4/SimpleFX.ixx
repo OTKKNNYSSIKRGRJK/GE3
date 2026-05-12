@@ -2,8 +2,6 @@ export module Lumina.SimpleFX;
 
 import <memory>;
 import <random>;
-import <string>;
-import <array>;
 import <vector>;
 import <cstdint>;
 import <d3d12.h>;

@@ -278,6 +278,12 @@
     <ClCompile Include="Src\CG4\Skybox.ixx">
       <Filter>CG4</Filter>
     </ClCompile>
+    <ClCompile Include="Src\CG4\SimpleFX.ixx">
+      <Filter>CG4</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\CG4\SimpleFX2.ixx">
+      <Filter>CG4</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include=".editorconfig" />

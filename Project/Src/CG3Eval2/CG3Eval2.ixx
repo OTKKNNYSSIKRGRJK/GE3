@@ -14,10 +14,12 @@ import Lumina.Container.List;
 
 import Lumina.Skybox;
 import Lumina.SimpleFX;
+import Lumina.SimpleFX2;
+
 
 namespace CG3Eval2 {
 	struct Constant_Scene {
-		Lumina::Mat4 WorldToNDC;
+		Lumina::Mat4 WorldToProjective;
 	};
 
 	export class Scene {
@@ -74,5 +76,6 @@ namespace CG3Eval2 {
 
 		std::unique_ptr<Lumina::Skybox> Skybox_;
 		std::unique_ptr<Lumina::SimpleFX> SimpleFX_;
+		std::unique_ptr<Lumina::SimpleFX2> SimpleFX2_;
 	};
 }
