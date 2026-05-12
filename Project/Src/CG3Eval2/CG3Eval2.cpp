@@ -415,9 +415,9 @@ namespace CG3Eval2 {
 		cmdList_->CopyResource(dxContext_.SwapChain().BackBufferResource(), Lighting_.RenderTexture().Get());
 		cmdList_->ResourceBarrier(2U, barriers + 2);
 
-
 		auto rtv{ dxContext_.SwapChain().BackBufferRTVCPUHandle() };
 		auto dsv{ dxContext_.SwapChain().DSVCPUHandle() };
+		cmdList_->ClearDepthStencilView(dsv, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 		cmdList_->OMSetRenderTargets(1U, &rtv, false, &dsv);
 
 		Mat4 const viewToWorld_NoTranslate{
@@ -428,6 +428,7 @@ namespace CG3Eval2 {
 		};
 		SimpleFX_->Render(cmdList_, LocalHeap_CBV_, viewToWorld_NoTranslate);
 		SimpleFX2_->Render(cmdList_, Constant_Scene_.WorldToProjective, viewToWorld_NoTranslate);
+		SimpleFX3_->Render(cmdList_, Constant_Scene_.WorldToProjective);
 	}
 
 	template<>
@@ -718,6 +719,10 @@ namespace CG3Eval2 {
 		SimpleFX2_ = std::make_unique<Lumina::SimpleFX2>();
 		SimpleFX2_->Initialize(dxContext_, device, assetMngr);
 		SimpleFX2_->ResetRing({ 72, 2.0f, 1.0f });
+
+		SimpleFX3_ = std::make_unique<Lumina::SimpleFX3>();
+		SimpleFX3_->Initialize(dxContext_, device, assetMngr);
+		SimpleFX3_->ResetCylinder({ 72, 2.0f, 5.0f, 3.0f });
 
 		DX12::CommandAllocator cmdAlloc{};
 		cmdAlloc.Initialize(device);

@@ -15,6 +15,7 @@ import Lumina.Container.List;
 import Lumina.Skybox;
 import Lumina.SimpleFX;
 import Lumina.SimpleFX2;
+import Lumina.SimpleFX3;
 
 
 namespace CG3Eval2 {
@@ -77,5 +78,6 @@ namespace CG3Eval2 {
 		std::unique_ptr<Lumina::Skybox> Skybox_;
 		std::unique_ptr<Lumina::SimpleFX> SimpleFX_;
 		std::unique_ptr<Lumina::SimpleFX2> SimpleFX2_;
+		std::unique_ptr<Lumina::SimpleFX3> SimpleFX3_;
 	};
 }
