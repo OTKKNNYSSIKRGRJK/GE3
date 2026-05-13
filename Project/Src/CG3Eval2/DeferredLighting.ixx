@@ -61,7 +61,7 @@ namespace Lumina {
 
 	export class DeferredLighting {
 	public:
-		auto RenderTexture() const noexcept -> DX12::RenderTexture2D const&;
+		auto Canvas() const noexcept -> DX12::Canvas const&;
 
 	public:
 		void Update(

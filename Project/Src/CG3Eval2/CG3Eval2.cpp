@@ -380,45 +380,13 @@ namespace CG3Eval2 {
 			LocalHeap_CBV_.CPUHandle(0U),
 			LocalHeap_CBV_.CPUHandle(2U)
 		);
-		
-		D3D12_RESOURCE_BARRIER const barriers[]{
-			D3D12_RESOURCE_BARRIER{
-				.Type{ D3D12_RESOURCE_BARRIER_TYPE_TRANSITION },
-				.Transition{
-					.pResource{ dxContext_.SwapChain().BackBufferResource() },
-					.Subresource{ 0xFFFFFFFF },
-					.StateBefore{ D3D12_RESOURCE_STATE_RENDER_TARGET },
-					.StateAfter{ D3D12_RESOURCE_STATE_COPY_DEST },
-				}
-			},
-			Lumina::DX12::Barrier::Transition(
-				Lighting_.RenderTexture(),
-				D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
-				D3D12_RESOURCE_STATE_COPY_SOURCE
-			),
-			D3D12_RESOURCE_BARRIER{
-				.Type{ D3D12_RESOURCE_BARRIER_TYPE_TRANSITION },
-				.Transition{
-					.pResource{ dxContext_.SwapChain().BackBufferResource() },
-					.Subresource{ 0xFFFFFFFF },
-					.StateBefore{ D3D12_RESOURCE_STATE_COPY_DEST },
-					.StateAfter{ D3D12_RESOURCE_STATE_RENDER_TARGET },
-				}
-			},
-			Lumina::DX12::Barrier::Transition(
-				Lighting_.RenderTexture(),
-				D3D12_RESOURCE_STATE_COPY_SOURCE,
-				D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE
-			),
-		};
-		cmdList_->ResourceBarrier(2U, barriers);
-		cmdList_->CopyResource(dxContext_.SwapChain().BackBufferResource(), Lighting_.RenderTexture().Get());
-		cmdList_->ResourceBarrier(2U, barriers + 2);
 
 		auto rtv{ dxContext_.SwapChain().BackBufferRTVCPUHandle() };
 		auto dsv{ dxContext_.SwapChain().DSVCPUHandle() };
 		cmdList_->ClearDepthStencilView(dsv, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 		cmdList_->OMSetRenderTargets(1U, &rtv, false, &dsv);
+
+		Fullscreen_->Render(cmdList_, GlobalTable_Graphics_.GPUHandle(3U + 64U + 96U));
 
 		Mat4 const viewToWorld_NoTranslate{
 			WorldToView_[0][0], WorldToView_[1][0], WorldToView_[2][0], 0.0f,
@@ -708,7 +676,7 @@ namespace CG3Eval2 {
 			};
 		}
 
-		DX12::SRV<void>::Create(device, GlobalTable_Graphics_.CPUHandle(3U + 64U + 96U), Lighting_.RenderTexture());
+		DX12::SRV<void>::Create(device, GlobalTable_Graphics_.CPUHandle(3U + 64U + 96U), Lighting_.Canvas().RenderTexture(0U));
 
 		Skybox_ = std::make_unique<Lumina::Skybox>();
 		Skybox_->Initialize(dxContext_, device, assetMngr, "Assets/Skybox.dds");
@@ -723,6 +691,9 @@ namespace CG3Eval2 {
 		SimpleFX3_ = std::make_unique<Lumina::SimpleFX3>();
 		SimpleFX3_->Initialize(dxContext_, device, assetMngr);
 		SimpleFX3_->ResetCylinder({ 72, 2.0f, 5.0f, 3.0f });
+
+		Fullscreen_ = std::make_unique<Lumina::Fullscreen>();
+		Fullscreen_->Initialize(dxContext_, device);
 
 		DX12::CommandAllocator cmdAlloc{};
 		cmdAlloc.Initialize(device);

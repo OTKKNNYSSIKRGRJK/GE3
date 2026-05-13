@@ -56,6 +56,9 @@
     <Filter Include="CG4">
       <UniqueIdentifier>{88da2095-4e6e-44c4-b1f7-3e3337c91a76}</UniqueIdentifier>
     </Filter>
+    <Filter Include="CG5">
+      <UniqueIdentifier>{69aeb241-b481-4659-9dd2-75e3e2ce55ea}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
@@ -286,6 +289,9 @@
     </ClCompile>
     <ClCompile Include="Src\CG4\SimpleFX3.ixx">
       <Filter>CG4</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\CG5\Fullscreen.ixx">
+      <Filter>CG5</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

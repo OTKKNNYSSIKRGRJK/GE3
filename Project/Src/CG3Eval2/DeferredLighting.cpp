@@ -84,8 +84,8 @@ namespace Lumina {
 		};
 	}
 
-	auto DeferredLighting::RenderTexture() const noexcept -> DX12::RenderTexture2D const& {
-		return Canvas_.RenderTexture(0U);
+	auto DeferredLighting::Canvas() const noexcept -> DX12::Canvas const& {
+		return Canvas_;
 	}
 
 	void DeferredLighting::Update(
