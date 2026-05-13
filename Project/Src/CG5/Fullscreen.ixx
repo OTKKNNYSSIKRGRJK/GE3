@@ -21,7 +21,6 @@ namespace Lumina {
 			cmdList_->SetGraphicsRootDescriptorTable(0U, srv_OffscreenTexture_);
 			cmdList_->SetPipelineState(PSO_.Get());
 			cmdList_->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-			cmdList_->IASetVertexBuffers(0U, 1U, &VBV_);
 			cmdList_->DrawInstanced(3U, 1U, 0U, 0U);
 		}
 
@@ -89,32 +88,9 @@ namespace Lumina {
 				graphicsPSOSetup,
 				"CG3Eval2::GraphicsPSO"
 			);
-
-			// * Top-left
-			Vertices_[0] = { Float4{ -1.0f, 1.0f, 0.0f, 1.0f }, Float2 { 0.0f, 0.0f } };
-			// * Top-right
-			Vertices_[1] = { Float4{ 3.0f, 1.0f, 0.0f, 1.0f }, Float2 { 2.0f, 0.0f } };
-			// * Bottom-left
-			Vertices_[2] = { Float4{ -1.0f, -3.0f, 0.0f, 1.0f }, Float2 { 0.0f, 2.0f } };
-
-			VertexBuffer_.Initialize(device_, sizeof(Vertex) * 3U);
-			VertexBuffer_.Store(Vertices_.data(), sizeof(Vertex) * 3U, 0LLU);
-
-			VBV_ = DX12::VBV::Create<Vertex>(VertexBuffer_);
 		}
 
 	private:
-		struct Vertex {
-			Float4 Position;
-			Float2 TexCoord;
-		};
-
-		std::array<Vertex, 3U> Vertices_;
-
-		DX12::UploadBuffer VertexBuffer_;
-		D3D12_VERTEX_BUFFER_VIEW VBV_;
-		D3D12_INDEX_BUFFER_VIEW IBV_;
-
 		DX12::RootSignature RS_;
 		DX12::Shader VS_;
 		DX12::Shader PS_;
