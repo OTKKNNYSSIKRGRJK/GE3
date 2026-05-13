@@ -67,8 +67,6 @@ namespace Lumina {
 				.DepthEnable{ false },
 			};
 			DX12::GraphicsPipelineState::InputLayout inputLayout{};
-			inputLayout.Append("POSITION", 0U, DXGI_FORMAT_R32G32B32A32_FLOAT);
-			inputLayout.Append("TEXCOORD", 0U, DXGI_FORMAT_R32G32_FLOAT);
 			std::vector<DXGI_FORMAT> rtvFormats{
 				DXGI_FORMAT_R8G8B8A8_UNORM_SRGB,
 			};
