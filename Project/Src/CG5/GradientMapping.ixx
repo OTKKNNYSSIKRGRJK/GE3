@@ -1,7 +1,6 @@
-export module Lumina.Fullscreen;
+export module Lumina.GradientMapping;
 
 import <array>;
-import <d3d12.h>;
 
 import Lumina.Math;
 import Lumina.DX12;
@@ -9,56 +8,42 @@ import Lumina.DX12.Context;
 import Lumina.DX12.Aux;
 import Lumina.DX12.Aux.View;
 import Lumina.Utils.Data;
+import Lumina.Fullscreen;
 
 namespace Lumina {
-	export class Fullscreen {
+	export class GradientMapping {
 	public:
-		auto VertexShader() const noexcept -> DX12::Shader const& { return VS_; }
+		auto Gradients() noexcept -> std::array<Float4, 256U>& { return Gradients_; }
 
-	public:
-		void Render(
+		void Update() {
+			UB_Gradients_.Store(Gradients_.data(), sizeof(Float4) * Gradients_.size(), 0LLU);
+		}
+
+		void SetPipeline(
 			DX12::CommandList const& cmdList_,
 			D3D12_GPU_DESCRIPTOR_HANDLE srv_OffscreenTexture_
-		) {
+		) const {
 			cmdList_->SetGraphicsRootSignature(RS_.Get());
 			cmdList_->SetGraphicsRootDescriptorTable(0U, srv_OffscreenTexture_);
+			cmdList_->SetGraphicsRootDescriptorTable(1U, GlobalTable_CBV_.GPUHandle(0U));
 			cmdList_->SetPipelineState(PSO_.Get());
-			cmdList_->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-			cmdList_->DrawInstanced(3U, 1U, 0U, 0U);
-		}
-		template<typename _PostProcessing, typename..._ARGs>
-		void Render(
-			DX12::CommandList const& cmdList_,
-			D3D12_GPU_DESCRIPTOR_HANDLE srv_OffscreenTexture_,
-			_PostProcessing const& postProcessing_,
-			_ARGs&&...args_
-		) {
-			postProcessing_.SetPipeline(cmdList_, srv_OffscreenTexture_, std::forward<_ARGs>(args_)...);
-			cmdList_->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-			cmdList_->DrawInstanced(3U, 1U, 0U, 0U);
 		}
 
 		void Initialize(
 			DX12::Context const& dxContext_,
-			DX12::GraphicsDevice const& device_
+			DX12::GraphicsDevice const& device_,
+			Fullscreen const& fullscreen_
 		) {
-			auto settings{ Utils::LoadFromFile<nlohmann::json>("Fullscreen.json", "Assets/CG5") };
+			auto settings{ Utils::LoadFromFile<nlohmann::json>("GradientMapping.json", "Assets/CG5") };
 			auto rsSetup{ DX12::LoadRootSignatureSetup(settings.at("RS")) };
-			RS_.Initialize(device_, rsSetup, "Fullscreen RS");
+			RS_.Initialize(device_, rsSetup, "GradientMapping RS");
 
 			dxContext_.Compile(
-				VS_,
-				L"Assets/CG5/Fullscreen.VS.hlsl",
-				L"vs_6_6",
-				L"main",
-				"Fullscreen.VS"
-			);
-			dxContext_.Compile(
 				PS_,
-				L"Assets/CG5/Fullscreen.PS.hlsl",
+				L"Assets/CG5/GradientMapping.PS.hlsl",
 				L"ps_6_6",
 				L"main",
-				"Fullscreen.PS"
+				"GradientMapping.PS"
 			);
 			DX12::GraphicsPipelineState::Setup graphicsPSOSetup{};
 			DX12::BlendState blendState{ .IndependentBlendEnable{ true }, };
@@ -86,7 +71,7 @@ namespace Lumina {
 			};
 			graphicsPSOSetup <<
 				RS_ <<
-				VS_ <<
+				fullscreen_.VertexShader() <<
 				PS_ <<
 				blendState <<
 				rasterizerState <<
@@ -98,14 +83,36 @@ namespace Lumina {
 			PSO_.Initialize(
 				device_,
 				graphicsPSOSetup,
-				"CG3Eval2::GraphicsPSO"
+				"Grayscale"
 			);
+
+			constexpr float inv_255{ 1.0f / 255.0f };
+			for (int i{ 0 }; i < 256; ++i) {
+				float const val{ i * inv_255 };
+				Gradients_[i] = { val, val, val, 1.0f };
+			}
+
+			constexpr auto fitToValidConstantBufferSize{
+				[] (size_t size_) constexpr {
+					return ((size_ + 0xFFLLU) & ~0xFFLLU);
+				}
+			};
+			UB_Gradients_.Initialize(device_,
+				fitToValidConstantBufferSize(sizeof(Float4) * Gradients_.size())
+			);
+			UB_Gradients_.Store(Gradients_.data(), sizeof(Float4) * Gradients_.size(), 0LLU);
+
+			GlobalTable_CBV_ = dxContext_.GlobalDescriptorHeap().Allocate(1U);
+			DX12::CBV::Create(device_, GlobalTable_CBV_.CPUHandle(0U), UB_Gradients_);
 		}
 
 	private:
 		DX12::RootSignature RS_;
-		DX12::Shader VS_;
 		DX12::Shader PS_;
 		DX12::GraphicsPSO PSO_;
+
+		DX12::UploadBuffer UB_Gradients_;
+		DX12::DescriptorTable GlobalTable_CBV_;
+		std::array<Float4, 256U> Gradients_;
 	};
 }

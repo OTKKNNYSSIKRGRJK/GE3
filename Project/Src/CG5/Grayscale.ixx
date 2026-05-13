@@ -1,7 +1,6 @@
-export module Lumina.Fullscreen;
+export module Lumina.Grayscale;
 
 import <array>;
-import <d3d12.h>;
 
 import Lumina.Math;
 import Lumina.DX12;
@@ -9,56 +8,35 @@ import Lumina.DX12.Context;
 import Lumina.DX12.Aux;
 import Lumina.DX12.Aux.View;
 import Lumina.Utils.Data;
+import Lumina.Fullscreen;
 
 namespace Lumina {
-	export class Fullscreen {
+	export class Grayscale {
 	public:
-		auto VertexShader() const noexcept -> DX12::Shader const& { return VS_; }
-
-	public:
-		void Render(
+		void SetPipeline(
 			DX12::CommandList const& cmdList_,
 			D3D12_GPU_DESCRIPTOR_HANDLE srv_OffscreenTexture_
-		) {
+		) const {
 			cmdList_->SetGraphicsRootSignature(RS_.Get());
 			cmdList_->SetGraphicsRootDescriptorTable(0U, srv_OffscreenTexture_);
 			cmdList_->SetPipelineState(PSO_.Get());
-			cmdList_->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-			cmdList_->DrawInstanced(3U, 1U, 0U, 0U);
-		}
-		template<typename _PostProcessing, typename..._ARGs>
-		void Render(
-			DX12::CommandList const& cmdList_,
-			D3D12_GPU_DESCRIPTOR_HANDLE srv_OffscreenTexture_,
-			_PostProcessing const& postProcessing_,
-			_ARGs&&...args_
-		) {
-			postProcessing_.SetPipeline(cmdList_, srv_OffscreenTexture_, std::forward<_ARGs>(args_)...);
-			cmdList_->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-			cmdList_->DrawInstanced(3U, 1U, 0U, 0U);
 		}
 
 		void Initialize(
 			DX12::Context const& dxContext_,
-			DX12::GraphicsDevice const& device_
+			DX12::GraphicsDevice const& device_,
+			Fullscreen const& fullscreen_
 		) {
-			auto settings{ Utils::LoadFromFile<nlohmann::json>("Fullscreen.json", "Assets/CG5") };
+			auto settings{ Utils::LoadFromFile<nlohmann::json>("Grayscale.json", "Assets/CG5") };
 			auto rsSetup{ DX12::LoadRootSignatureSetup(settings.at("RS")) };
-			RS_.Initialize(device_, rsSetup, "Fullscreen RS");
+			RS_.Initialize(device_, rsSetup, "Grayscale RS");
 
 			dxContext_.Compile(
-				VS_,
-				L"Assets/CG5/Fullscreen.VS.hlsl",
-				L"vs_6_6",
-				L"main",
-				"Fullscreen.VS"
-			);
-			dxContext_.Compile(
 				PS_,
-				L"Assets/CG5/Fullscreen.PS.hlsl",
+				L"Assets/CG5/Grayscale.PS.hlsl",
 				L"ps_6_6",
 				L"main",
-				"Fullscreen.PS"
+				"Grayscale.PS"
 			);
 			DX12::GraphicsPipelineState::Setup graphicsPSOSetup{};
 			DX12::BlendState blendState{ .IndependentBlendEnable{ true }, };
@@ -86,7 +64,7 @@ namespace Lumina {
 			};
 			graphicsPSOSetup <<
 				RS_ <<
-				VS_ <<
+				fullscreen_.VertexShader() <<
 				PS_ <<
 				blendState <<
 				rasterizerState <<
@@ -98,13 +76,12 @@ namespace Lumina {
 			PSO_.Initialize(
 				device_,
 				graphicsPSOSetup,
-				"CG3Eval2::GraphicsPSO"
+				"Grayscale"
 			);
 		}
 
 	private:
 		DX12::RootSignature RS_;
-		DX12::Shader VS_;
 		DX12::Shader PS_;
 		DX12::GraphicsPSO PSO_;
 	};

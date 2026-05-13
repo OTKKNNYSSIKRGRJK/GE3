@@ -1,9 +1,8 @@
 module CG3Eval2;
 
 import <cstdint>;
-
+import <algorithm>;
 import <vector>;
-
 import <cassert>;
 
 import Lumina.AssetManager;
@@ -150,6 +149,13 @@ namespace {
 }
 
 namespace CG3Eval2 {
+	namespace {
+		struct GradientControl {
+			int Index;
+			Float4 Color;
+		};
+	}
+
 	void Scene::Update() {
 		#if defined(_DEBUG)
 
@@ -275,6 +281,47 @@ namespace CG3Eval2 {
 		//ImGui::Image(GlobalTable_Graphics_.GPUHandle(3U + 64U + 96U).ptr, { 640.0f, 360.0f });
 		ImGui::End();
 
+
+		ImGui::Begin("Gradient");
+		auto& gradients{ GradientMapping_->Gradients() };
+		static std::vector<GradientControl> gradientControls{
+			{ 0, Float4{ 0.0f, 0.0f, 0.0f, 1.0f } },
+			{ 64, Float4{ 0.25f, 0.25f, 0.25f, 1.0f } },
+			{ 128, Float4{ 0.5f, 0.5f, 0.5f, 1.0f } },
+			{ 192, Float4{ 0.75f, 0.75f, 0.75f, 1.0f } },
+			{ 255, Float4{ 1.0f, 1.0f, 1.0f, 1.0f } },
+		};
+		for (auto& gradientControl : gradientControls) {
+			ImGui::PushID(&gradientControl);
+			//ImGui::DragInt("Index", &gradientControl.Index, 0.5f, 0, 255, "%d");
+			ImGui::ColorEdit3("Color", &gradientControl.Color.x);
+			ImGui::PopID();
+		}
+		/*std::stable_sort(
+			gradientControls.begin(),
+			gradientControls.end(),
+			[] (GradientControl const& lhs_, GradientControl const& rhs_)
+				-> bool { return (lhs_.Index < rhs_.Index); }
+		);*/
+		for (size_t i = 0; i < gradientControls.size() - 1; ++i) {
+			auto const& a = gradientControls[i];
+			auto const& b = gradientControls[i + 1];
+			if (a.Index == b.Index) { continue; }
+			float const c{ 1.0f / static_cast<float>(b.Index - a.Index) };
+			for (size_t j = a.Index; j < b.Index; ++j) {
+				float const t = c * (j - a.Index);
+				gradients[j] = Float4{
+					a.Color.x * (1.0f - t) + b.Color.x * t,
+					a.Color.y * (1.0f - t) + b.Color.y * t,
+					a.Color.z * (1.0f - t) + b.Color.z * t,
+					a.Color.w * (1.0f - t) + b.Color.w * t,
+				};
+			}
+		}
+		gradients[255] = gradientControls[gradientControls.size() - 1].Color;
+		GradientMapping_->Update();
+		ImGui::End();
+
 		#endif
 
 		Lighting_.Update(
@@ -381,7 +428,7 @@ namespace CG3Eval2 {
 			LocalHeap_CBV_.CPUHandle(2U)
 		);
 
-		auto rtv{ dxContext_.SwapChain().BackBufferRTVCPUHandle() };
+		auto rtv{ LocalHeap_RTV_.CPUHandle(0U) };
 		auto dsv{ dxContext_.SwapChain().DSVCPUHandle() };
 		cmdList_->ClearDepthStencilView(dsv, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 		cmdList_->OMSetRenderTargets(1U, &rtv, false, &dsv);
@@ -397,6 +444,31 @@ namespace CG3Eval2 {
 		SimpleFX_->Render(cmdList_, LocalHeap_CBV_, viewToWorld_NoTranslate);
 		SimpleFX2_->Render(cmdList_, Constant_Scene_.WorldToProjective, viewToWorld_NoTranslate);
 		SimpleFX3_->Render(cmdList_, Constant_Scene_.WorldToProjective);
+
+		static D3D12_RESOURCE_BARRIER const barriers_OSR0[]{
+			Lumina::DX12::Barrier::Transition(
+				OffscreenTextures_[0],
+				D3D12_RESOURCE_STATE_RENDER_TARGET,
+				D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE
+			),
+			Lumina::DX12::Barrier::Transition(
+				OffscreenTextures_[0],
+				D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE,
+				D3D12_RESOURCE_STATE_RENDER_TARGET
+			),
+		};
+		cmdList_->ResourceBarrier(1U, barriers_OSR0 + 0U);
+
+		rtv = dxContext_.SwapChain().BackBufferRTVCPUHandle();
+		cmdList_->OMSetRenderTargets(1U, &rtv, false, &dsv);
+
+		Fullscreen_->Render(
+			cmdList_,
+			GlobalTable_Graphics_.GPUHandle(4U + 64U + 96U),
+			*GradientMapping_
+		);
+
+		cmdList_->ResourceBarrier(1U, barriers_OSR0 + 1U);
 	}
 
 	template<>
@@ -694,6 +766,20 @@ namespace CG3Eval2 {
 
 		Fullscreen_ = std::make_unique<Lumina::Fullscreen>();
 		Fullscreen_->Initialize(dxContext_, device);
+
+		Grayscale_ = std::make_unique<Lumina::Grayscale>();
+		Grayscale_->Initialize(dxContext_, device, *Fullscreen_);
+
+		GradientMapping_ = std::make_unique<Lumina::GradientMapping>();
+		GradientMapping_->Initialize(dxContext_, device, *Fullscreen_);
+
+		OffscreenTextures_[0].Initialize(device, 1280U, 720U);
+		OffscreenTextures_[1].Initialize(device, 1280U, 720U);
+		DX12::SRV<void>::Create(device, GlobalTable_Graphics_.CPUHandle(4U + 64U + 96U), OffscreenTextures_[0]);
+		DX12::SRV<void>::Create(device, GlobalTable_Graphics_.CPUHandle(5U + 64U + 96U), OffscreenTextures_[1]);
+		LocalHeap_RTV_.Initialize(device, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 2U, false);
+		DX12::RTV::Create(device, LocalHeap_RTV_.CPUHandle(0U), OffscreenTextures_[0]);
+		DX12::RTV::Create(device, LocalHeap_RTV_.CPUHandle(1U), OffscreenTextures_[1]);
 
 		DX12::CommandAllocator cmdAlloc{};
 		cmdAlloc.Initialize(device);

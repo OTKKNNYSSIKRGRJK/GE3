@@ -18,7 +18,8 @@ import Lumina.SimpleFX2;
 import Lumina.SimpleFX3;
 
 import Lumina.Fullscreen;
-
+import Lumina.Grayscale;
+import Lumina.GradientMapping;
 
 namespace CG3Eval2 {
 	struct Constant_Scene {
@@ -82,6 +83,10 @@ namespace CG3Eval2 {
 		std::unique_ptr<Lumina::SimpleFX2> SimpleFX2_;
 		std::unique_ptr<Lumina::SimpleFX3> SimpleFX3_;
 
+		Lumina::DX12::RenderTexture2D OffscreenTextures_[2];
+		Lumina::DX12::DescriptorHeap LocalHeap_RTV_;
 		std::unique_ptr<Lumina::Fullscreen> Fullscreen_;
+		std::unique_ptr<Lumina::Grayscale> Grayscale_;
+		std::unique_ptr<Lumina::GradientMapping> GradientMapping_;
 	};
 }
