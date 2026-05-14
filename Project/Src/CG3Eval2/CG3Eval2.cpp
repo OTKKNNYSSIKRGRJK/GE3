@@ -275,52 +275,58 @@ namespace CG3Eval2 {
 
 		ImGui::End();
 
-		ImGui::Begin("G-Buffers");
-		ImGui::Image(GlobalTable_Graphics_.GPUHandle(0U + 64U + 96U).ptr, { 480.0f, 270.0f });
-		ImGui::Image(GlobalTable_Graphics_.GPUHandle(1U + 64U + 96U).ptr, { 480.0f, 270.0f });
+		ImGui::Begin("Vignetting");
+		auto& vignettingParams{ Vignetting_->ConstantsData() };
+		ImGui::DragFloat("Scale", &vignettingParams.Scale, 0.01f);
+		ImGui::DragFloat("Power", &vignettingParams.Power, 0.01f);
+		Vignetting_->Update();
+		ImGui::End();
+
+		//ImGui::Begin("G-Buffers");
+		//ImGui::Image(GlobalTable_Graphics_.GPUHandle(0U + 64U + 96U).ptr, { 480.0f, 270.0f });
+		//ImGui::Image(GlobalTable_Graphics_.GPUHandle(1U + 64U + 96U).ptr, { 480.0f, 270.0f });
 		//ImGui::Image(GlobalTable_Graphics_.GPUHandle(3U + 64U + 96U).ptr, { 640.0f, 360.0f });
-		ImGui::End();
+		//ImGui::End();
 
-
-		ImGui::Begin("Gradient");
-		auto& gradients{ GradientMapping_->Gradients() };
-		static std::vector<GradientControl> gradientControls{
-			{ 0, Float4{ 0.0f, 0.0f, 0.0f, 1.0f } },
-			{ 64, Float4{ 0.25f, 0.25f, 0.25f, 1.0f } },
-			{ 128, Float4{ 0.5f, 0.5f, 0.5f, 1.0f } },
-			{ 192, Float4{ 0.75f, 0.75f, 0.75f, 1.0f } },
-			{ 255, Float4{ 1.0f, 1.0f, 1.0f, 1.0f } },
-		};
-		for (auto& gradientControl : gradientControls) {
-			ImGui::PushID(&gradientControl);
-			//ImGui::DragInt("Index", &gradientControl.Index, 0.5f, 0, 255, "%d");
-			ImGui::ColorEdit3("Color", &gradientControl.Color.x);
-			ImGui::PopID();
-		}
-		/*std::stable_sort(
-			gradientControls.begin(),
-			gradientControls.end(),
-			[] (GradientControl const& lhs_, GradientControl const& rhs_)
-				-> bool { return (lhs_.Index < rhs_.Index); }
-		);*/
-		for (size_t i = 0; i < gradientControls.size() - 1; ++i) {
-			auto const& a = gradientControls[i];
-			auto const& b = gradientControls[i + 1];
-			if (a.Index == b.Index) { continue; }
-			float const c{ 1.0f / static_cast<float>(b.Index - a.Index) };
-			for (size_t j = a.Index; j < b.Index; ++j) {
-				float const t = c * (j - a.Index);
-				gradients[j] = Float4{
-					a.Color.x * (1.0f - t) + b.Color.x * t,
-					a.Color.y * (1.0f - t) + b.Color.y * t,
-					a.Color.z * (1.0f - t) + b.Color.z * t,
-					a.Color.w * (1.0f - t) + b.Color.w * t,
-				};
-			}
-		}
-		gradients[255] = gradientControls[gradientControls.size() - 1].Color;
-		GradientMapping_->Update();
-		ImGui::End();
+		//ImGui::Begin("Gradient");
+		//auto& gradients{ GradientMapping_->Gradients() };
+		//static std::vector<GradientControl> gradientControls{
+		//	{ 0, Float4{ 0.0f, 0.0f, 0.0f, 1.0f } },
+		//	{ 64, Float4{ 0.25f, 0.25f, 0.25f, 1.0f } },
+		//	{ 128, Float4{ 0.5f, 0.5f, 0.5f, 1.0f } },
+		//	{ 192, Float4{ 0.75f, 0.75f, 0.75f, 1.0f } },
+		//	{ 255, Float4{ 1.0f, 1.0f, 1.0f, 1.0f } },
+		//};
+		//for (auto& gradientControl : gradientControls) {
+		//	ImGui::PushID(&gradientControl);
+		//	//ImGui::DragInt("Index", &gradientControl.Index, 0.5f, 0, 255, "%d");
+		//	ImGui::ColorEdit3("Color", &gradientControl.Color.x);
+		//	ImGui::PopID();
+		//}
+		///*std::stable_sort(
+		//	gradientControls.begin(),
+		//	gradientControls.end(),
+		//	[] (GradientControl const& lhs_, GradientControl const& rhs_)
+		//		-> bool { return (lhs_.Index < rhs_.Index); }
+		//);*/
+		//for (size_t i = 0; i < gradientControls.size() - 1; ++i) {
+		//	auto const& a = gradientControls[i];
+		//	auto const& b = gradientControls[i + 1];
+		//	if (a.Index == b.Index) { continue; }
+		//	float const c{ 1.0f / static_cast<float>(b.Index - a.Index) };
+		//	for (size_t j = a.Index; j < b.Index; ++j) {
+		//		float const t = c * (j - a.Index);
+		//		gradients[j] = Float4{
+		//			a.Color.x * (1.0f - t) + b.Color.x * t,
+		//			a.Color.y * (1.0f - t) + b.Color.y * t,
+		//			a.Color.z * (1.0f - t) + b.Color.z * t,
+		//			a.Color.w * (1.0f - t) + b.Color.w * t,
+		//		};
+		//	}
+		//}
+		//gradients[255] = gradientControls[gradientControls.size() - 1].Color;
+		//GradientMapping_->Update();
+		//ImGui::End();
 
 		#endif
 
@@ -465,7 +471,7 @@ namespace CG3Eval2 {
 		Fullscreen_->Render(
 			cmdList_,
 			GlobalTable_Graphics_.GPUHandle(4U + 64U + 96U),
-			*GradientMapping_
+			*Vignetting_
 		);
 
 		cmdList_->ResourceBarrier(1U, barriers_OSR0 + 1U);
@@ -772,6 +778,9 @@ namespace CG3Eval2 {
 
 		GradientMapping_ = std::make_unique<Lumina::GradientMapping>();
 		GradientMapping_->Initialize(dxContext_, device, *Fullscreen_);
+
+		Vignetting_ = std::make_unique<Lumina::Vignetting>();
+		Vignetting_->Initialize(dxContext_, device, *Fullscreen_);
 
 		OffscreenTextures_[0].Initialize(device, 1280U, 720U);
 		OffscreenTextures_[1].Initialize(device, 1280U, 720U);

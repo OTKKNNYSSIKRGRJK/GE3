@@ -20,6 +20,7 @@ import Lumina.SimpleFX3;
 import Lumina.Fullscreen;
 import Lumina.Grayscale;
 import Lumina.GradientMapping;
+import Lumina.Vignetting;
 
 namespace CG3Eval2 {
 	struct Constant_Scene {
@@ -88,5 +89,6 @@ namespace CG3Eval2 {
 		std::unique_ptr<Lumina::Fullscreen> Fullscreen_;
 		std::unique_ptr<Lumina::Grayscale> Grayscale_;
 		std::unique_ptr<Lumina::GradientMapping> GradientMapping_;
+		std::unique_ptr<Lumina::Vignetting> Vignetting_;
 	};
 }

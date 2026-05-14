@@ -299,6 +299,9 @@
     <ClCompile Include="Src\CG5\GradientMapping.ixx">
       <Filter>CG5</Filter>
     </ClCompile>
+    <ClCompile Include="Src\CG5\Vignetting.ixx">
+      <Filter>CG5</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include=".editorconfig" />
