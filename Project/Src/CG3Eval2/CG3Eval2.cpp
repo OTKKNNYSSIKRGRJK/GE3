@@ -471,7 +471,7 @@ namespace CG3Eval2 {
 		Fullscreen_->Render(
 			cmdList_,
 			GlobalTable_Graphics_.GPUHandle(4U + 64U + 96U),
-			*Vignetting_
+			*Smoothing_
 		);
 
 		cmdList_->ResourceBarrier(1U, barriers_OSR0 + 1U);
@@ -781,6 +781,9 @@ namespace CG3Eval2 {
 
 		Vignetting_ = std::make_unique<Lumina::Vignetting>();
 		Vignetting_->Initialize(dxContext_, device, *Fullscreen_);
+
+		Smoothing_ = std::make_unique<Lumina::Smoothing>();
+		Smoothing_->Initialize(dxContext_, device, *Fullscreen_, 7, 7);
 
 		OffscreenTextures_[0].Initialize(device, 1280U, 720U);
 		OffscreenTextures_[1].Initialize(device, 1280U, 720U);
