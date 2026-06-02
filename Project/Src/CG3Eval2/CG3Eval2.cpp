@@ -782,8 +782,21 @@ namespace CG3Eval2 {
 		Vignetting_ = std::make_unique<Lumina::Vignetting>();
 		Vignetting_->Initialize(dxContext_, device, *Fullscreen_);
 
+		float const sigma{ 2.0f };
+		float const doubleSQSigma{ 2.0f * sigma * sigma };
+		float const rcp_DoubleSQSigma{ 1.0f / doubleSQSigma };
+
 		Smoothing_ = std::make_unique<Lumina::Smoothing>();
-		Smoothing_->Initialize(dxContext_, device, *Fullscreen_, 7, 7);
+		Smoothing_->Initialize(
+			dxContext_,
+			device,
+			*Fullscreen_,
+			7, 7,
+			[rcp_DoubleSQSigma] (Vec2 const& xy_) -> float {
+				float const exponent{ -Vec2::Dot(xy_, xy_) * rcp_DoubleSQSigma };
+				return std::exp(exponent) * rcp_DoubleSQSigma * std::numbers::inv_pi_v<float>;
+			}
+		);
 
 		OffscreenTextures_[0].Initialize(device, 1280U, 720U);
 		OffscreenTextures_[1].Initialize(device, 1280U, 720U);

@@ -27,12 +27,14 @@ namespace Lumina {
 			cmdList_->SetPipelineState(PSO_.Get());
 		}
 
+		template<typename _KernelDistribution>
 		void Initialize(
 			DX12::Context const& dxContext_,
 			DX12::GraphicsDevice const& device_,
 			Fullscreen const& fullscreen_,
 			uint32_t kernelWidth_,
-			uint32_t kernelHeight_
+			uint32_t kernelHeight_,
+			_KernelDistribution kernelDist_
 		) {
 			auto settings{ Utils::LoadFromFile<nlohmann::json>("Smoothing.json", "Assets/CG5") };
 			auto rsSetup{ DX12::LoadRootSignatureSetup(settings.at("RS")) };
@@ -90,16 +92,14 @@ namespace Lumina {
 			Constants_.KernelWidth = kernelWidth_;
 			Constants_.KernelHeight = kernelHeight_;
 
-			float const avg{ 1.0f / static_cast<float>(kernelWidth_ * kernelHeight_) };
-
 			for (int32_t y{ 0 }; y < static_cast<int32_t>(kernelWidth_); ++y) {
 				for (int32_t x{ 0 }; x < static_cast<int32_t>(kernelHeight_); ++x) {
 					int32_t const idx{ y * static_cast<int32_t>(kernelWidth_) + x };
-					Kernel_[idx] = avg;
 					Offsets_[idx] = {
 						static_cast<float>(x) - (static_cast<float>(kernelWidth_) - 1.0f) * 0.5f,
 						static_cast<float>(y) - (static_cast<float>(kernelHeight_) - 1.0f) * 0.5f
 					};
+					Kernel_[idx] = kernelDist_(Vec2{ &Offsets_[idx].x });
 				}
 			}
 
