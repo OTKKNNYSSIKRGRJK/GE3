@@ -16,16 +16,17 @@ cbuffer Constants0 : register(b0) {
 	uint KernelHeight;
 }
 
-cbuffer Constants1 : register(b1) {
-	float Kernel[_KERNEL_MAXWIDTH_ * _KERNEL_MAXHEIGHT_];
+cbuffer Offsets : register(b1) {
+	float2 Offsets[_KERNEL_MAXWIDTH_ * _KERNEL_MAXHEIGHT_];
 }
 
-cbuffer Constants2 : register(b2) {
-	float2 Offsets[_KERNEL_MAXWIDTH_ * _KERNEL_MAXHEIGHT_];
+cbuffer Kernel0 : register(b0, space1) {
+	float Kernel[_KERNEL_MAXWIDTH_ * _KERNEL_MAXHEIGHT_];
 }
 
 Texture2D<float4> OffscreenTexture : register(t0);
 SamplerState BilinearClamp : register(s0);
+SamplerState PointClamp : register(s1);
 
 float3 Convolve(in float2 texCoord_) {
 	float3 ret = { 0.0f, 0.0f, 0.0f };
@@ -40,7 +41,7 @@ float3 Convolve(in float2 texCoord_) {
 	return ret;
 }
 
-PSOutput main(VSOutput input_){
+PSOutput main(VSOutput input_) {
 	PSOutput output;
 	
 	output.Color.rgb = Convolve(input_.TexCoord);

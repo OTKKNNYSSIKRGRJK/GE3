@@ -21,7 +21,7 @@ import Lumina.Fullscreen;
 import Lumina.Grayscale;
 import Lumina.GradientMapping;
 import Lumina.Vignetting;
-import Lumina.Smoothing;
+import Lumina.Filtering;
 
 namespace CG3Eval2 {
 	struct Constant_Scene {
@@ -42,7 +42,7 @@ namespace CG3Eval2 {
 
 	private:
 		Lumina::Mat4 WorldToView_{};
-		Lumina::Mat4 ViewToNDC_{};
+		Lumina::Mat4 ViewToProjective_{};
 
 		Constant_Scene Constant_Scene_{};
 
@@ -91,6 +91,6 @@ namespace CG3Eval2 {
 		std::unique_ptr<Lumina::Grayscale> Grayscale_;
 		std::unique_ptr<Lumina::GradientMapping> GradientMapping_;
 		std::unique_ptr<Lumina::Vignetting> Vignetting_;
-		std::unique_ptr<Lumina::Smoothing> Smoothing_;
+		std::unique_ptr<Lumina::Filtering> Filtering_;
 	};
 }

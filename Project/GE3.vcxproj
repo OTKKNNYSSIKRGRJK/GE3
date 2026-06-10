@@ -207,7 +207,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="Src\CG5\Fullscreen.ixx" />
     <ClCompile Include="Src\CG5\GradientMapping.ixx" />
     <ClCompile Include="Src\CG5\Grayscale.ixx" />
-    <ClCompile Include="Src\CG5\Smoothing.ixx" />
+    <ClCompile Include="Src\CG5\Filtering.ixx" />
     <ClCompile Include="Src\CG5\Vignetting.ixx" />
     <ClCompile Include="Src\Lumina\Container\Container.Bitset.ixx" />
     <ClCompile Include="Src\Lumina\Container\Container.List.ixx" />

@@ -183,7 +183,7 @@ namespace CG3Eval2 {
 		cameraChanged |= ImGui::DragFloat3("LookAt.Dst", LookAtDst_(), 0.1f);
 		if (cameraChanged) {
 			WorldToView_ = LookAt(LookAtSrc_, LookAtDst_, { 0.0f, 1.0f, 0.0f });
-			Constant_Scene_.WorldToProjective = WorldToView_ * ViewToNDC_;
+			Constant_Scene_.WorldToProjective = WorldToView_ * ViewToProjective_;
 			ScreenToWorld_ = Inv_Viewport * Constant_Scene_.WorldToProjective.Inv();
 		}
 
@@ -471,7 +471,7 @@ namespace CG3Eval2 {
 		Fullscreen_->Render(
 			cmdList_,
 			GlobalTable_Graphics_.GPUHandle(4U + 64U + 96U),
-			*Smoothing_
+			*Filtering_
 		);
 
 		cmdList_->ResourceBarrier(1U, barriers_OSR0 + 1U);
@@ -487,13 +487,13 @@ namespace CG3Eval2 {
 		DB_Constant_Scene_.Initialize(device, (sizeof(Constant_Scene) + 0xFFLLU) & ~0xFFLLU);
 		UB_Constant_Scene_.Initialize(device, DB_Constant_Scene_.SizeInBytes());
 		WorldToView_ = LookAt(LookAtSrc_, LookAtDst_, { 0.0f, 1.0f, 0.0f });
-		ViewToNDC_ = Lumina::Mat4::PerspectiveFOV(
+		ViewToProjective_ = Lumina::Mat4::PerspectiveFOV(
 			0.45f,
 			static_cast<float>(1280.0f) / static_cast<float>(720.0f),
 			0.1f,
 			200.0f
 		);
-		Constant_Scene_.WorldToProjective = WorldToView_ * ViewToNDC_;
+		Constant_Scene_.WorldToProjective = WorldToView_ * ViewToProjective_;
 		UB_Constant_Scene_.Store(&Constant_Scene_, sizeof(Constant_Scene), 0LLU);
 
 		LocalToWorld_ = Mat4::SRT(ModelScale_, ModelRotate_, ModelTranslate_);
@@ -754,7 +754,10 @@ namespace CG3Eval2 {
 			};
 		}
 
-		DX12::SRV<void>::Create(device, GlobalTable_Graphics_.CPUHandle(3U + 64U + 96U), Lighting_.Canvas().RenderTexture(0U));
+		DX12::SRV<void>::Create(
+			device, GlobalTable_Graphics_.CPUHandle(3U + 64U + 96U),
+			Lighting_.Canvas().RenderTexture(0U)
+		);
 
 		Skybox_ = std::make_unique<Lumina::Skybox>();
 		Skybox_->Initialize(dxContext_, device, assetMngr, "Assets/Skybox.dds");
@@ -782,29 +785,88 @@ namespace CG3Eval2 {
 		Vignetting_ = std::make_unique<Lumina::Vignetting>();
 		Vignetting_->Initialize(dxContext_, device, *Fullscreen_);
 
-		float const sigma{ 2.0f };
+		/*float const sigma{ 2.0f };
 		float const doubleSQSigma{ 2.0f * sigma * sigma };
 		float const rcp_DoubleSQSigma{ 1.0f / doubleSQSigma };
-
-		Smoothing_ = std::make_unique<Lumina::Smoothing>();
-		Smoothing_->Initialize(
-			dxContext_,
-			device,
-			*Fullscreen_,
-			7, 7,
-			[rcp_DoubleSQSigma] (Vec2 const& xy_) -> float {
+		auto gaussianDist{
+			[rcp_DoubleSQSigma](Vec2 const& xy_) -> float {
 				float const exponent{ -Vec2::Dot(xy_, xy_) * rcp_DoubleSQSigma };
 				return std::exp(exponent) * rcp_DoubleSQSigma * std::numbers::inv_pi_v<float>;
 			}
+		};*/
+
+		[[maybe_unused]] auto prewittH{
+			[](Vec2 const& xy_) -> float {
+				if (xy_.x < 0) { return -1.0f / 6.0f; }
+				if (xy_.x > 0) { return 1.0f / 6.0f; }
+				return 0.0f;
+			}
+		};
+		[[maybe_unused]] auto prewittV{
+			[](Vec2 const& xy_) -> float {
+				if (xy_.y < 0) { return -1.0f / 6.0f; }
+				if (xy_.y > 0) { return 1.0f / 6.0f; }
+				return 0.0f;
+			}
+		};
+
+
+		Lumina::Mat4 projectiveToView{ ViewToProjective_.Inv() };
+
+		struct FilterParams {
+			Vec2 UVStepSize;
+			uint32_t KernelWidth;
+			uint32_t KernelHeight;
+			float ProjectiveToView[16];
+			float OutlineLuminanceFactor;
+			float OutlineDepthFactor;
+			float OutlineSaturateFactor;
+			float OutlinePowerFactor;
+			Float4 OutlineColor;
+			float OutlineLuminanceSize;
+			float OutlineDepthSize;
+		} filterParams;
+		filterParams.UVStepSize = { 1.0f / 1280.0f, 1.0f / 720.0f };
+		filterParams.KernelWidth = 3;
+		filterParams.KernelHeight = 3;
+		std::memcpy(filterParams.ProjectiveToView, &projectiveToView, sizeof(Lumina::Mat4));
+		filterParams.OutlineLuminanceFactor = 1.0f;
+		filterParams.OutlineDepthFactor = 2.0f;
+		filterParams.OutlineSaturateFactor = 1.5f;
+		filterParams.OutlinePowerFactor = 4.0f;
+		filterParams.OutlineColor = { 0.5f, 0.5f, 1.0f, 0.8f };
+		filterParams.OutlineLuminanceSize = 1.0f;
+		filterParams.OutlineDepthSize = 3.0f;
+
+		Filtering_ = std::make_unique<Lumina::Filtering>();
+		Filtering_->Initialize(
+			dxContext_,
+			device,
+			*Fullscreen_,
+			L"Assets/CG5/Outline.PS.hlsl",
+			filterParams.KernelWidth,
+			filterParams.KernelHeight,
+			prewittH,
+			prewittV
 		);
 
+		Filtering_->UpdateConstant(&filterParams, sizeof(FilterParams));
+
 		OffscreenTextures_[0].Initialize(device, 1280U, 720U);
-		OffscreenTextures_[1].Initialize(device, 1280U, 720U);
-		DX12::SRV<void>::Create(device, GlobalTable_Graphics_.CPUHandle(4U + 64U + 96U), OffscreenTextures_[0]);
-		DX12::SRV<void>::Create(device, GlobalTable_Graphics_.CPUHandle(5U + 64U + 96U), OffscreenTextures_[1]);
+		//OffscreenTextures_[1].Initialize(device, 1280U, 720U);
+		DX12::SRV<void>::Create(
+			device,
+			GlobalTable_Graphics_.CPUHandle(4U + 64U + 96U),
+			OffscreenTextures_[0]
+		);
+		DX12::SRV<void>::Create<DXGI_FORMAT_R24_UNORM_X8_TYPELESS>(
+			device,
+			GlobalTable_Graphics_.CPUHandle(5U + 64U + 96U),
+			Canvas_.DepthTexture()
+		);
 		LocalHeap_RTV_.Initialize(device, D3D12_DESCRIPTOR_HEAP_TYPE_RTV, 2U, false);
 		DX12::RTV::Create(device, LocalHeap_RTV_.CPUHandle(0U), OffscreenTextures_[0]);
-		DX12::RTV::Create(device, LocalHeap_RTV_.CPUHandle(1U), OffscreenTextures_[1]);
+		//DX12::RTV::Create(device, LocalHeap_RTV_.CPUHandle(1U), OffscreenTextures_[1]);
 
 		DX12::CommandAllocator cmdAlloc{};
 		cmdAlloc.Initialize(device);

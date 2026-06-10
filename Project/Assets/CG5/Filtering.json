@@ -4,19 +4,24 @@
       {
         "ShaderVisibility": "Pixel",
         "ParameterType": "DescriptorTable",
-        "TableName": "Texture"
+        "TableName": "Textures"
       },
       {
         "ShaderVisibility": "Pixel",
         "ParameterType": "DescriptorTable",
         "TableName": "Constants"
+      },
+      {
+        "ShaderVisibility": "Pixel",
+        "ParameterType": "DescriptorTable",
+        "TableName": "Kernels"
       }
     ],
 
-    "Texture": [
+    "Textures": [
       {
         "RangeType": "SRV",
-        "NumDescriptors": 1,
+        "NumDescriptors": 2,
         "BaseShaderRegister": 0,
         "RegisterSpace": 0,
         "OffsetInDescriptorsFromTableStart": -1
@@ -26,9 +31,19 @@
     "Constants": [
       {
         "RangeType": "CBV",
-        "NumDescriptors": 3,
+        "NumDescriptors": 2,
         "BaseShaderRegister": 0,
         "RegisterSpace": 0,
+        "OffsetInDescriptorsFromTableStart": -1
+      }
+    ],
+
+    "Kernels": [
+      {
+        "RangeType": "CBV",
+        "NumDescriptors": 8,
+        "BaseShaderRegister": 0,
+        "RegisterSpace": 1,
         "OffsetInDescriptorsFromTableStart": -1
       }
     ],
@@ -46,6 +61,20 @@
         "TextureAddressV": "Clamp",
         "TextureAddressW": "Clamp",
         "ShaderRegister": 0,
+        "ShaderVisibility": "Pixel"
+      },
+      {
+        "Filter": {
+          "ReductionType": "Standard",
+          "IsAnisotropic": 0,
+          "MinFilter": "Point",
+          "MagFilter": "Point",
+          "MipFilter": "Point"
+        },
+        "TextureAddressU": "Clamp",
+        "TextureAddressV": "Clamp",
+        "TextureAddressW": "Clamp",
+        "ShaderRegister": 1,
         "ShaderVisibility": "Pixel"
       }
     ]
