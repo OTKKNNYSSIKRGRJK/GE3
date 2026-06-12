@@ -59,6 +59,9 @@
     <Filter Include="CG5">
       <UniqueIdentifier>{69aeb241-b481-4659-9dd2-75e3e2ce55ea}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Src\Test">
+      <UniqueIdentifier>{498e85ad-f1f5-4270-8442-144938a426dc}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
@@ -307,6 +310,12 @@
     </ClCompile>
     <ClCompile Include="Src\CG5\Filtering.ixx">
       <Filter>CG5</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Test\PythonTest.cpp">
+      <Filter>Src\Test</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Test\PythonTest.ixx">
+      <Filter>Src\Test</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
