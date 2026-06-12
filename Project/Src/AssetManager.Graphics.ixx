@@ -120,7 +120,7 @@ namespace Lumina::DX12 {
 		};
 
 		auto img{ ImageSet::Create(filePath_) };
-		auto mipChain{ MipChain::Create(*img) };
+		auto mipChain{ MipChain::Create(std::move(*img.release())) };
 		auto tex{ ImageTexture::Create(Context_->Device(), *mipChain, name_) };
 
 		uint32_t const idx_Res{ static_cast<uint32_t>(Arr_ImageTextures_.size()) };

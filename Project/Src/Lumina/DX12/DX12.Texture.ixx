@@ -65,7 +65,7 @@ export namespace Lumina::DX12 {
 	//	ImageSet								//
 	//////	//////	//////	//////	//////	//////
 
-	class ImageSet : private DirectX::ScratchImage {
+	class ImageSet : public DirectX::ScratchImage {
 	public:
 		inline const DirectX::Image* operator()() const noexcept { return GetImages(); }
 
@@ -82,7 +82,7 @@ export namespace Lumina::DX12 {
 
 		//----	------	------	------	------	----//
 
-	private:
+	public:
 		ImageSet(
 			std::string_view filePath_,
 			DirectX::WIC_FLAGS flags_
@@ -95,7 +95,7 @@ export namespace Lumina::DX12 {
 	//	MipChain								//
 	//////	//////	//////	//////	//////	//////
 
-	class MipChain : private DirectX::ScratchImage {
+	class MipChain : public DirectX::ScratchImage {
 	public:
 		inline const DirectX::Image* operator()() const noexcept { return GetImages(); }
 
@@ -106,15 +106,15 @@ export namespace Lumina::DX12 {
 
 	public:
 		[[nodiscard]] static UniPtr<MipChain> Create(
-			const ImageSet& imgSet_,
+			ImageSet&& imgSet_,
 			DirectX::TEX_FILTER_FLAGS flags_TexFilter_ = DirectX::TEX_FILTER_SRGB
 		);
 
 		//----	------	------	------	------	----//
 
-	private:
+	public:
 		MipChain(
-			const ImageSet& imgSet_,
+			ImageSet&& imgSet_,
 			DirectX::TEX_FILTER_FLAGS flags_TexFilter_
 		);
 	public:
@@ -155,6 +155,7 @@ export namespace Lumina::DX12 {
 
 		inline uint32_t Width() const noexcept;
 		inline uint32_t Height() const noexcept;
+		inline bool IsCubemap() const noexcept { return IsCubemap_; }
 
 		inline STATUS Status() const noexcept;
 		inline const Intermediate& IntermediateData() const noexcept;
@@ -198,9 +199,10 @@ export namespace Lumina::DX12 {
 
 	private:
 		D3D12_RESOURCE_DESC ResourceDesc_{};
+		int IsCubemap_{ 0 };
 
 		STATUS Status_{ STATUS::READY_TO_UPLOAD };
-		Intermediate* IntermediateData_{ nullptr };
+		UniPtr<Intermediate> IntermediateData_{ nullptr };
 	};
 
 	//////	//////	//////	//////	//////	//////
@@ -266,23 +268,34 @@ namespace Lumina::DX12 {
 		std::string_view filePath_,
 		DirectX::WIC_FLAGS flags_
 	) {
-		return UniPtr<ImageSet>{
-			new ImageSet{ filePath_, flags_ }
-		};
+		return std::make_unique<ImageSet>(filePath_, flags_);
 	}
 
 	//----	------	------	------	------	----//
 
 	ImageSet::ImageSet(std::string_view filePath_, DirectX::WIC_FLAGS flags_) {
-		DirectX::LoadFromWICFile(
-			Utils::String::Convert(filePath_).data(),
-			flags_,
-			nullptr,
-			static_cast<DirectX::ScratchImage&>(*this)
-		) ||
-		Utils::Debug::ThrowIfFailed{
-			std::format("<DX12.ImageSet> Failed to load \"{}\"!\n", filePath_)
-		};
+		if (filePath_.ends_with(".dds")) {
+			DirectX::LoadFromDDSFile(
+				Utils::String::Convert(filePath_).data(),
+				DirectX::DDS_FLAGS_NONE,
+				nullptr,
+				static_cast<DirectX::ScratchImage&>(*this)
+			) ||
+			Utils::Debug::ThrowIfFailed{
+				std::format("<DX12.ImageSet> Failed to load \"{}\"!\n", filePath_)
+			};
+		}
+		else {
+			DirectX::LoadFromWICFile(
+				Utils::String::Convert(filePath_).data(),
+				flags_,
+				nullptr,
+				static_cast<DirectX::ScratchImage&>(*this)
+			) ||
+			Utils::Debug::ThrowIfFailed{
+				std::format("<DX12.ImageSet> Failed to load \"{}\"!\n", filePath_)
+			};
+		}
 		Logger().Message<0U>(
 			"ImageSet,\"{}\",Image loaded successfully.\n",
 			filePath_
@@ -296,31 +309,34 @@ namespace Lumina::DX12 {
 	//////	//////	//////	//////	//////	//////
 
 	UniPtr<MipChain> MipChain::Create(
-		const ImageSet& imgSet_,
+		ImageSet&& imgSet_,
 		DirectX::TEX_FILTER_FLAGS flags_TexFilter_
 	) {
-		return UniPtr<MipChain>{
-			new MipChain{ imgSet_, flags_TexFilter_ }
-		};
+		return std::make_unique<MipChain>(std::move(imgSet_), flags_TexFilter_);
 	}
 
 	//----	------	------	------	------	----//
 
 	MipChain::MipChain(
-		const ImageSet& imgSet_,
+		ImageSet&& imgSet_,
 		DirectX::TEX_FILTER_FLAGS flags_TexFilter_
 	) {
-		DirectX::GenerateMipMaps(
-			imgSet_(),
-			imgSet_.Count(),
-			imgSet_.Metadata(),
-			flags_TexFilter_,
-			0LLU,
-			static_cast<DirectX::ScratchImage&>(*this)
-		) ||
-		Utils::Debug::ThrowIfFailed{
-			"<DX12.MipChain> Failed to generate mipmaps!\n"
-		};
+		if (DirectX::IsCompressed(imgSet_.Metadata().format)) {
+			static_cast<DirectX::ScratchImage&>(*this) = std::move(imgSet_);
+		}
+		else {
+			DirectX::GenerateMipMaps(
+				imgSet_(),
+				imgSet_.Count(),
+				imgSet_.Metadata(),
+				flags_TexFilter_,
+				0LLU,
+				static_cast<DirectX::ScratchImage&>(*this)
+			) ||
+			Utils::Debug::ThrowIfFailed{
+				"<DX12.MipChain> Failed to generate mipmaps!\n"
+			};
+		}
 		Logger().Message<0U>(
 			"MipChain,,Mip chain generated successfully.\n"
 		);
@@ -390,7 +406,7 @@ namespace Lumina::DX12 {
 
 		//----	------	------	------	------	----//
 
-	private:
+	public:
 		ResourceMetadata(
 			const GraphicsDevice& device_,
 			const ImageTexture& tex_,
@@ -436,7 +452,7 @@ namespace Lumina::DX12 {
 
 		//----	------	------	------	------	----//
 
-	private:
+	public:
 		Intermediate(
 			const GraphicsDevice& device_,
 			const ImageTexture& tex_,
@@ -513,7 +529,7 @@ namespace Lumina::DX12 {
 		const ImageTexture& tex_,
 		const std::vector<D3D12_SUBRESOURCE_DATA>& subresources_
 	) {
-		const auto num_Subresources{ subresources_.size() };
+		auto const num_Subresources{ subresources_.size() };
 
 		const size_t sizeInBytes_Memory{
 			static_cast<size_t>(
@@ -618,13 +634,11 @@ namespace Lumina::DX12 {
 	}
 
 	void ImageTexture::Intermediate::AnalyzeSubresourceData(const GraphicsDevice& device_) {
-		Metadata_ = UniPtr<ResourceMetadata>{
-			new ResourceMetadata{
-				device_,
-				*ImageTexture_,
-				Subresources_
-			}
-		};
+		Metadata_ = std::make_unique<ResourceMetadata>(
+			device_,
+			*ImageTexture_,
+			Subresources_
+		);
 	}
 
 	// Copies subresource data into the intermediate buffer.
@@ -690,12 +704,27 @@ namespace Lumina::DX12 {
 	inline const ImageTexture::Intermediate& ImageTexture::IntermediateData() const noexcept { return *IntermediateData_; }
 
 	inline D3D12_SHADER_RESOURCE_VIEW_DESC ImageTexture::SRVDesc() const noexcept {
-		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{
-			.Format{ ResourceDesc_.Format },
-			.ViewDimension{ D3D12_SRV_DIMENSION_TEXTURE2D },
-			.Shader4ComponentMapping{ D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING },
-			.Texture2D{ .MipLevels{ static_cast<uint32_t>(ResourceDesc_.MipLevels) }, },
-		};
+		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
+		if (IsCubemap_) {
+			srvDesc = {
+				//.Format{ ResourceDesc_.Format },
+				.ViewDimension{ D3D12_SRV_DIMENSION_TEXTURECUBE },
+				//.Shader4ComponentMapping{ D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING },
+				.TextureCube{
+					.MostDetailedMip{ 0 },
+					.MipLevels{ UINT_MAX },
+					.ResourceMinLODClamp{ 0.0f },
+				},
+			};
+		}
+		else{
+			srvDesc = {
+				.Format{ ResourceDesc_.Format },
+				.ViewDimension{ D3D12_SRV_DIMENSION_TEXTURE2D },
+				.Shader4ComponentMapping{ D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING },
+				.Texture2D{ .MipLevels{ static_cast<uint32_t>(ResourceDesc_.MipLevels) }, },
+			};
+		}
 		return srvDesc;
 	}
 
@@ -706,14 +735,13 @@ namespace Lumina::DX12 {
 		const MipChain& mipChain_
 	) {
 		if (IntermediateData_ == nullptr) {
-			IntermediateData_ = new Intermediate{ device_, *this, mipChain_ };
+			IntermediateData_ = std::make_unique<Intermediate>(device_, *this, mipChain_);
 		}
 	}
 
 	inline void ImageTexture::ReleaseIntermediateData() noexcept {
-		if (IntermediateData_ != nullptr) {
-			delete IntermediateData_;
-			IntermediateData_ = nullptr;
+		if (IntermediateData_.get() != nullptr) {
+			IntermediateData_.reset(nullptr);
 		}
 	}
 
@@ -726,10 +754,13 @@ namespace Lumina::DX12 {
 	) {
 		auto const& mipChainMetadata{ mipChain_.Metadata() };
 
+		IsCubemap_ = mipChainMetadata.IsCubemap();
+
 		DefaultTexture2D::Initialize(
 			device_,
 			static_cast<uint32_t>(mipChainMetadata.width),
 			static_cast<uint32_t>(mipChainMetadata.height),
+			static_cast<uint32_t>(mipChainMetadata.arraySize),
 			static_cast<uint16_t>(mipChainMetadata.mipLevels),
 			mipChainMetadata.format,
 			debugName_
@@ -752,7 +783,7 @@ namespace Lumina::DX12 {
 		MipChain const& mipChain_,
 		std::string_view debugName_
 	) {
-		auto imgTex{ UniPtr<ImageTexture>{ new ImageTexture{} } };
+		auto imgTex{ std::make_unique<ImageTexture>() };
 		imgTex->Initialize(device_, mipChain_, debugName_);
 		return imgTex;
 	}

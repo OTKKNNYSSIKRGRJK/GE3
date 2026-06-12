@@ -126,7 +126,7 @@ namespace Game::Scene::Impl {
 			cmdList_->SetGraphicsRootDescriptorTable(1U, PlayerSkinnedInstance_->SkinCluster_.PaletteSRVHandle.second);
 			cmdList_->SetGraphicsRootDescriptorTable(2U, GlobalTable_Materials_.GPUHandle(0U));
 			cmdList_->SetGraphicsRootDescriptorTable(3U, GlobalTable_SRV_ImageTexture_.GPUHandle(0U));
-			//cmdList_->SetGraphicsRootDescriptorTable(5U, Skybox_->GlobalTable().GPUHandle(0U));
+			cmdList_->SetGraphicsRootDescriptorTable(5U, Skybox_->GlobalTable().GPUHandle(0U));
 			auto const& cameraPos{ PlayerCamera_->Position };
 			cmdList_->SetGraphicsRoot32BitConstants(6U, 3U, &cameraPos, 0U);
 
@@ -141,6 +141,8 @@ namespace Game::Scene::Impl {
 				1U, 0U, 0U, 0U
 			);
 		}
+
+		Skybox_->Render(cmdList_, GlobalTable_CBV_Scene_);
 
 		D3D12_RESOURCE_BARRIER const barriers_PostGeometryPass[]{
 			Lumina::DX12::Barrier::Transition(

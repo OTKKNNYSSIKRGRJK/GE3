@@ -806,6 +806,9 @@ namespace Game::Scene::Impl {
 
 			GlobalTable_Materials_ = dxContext_.GlobalDescriptorHeap().Allocate(16U);
 			Lumina::DX12::CBV::Create(device, GlobalTable_Materials_.CPUHandle(0U), UB_PlayerMaterial_);
+
+			Skybox_ = std::make_unique<Lumina::Skybox>();
+			Skybox_->Initialize(dxContext_, device, assetMngr, "Assets/skybox.dds");
 		}
 	}
 

@@ -29,18 +29,18 @@ cbuffer Parameter_Space17Slot0 : register(b0, space17) {
 	float3 WorldPos_Camera;
 }
 
-//float4 CalcEnv(
-//	in float3 worldPos_,
-//	in float3 norm_
-//) {
-//	const float3 dir_EyeToTarget = normalize(worldPos_ - WorldPos_Camera.xyz);
+float4 CalcEnv(
+	in float3 worldPos_,
+	in float3 norm_
+) {
+	const float3 dir_EyeToTarget = normalize(worldPos_ - WorldPos_Camera.xyz);
 	
-//	const float3 refl = reflect(dir_EyeToTarget, normalize(norm_ + float3(0.0f, 0.0f, 5.0f)));
-//	float4 envColor = SRV_EnvironmentMap.Sample(Sampler, refl);
-//	envColor.rgb *= float3(0.02f, 0.04f, 0.05f);
+	const float3 refl = reflect(dir_EyeToTarget, norm_);
+	float4 envColor = SRV_EnvironmentMap.Sample(Sampler, refl);
+	envColor.rgb *= float3(0.02f, 0.04f, 0.05f);
 	
-//	return envColor;
-//}
+	return envColor;
+}
 
 PSOutput main(VSOutput input_) {
 	PSOutput output;
@@ -49,8 +49,8 @@ PSOutput main(VSOutput input_) {
 	const float4 diffuseColor = Textures[Material.ID_DiffuseMap].Sample(Sampler, input_.TexCoord);
 	output.Diffuse = diffuseColor * Material.Color;
 	
-	//const float4 envColor = CalcEnv(input_.WorldPos.xyz, input_.Normal);
-	//output.Diffuse = output.Diffuse * 0.1f + envColor * 0.9f;
+	const float4 envColor = CalcEnv(input_.WorldPos.xyz, input_.Normal);
+	output.Diffuse = output.Diffuse * 0.1f + envColor * 0.9f;
 	
 	const float3 normal = float3(0.0f, 0.0f, 1.0f);
 	output.Normal = float4(normal * 0.5f + 0.5f, 1.0f);

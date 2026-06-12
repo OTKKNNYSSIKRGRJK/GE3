@@ -20,6 +20,8 @@ import Lumina.CG3D;
 import Lumina.CG3D.Struct;
 import Lumina.CG3D.Animation;
 
+import Lumina.Skybox;
+
 namespace Game::Scene::Impl {
 	struct SkinnedModel {
 		Lumina::CG3D::Collection Collection_;
@@ -202,5 +204,10 @@ namespace Game::Scene::Impl {
 			std::string_view name_,
 			bool isLoop_ = false
 		);
+
+		//----	Skybox							----//
+		//----	------	------	------	------	----//
+
+		std::unique_ptr<Lumina::Skybox> Skybox_;
 	};
 }
