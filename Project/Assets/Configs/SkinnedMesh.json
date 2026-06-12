@@ -1,0 +1,137 @@
+{
+  "RS": {
+    "Parameters": [
+      {
+        "ShaderVisibility": "Vertex",
+        "ParameterType": "DescriptorTable",
+        "TableName": "Transforms"
+      },
+      {
+        "ShaderVisibility": "Vertex",
+        "ParameterType": "DescriptorTable",
+        "TableName": "Wells"
+      },
+      {
+        "ShaderVisibility": "Pixel",
+        "ParameterType": "DescriptorTable",
+        "TableName": "Material"
+      },
+      {
+        "ShaderVisibility": "Pixel",
+        "ParameterType": "DescriptorTable",
+        "TableName": "Textures"
+      },
+      {
+        "ShaderVisibility": "Pixel",
+        "ParameterType": "DescriptorTable",
+        "TableName": "Lighting"
+      },
+      {
+        "ShaderVisibility": "Pixel",
+        "ParameterType": "DescriptorTable",
+        "TableName": "EnvMap"
+      },
+      {
+        "ShaderVisibility": "Pixel",
+        "ParameterType": "32BitConstants",
+        "ShaderRegister": 0,
+        "RegisterSpace": 17,
+        "Num32BitValues": 3
+      }
+    ],
+
+    "Wells": [
+      {
+        "RangeType": "SRV",
+        "NumDescriptors": 1,
+        "BaseShaderRegister": 0,
+        "RegisterSpace": 0,
+        "OffsetInDescriptorsFromTableStart": -1
+      }
+    ],
+    "Material": [
+      {
+        "RangeType": "CBV",
+        "NumDescriptors": 1,
+        "BaseShaderRegister": 0,
+        "RegisterSpace": 3,
+        "OffsetInDescriptorsFromTableStart": -1
+      }
+    ],
+    "Transforms": [
+      {
+        "Name": "Transforms",
+        "RangeType": "CBV",
+        "NumDescriptors": 1,
+        "BaseShaderRegister": 0,
+        "RegisterSpace": 16,
+        "OffsetInDescriptorsFromTableStart": -1
+      }
+    ],
+    "Textures": [
+      {
+        "RangeType": "SRV",
+        "NumDescriptors": 128,
+        "BaseShaderRegister": 0,
+        "RegisterSpace": 1,
+        "OffsetInDescriptorsFromTableStart": -1
+      }
+    ],
+    "Lighting": [
+      {
+        "RangeType": "CBV",
+        "NumDescriptors": 1,
+        "BaseShaderRegister": 0,
+        "RegisterSpace": 2,
+        "OffsetInDescriptorsFromTableStart": -1
+      }
+    ],
+    "EnvMap": [
+      {
+        "RangeType": "SRV",
+        "NumDescriptors": 1,
+        "BaseShaderRegister": 0,
+        "RegisterSpace": 17,
+        "OffsetInDescriptorsFromTableStart": -1
+      }
+    ],
+
+    "StaticSamplers": [
+      {
+        "Filter": {
+          "ReductionType": "Standard",
+          "IsAnisotropic": 0,
+          "MinFilter": "Bilinear",
+          "MagFilter": "Bilinear",
+          "MipFilter": "Bilinear"
+        },
+        "TextureAddressU": "Wrap",
+        "TextureAddressV": "Wrap",
+        "TextureAddressW": "Wrap",
+        "ShaderRegister": 0,
+        "ShaderVisibility": "Pixel"
+      }
+    ]
+  },
+
+  "PSO": {
+    "RasterizerState": {
+      "FillMode": "Solid",
+      "CullMode": "Back"
+    },
+    "DepthStencilState": {
+      "DepthEnable": 1,
+      "DepthWriteMask": "All",
+      "DepthFunc": "LessEqual",
+      "StencilEnable": 0
+    },
+    "InputLayout": [
+      [ "POSITION", 0, "float3" ],
+      [ "TEXCOORD", 0, "float2" ],
+      [ "NORMAL", 0, "float3" ],
+      [ "WEIGHT", 0, "float4" ],
+      [ "PALETTE", 0, "int4" ]
+    ],
+    "PrimitiveTopologyType": "Triangle"
+  }
+}

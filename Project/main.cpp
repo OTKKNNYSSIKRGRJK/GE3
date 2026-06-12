@@ -103,7 +103,7 @@ int32_t WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	Lumina::WinApp::Context winAppContext{};
 	Lumina::WinApp::WindowConfig mainWindowConfig_{
 		.Name{ L"Main" },
-		.Title{ L"LE2C_コウ_シキン_草" },
+		.Title{ L"123456789" },
 		.Style{
 			Lumina::WinApp::WindowStyle::TitleBar |
 			Lumina::WinApp::WindowStyle::WindowMenu |

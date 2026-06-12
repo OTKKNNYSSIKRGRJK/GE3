@@ -1,6 +1,8 @@
 module Game.Scene.InGame;
 
 import <vector>;
+import <unordered_map>;
+import <string>;
 
 import nlohmann.json;
 
@@ -16,6 +18,9 @@ import Lumina.Utils.Data;
 import Lumina.Utils.Data.Mesh;
 
 import : Impl;
+
+import Lumina.CG3D;
+import Lumina.CG3D.Animation;
 
 namespace Game::Scene::Impl {
 	namespace {
@@ -586,35 +591,35 @@ namespace Game::Scene::Impl {
 					D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
 					{ DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, DXGI_FORMAT_R8G8B8A8_UNORM, },
 					Lumina::DX12::GraphicsPSO::DefaultDSVFormat
-				);
+					);
 
 
-				dxContext_.Compile(
-					PS_SpriteUI_,
-					L"Assets/Shaders/SpriteUI.PS.hlsl",
-					L"ps_6_6",
-					L"main",
-					"SpriteUI.PS"
-				);
-				PSO_SpriteUI_.Initialize(
-					device,
-					SpriteRenderer_->RootSignature(),
-					VS_Sprite_,
-					PS_SpriteUI_,
-					spriteBlendState,
-					Lumina::DX12::RasterizerState{
-						.FillMode{ D3D12_FILL_MODE_SOLID },
-						.CullMode{ D3D12_CULL_MODE_NONE },
-					},
-					Lumina::DX12::DepthStencilState{
-						.DepthEnable{ false },
-						.StencilEnable{ false },
-					},
-					spriteInputLayout,
-					D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
-					{ DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, },
-					Lumina::DX12::GraphicsPSO::DefaultDSVFormat
-				);
+					dxContext_.Compile(
+						PS_SpriteUI_,
+						L"Assets/Shaders/SpriteUI.PS.hlsl",
+						L"ps_6_6",
+						L"main",
+						"SpriteUI.PS"
+					);
+					PSO_SpriteUI_.Initialize(
+						device,
+						SpriteRenderer_->RootSignature(),
+						VS_Sprite_,
+						PS_SpriteUI_,
+						spriteBlendState,
+						Lumina::DX12::RasterizerState{
+							.FillMode{ D3D12_FILL_MODE_SOLID },
+							.CullMode{ D3D12_CULL_MODE_NONE },
+						},
+						Lumina::DX12::DepthStencilState{
+							.DepthEnable{ false },
+							.StencilEnable{ false },
+						},
+						spriteInputLayout,
+						D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
+						{ DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, },
+						Lumina::DX12::GraphicsPSO::DefaultDSVFormat
+						);
 			}
 
 			// PlayerHPBar
@@ -675,6 +680,132 @@ namespace Game::Scene::Impl {
 			//}
 
 			//SelectedButton_ = 0;
+		}
+
+		{
+			PlayerSkinnedModel_ = std::make_unique<SkinnedModel>();
+			PlayerSkinnedModel_->Collection_ = Lumina::CG3D::Import("Neki.gltf", "Assets/Neki");
+
+			PlayerSkinnedModel_->VertexBuffer_.Initialize(
+				device,
+				// バッファサイズ＝頂点サイズ×メッシュの頂点数
+				sizeof(Lumina::CG3D::Mesh::Vertex)*
+				PlayerSkinnedModel_->Collection_.Meshes[0].Vertices.size()
+			);
+			// 頂点バッファに頂点データを入れる
+			PlayerSkinnedModel_->VertexBuffer_.Store(
+				// データ
+				PlayerSkinnedModel_->Collection_.Meshes[0].Vertices.data(),
+				// データサイズ
+				sizeof(Lumina::CG3D::Mesh::Vertex)*
+				PlayerSkinnedModel_->Collection_.Meshes[0].Vertices.size(),
+				// メモリオフセット　気にせんでええ
+				0LLU
+			);
+			// 頂点バッファを使ってビューを作成
+			// テンプレートに頂点の変数型を入れる
+			PlayerSkinnedModel_->VBV_ =
+				Lumina::DX12::VBV::Create<Lumina::CG3D::Mesh::Vertex>(PlayerSkinnedModel_->VertexBuffer_);
+
+			PlayerSkinnedModel_->IndexBuffer_.Initialize(
+				device,
+				sizeof(uint32_t)*
+				PlayerSkinnedModel_->Collection_.Meshes[0].Indices.size()
+			);
+			PlayerSkinnedModel_->IndexBuffer_.Store(
+				PlayerSkinnedModel_->Collection_.Meshes[0].Indices.data(),
+				sizeof(uint32_t)*
+				PlayerSkinnedModel_->Collection_.Meshes[0].Indices.size(),
+				0LLU
+			);
+			PlayerSkinnedModel_->IBV_ = Lumina::DX12::IBV::Create(PlayerSkinnedModel_->IndexBuffer_);
+
+			PlayerSkinnedInstance_ = std::make_unique<SkinnedInstance>();
+
+			PlayerSkinnedInstance_->Skeleton_ =
+				Lumina::CG3D::CreateSkeleton(PlayerSkinnedModel_->Collection_.Root);
+			Lumina::CG3D::CreateSkinCluster(
+				PlayerSkinnedInstance_->SkinCluster_,
+				device,
+				dxContext_.GlobalDescriptorHeap(),
+				PlayerSkinnedInstance_->Skeleton_,
+				// メッシュ
+				PlayerSkinnedModel_->Collection_.Meshes[0]
+			);
+
+			PlayerSkinnedInstance_->MeshScale_ = { 1.0f, 1.0f, 1.0f };
+			PlayerSkinnedInstance_->MeshRotate_ = { 0.0f, 0.0f, 0.0f };
+			PlayerSkinnedInstance_->MeshTranslate_ = { 0.0f, 0.0f, 0.0f };
+
+			auto animation_run{ Lumina::CG3D::LoadAnimationFile("Cool_Run.gltf", "Assets/Neki") };
+			
+			animDatabase_["Run"] = animation_run[0];
+			PlayAnimation("Run", true);
+
+			auto config{ Lumina::Utils::LoadFromFile<nlohmann::json>("Assets/Configs/SkinnedMesh.json") };
+			auto&& rsSetup{ Lumina::DX12::LoadRootSignatureSetup(config.at("RS")) };
+			RS_Skinning_.Initialize(device, rsSetup);
+
+			dxContext_.Compile(
+				VS_SkinnedMeshDeferredGeometry_,
+				L"Assets/Shaders/MeshSkinning.VS.hlsl",
+				L"vs_6_6",
+				L"main",
+				"SkinnedMesh.DeferredGeometry.VS"
+			);
+			dxContext_.Compile(
+				PS_SkinnedMeshDeferredGeometry_,
+				L"Assets/Shaders/MeshSkinning.PS.hlsl",
+				L"ps_6_6",
+				L"main",
+				"SkinnedMesh.DeferredGeometry.PS"
+			);
+
+			Lumina::DX12::BlendState blendState_None{};
+			blendState_None.RenderTarget[0].BlendEnable = false;
+			blendState_None.RenderTarget[0].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+			blendState_None.RenderTarget[1].BlendEnable = false;
+			blendState_None.RenderTarget[1].RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+
+			Lumina::DX12::GraphicsPSO::InputLayout inputLayout_Mesh{};
+			inputLayout_Mesh.Append("POSITION", 0U, DXGI_FORMAT_R32G32B32_FLOAT);
+			inputLayout_Mesh.Append("TEXCOORD", 0U, DXGI_FORMAT_R32G32_FLOAT);
+			inputLayout_Mesh.Append("NORMAL", 0U, DXGI_FORMAT_R32G32B32_FLOAT);
+			inputLayout_Mesh.Append("WEIGHT", 0U, DXGI_FORMAT_R32G32B32A32_FLOAT, 1U);
+			inputLayout_Mesh.Append("PALETTE", 0U, DXGI_FORMAT_R32G32B32A32_SINT, 1U);
+
+			GraphicsPSO_SkinnedMeshDeferredGeometry_.Initialize(
+				device,
+				RS_Skinning_,
+				VS_SkinnedMeshDeferredGeometry_,
+				PS_SkinnedMeshDeferredGeometry_,
+				blendState_None,
+				Lumina::DX12::RasterizerState{
+					.FillMode{ D3D12_FILL_MODE_SOLID },
+					.CullMode{ D3D12_CULL_MODE_BACK },
+				},
+				Lumina::DX12::DepthStencilState{
+					.DepthEnable{ true },
+					.DepthWriteMask{ D3D12_DEPTH_WRITE_MASK_ALL },
+					.DepthFunc{ D3D12_COMPARISON_FUNC_LESS_EQUAL },
+					.StencilEnable{ false },
+				},
+				inputLayout_Mesh,
+				D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
+				{
+					DXGI_FORMAT_R8G8B8A8_UNORM_SRGB,
+					DXGI_FORMAT_R8G8B8A8_UNORM,
+					DXGI_FORMAT_R8G8B8A8_UNORM,
+				},
+				Lumina::DX12::GraphicsPSO::DefaultDSVFormat
+			);
+
+			UB_Transforms_.Initialize(device, 256LLU);
+			GlobalTable_CBV_Scene_ = dxContext_.GlobalDescriptorHeap().Allocate(1U);
+			Lumina::DX12::CBV::Create(device, GlobalTable_CBV_Scene_.CPUHandle(0U), UB_Transforms_);
+
+			GlobalTable_Materials_ = dxContext_.GlobalDescriptorHeap().Allocate(16U);
+			Lumina::DX12::CBV::Create(device, GlobalTable_Materials_.CPUHandle(0U), UB_PlayerMaterial_);
 		}
 	}
 

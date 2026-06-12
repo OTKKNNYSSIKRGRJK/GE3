@@ -1,5 +1,7 @@
 module Game.Scene.InGame;
 
+import <string>;
+
 import : Impl;
 
 import Lumina;
@@ -762,6 +764,45 @@ namespace Game::Scene::Impl {
 			}
 		}
 		UB_PostProcessingConstants_.Store(&PPConstants_, sizeof(PostProcessingConstants), 0LLU);
+		
+
+		if (currentAnim_) {
+			animTimer_ += 1.0f / 60.0f * 4.0f;
+
+			if (IsAnimationLoop_) {
+				// ループする場合は fmod で 0 ～ Duration に収める
+				animTimer_ = std::fmod(animTimer_, currentAnim_->DurationInSeconds);
+			}
+			else {
+				// ループしない場合は Duration で止める（これなら > 判定でOK）
+				if (animTimer_ > currentAnim_->DurationInSeconds) {
+					animTimer_ = currentAnim_->DurationInSeconds;
+				}
+			}
+
+			Lumina::CG3D::Update(
+				PlayerSkinnedInstance_->SkinCluster_,
+				PlayerSkinnedInstance_->Skeleton_,
+				*currentAnim_,
+				animTimer_
+			);
+		}
+	}
+
+	void InGame::PlayAnimation(
+		std::string_view name_,
+		bool isLoop_
+	) {
+		auto it = animDatabase_.find(name_.data());
+		animTimer_ = 0.0f;
+		IsAnimationLoop_ = isLoop_;
+		if (it != animDatabase_.end()) {
+			currentAnim_ = &(it->second);
+			currentAnimName_ = name_;
+			return;
+		}
+		/*throw std::runtime_error("Motion not found: " + name);*/
+		currentAnim_ = &(animDatabase_.begin()->second);
 	}
 }
 

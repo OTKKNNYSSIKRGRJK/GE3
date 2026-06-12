@@ -10,6 +10,38 @@ namespace Game::Scene::Impl {
 		Lumina::DX12::Context const& dxContext_,
 		Lumina::DX12::CommandList const& cmdList_
 	) {
+		Lumina::Mat4 meshWorld{
+			Lumina::Mat4::SRT(
+				Player_->ModelScale() * 2.0f,
+				Player_->ModelRotate() + Lumina::Vec3{ 0.0f, 1.57f, 0.0f },
+				Player_->ModelTranslate()
+			)
+		};
+		Lumina::Mat4 tr_INV_MeshWorld{
+			meshWorld.Inv()
+		};
+		Lumina::Mat4::Transpose(tr_INV_MeshWorld, tr_INV_MeshWorld);
+
+		Lumina::Mat4 wvp{
+			meshWorld * PlayerCamera_->VP
+		};
+
+		UB_Transforms_.Store(
+			&wvp,
+			sizeof(Lumina::Mat4),
+			0LLU
+		);
+		UB_Transforms_.Store(
+			&meshWorld,
+			sizeof(Lumina::Mat4),
+			sizeof(Lumina::Mat4)
+		);
+		UB_Transforms_.Store(
+			&tr_INV_MeshWorld,
+			sizeof(Lumina::Mat4),
+			sizeof(Lumina::Mat4) * 2
+		);
+
 		D3D12_RESOURCE_BARRIER const barriers_PreGeometryPass[]{
 			 Lumina::DX12::Barrier::Transition(
 				 Canvas_.RenderTexture(0U),
@@ -38,9 +70,9 @@ namespace Game::Scene::Impl {
 			Canvas_.ScissorRects().data()
 		);
 
-		auto&& playerLocalToWorld{
+		/*auto&& playerLocalToWorld{
 			Lumina::Mat4::SRT(Player_->ModelScale(), Player_->ModelRotate(), Player_->ModelTranslate())
-		};
+		};*/
 
 		Lumina::Mat4 kinokoShear{};
 		kinokoShear[1][0] = Boss_Kinoko_->ModelShearOnXZPlane().x;
@@ -51,12 +83,12 @@ namespace Game::Scene::Impl {
 
 		MeshManager_->Begin(cmdList_);
 		MeshManager_->BatchBegin();
-		MeshManager_->Batch(
+		/*MeshManager_->Batch(
 			MeshShaderAssets_[0],
 			1U,
 			LocalHeap_Materials_.CPUHandle(0U),
 			playerLocalToWorld
-		);
+		);*/
 		MeshManager_->Batch(
 			MeshShaderAssets_[1],
 			1U,
@@ -78,6 +110,37 @@ namespace Game::Scene::Impl {
 		DeferredGeometryPass_.End();
 
 		MeshManager_->End();
+
+		D3D12_CPU_DESCRIPTOR_HANDLE rtvs[]{
+			DeferredGeometryPass_.RenderTarget(0).View(),
+			DeferredGeometryPass_.RenderTarget(1).View()
+		};
+		cmdList_->OMSetRenderTargets(2U, rtvs, false, &DeferredGeometryPass_.DepthStencil().View());
+
+		cmdList_->SetGraphicsRootSignature(RS_Skinning_.Get());
+		cmdList_->SetPipelineState(GraphicsPSO_SkinnedMeshDeferredGeometry_.Get());
+		cmdList_->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+		if (Player_) {
+			cmdList_->SetGraphicsRootDescriptorTable(0U, GlobalTable_CBV_Scene_.GPUHandle(0U));
+			cmdList_->SetGraphicsRootDescriptorTable(1U, PlayerSkinnedInstance_->SkinCluster_.PaletteSRVHandle.second);
+			cmdList_->SetGraphicsRootDescriptorTable(2U, GlobalTable_Materials_.GPUHandle(0U));
+			cmdList_->SetGraphicsRootDescriptorTable(3U, GlobalTable_SRV_ImageTexture_.GPUHandle(0U));
+			//cmdList_->SetGraphicsRootDescriptorTable(5U, Skybox_->GlobalTable().GPUHandle(0U));
+			auto const& cameraPos{ PlayerCamera_->Position };
+			cmdList_->SetGraphicsRoot32BitConstants(6U, 3U, &cameraPos, 0U);
+
+			D3D12_VERTEX_BUFFER_VIEW const vbvs[2]{
+				reinterpret_cast<D3D12_VERTEX_BUFFER_VIEW const&>(PlayerSkinnedModel_->VBV_),
+				reinterpret_cast<D3D12_VERTEX_BUFFER_VIEW const&>(PlayerSkinnedInstance_->SkinCluster_.InfluenceBufferView)
+			};
+			cmdList_->IASetVertexBuffers(0, 2, vbvs);
+			cmdList_->IASetIndexBuffer(reinterpret_cast<D3D12_INDEX_BUFFER_VIEW const*>(&PlayerSkinnedModel_->IBV_));
+			cmdList_->DrawIndexedInstanced(
+				static_cast<uint32_t>(PlayerSkinnedModel_->Collection_.Meshes[0].Indices.size()),
+				1U, 0U, 0U, 0U
+			);
+		}
 
 		D3D12_RESOURCE_BARRIER const barriers_PostGeometryPass[]{
 			Lumina::DX12::Barrier::Transition(

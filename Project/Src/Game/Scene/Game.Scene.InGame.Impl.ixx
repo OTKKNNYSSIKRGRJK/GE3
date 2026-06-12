@@ -1,8 +1,11 @@
+module;
+
+#include<memory>
+#include<vector>
+#include<string>
+#include<unordered_map>
+
 export module Game.Scene.InGame : Impl;
-
-import <memory>;
-
-import <vector>;
 
 import Lumina;
 import Lumina.Grassland;
@@ -13,7 +16,29 @@ import Game.Player;
 import Game.PlayerCamera;
 import Game.Boss.Kinoko;
 
+import Lumina.CG3D;
+import Lumina.CG3D.Struct;
+import Lumina.CG3D.Animation;
+
 namespace Game::Scene::Impl {
+	struct SkinnedModel {
+		Lumina::CG3D::Collection Collection_;
+
+		Lumina::DX12::UploadBuffer VertexBuffer_;
+		Lumina::DX12::UploadBuffer IndexBuffer_;
+		Lumina::DX12::VBV VBV_;
+		Lumina::DX12::IBV IBV_;
+	};
+
+	struct SkinnedInstance {
+		Lumina::CG3D::Skeleton Skeleton_;
+		Lumina::CG3D::SkinCluster SkinCluster_;
+
+		Lumina::Float3 MeshScale_;
+		Lumina::Float3 MeshRotate_;
+		Lumina::Float3 MeshTranslate_;
+	};
+
 	struct PlayerBullet : public Particle {
 		float ATK;
 	};
@@ -151,5 +176,31 @@ namespace Game::Scene::Impl {
 			PHASE_WIN,
 			PHASE_LOSE,
 		};
+
+	private:
+		Lumina::DX12::RootSignature RS_Skinning_;
+		Lumina::DX12::Shader VS_SkinnedMeshDeferredGeometry_;
+		Lumina::DX12::Shader PS_SkinnedMeshDeferredGeometry_;
+		Lumina::DX12::GraphicsPSO GraphicsPSO_SkinnedMeshDeferredGeometry_;
+
+		Lumina::DX12::DescriptorTable GlobalTable_Materials_;
+		Lumina::DX12::UploadBuffer UB_Transforms_;
+
+		Lumina::DX12::DescriptorTable GlobalTable_CBV_Scene_;
+
+		std::unique_ptr<SkinnedModel> PlayerSkinnedModel_;
+		std::unique_ptr<SkinnedInstance> PlayerSkinnedInstance_;
+
+		using AnimationDatabase = std::unordered_map<std::string, Lumina::CG3D::MyAnimation>;
+		AnimationDatabase animDatabase_;
+		Lumina::CG3D::MyAnimation* currentAnim_ = nullptr;
+		std::string currentAnimName_;
+		float animTimer_ = 0.0f;
+		bool IsAnimationLoop_ = 0.0f;
+
+		void PlayAnimation(
+			std::string_view name_,
+			bool isLoop_ = false
+		);
 	};
 }

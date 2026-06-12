@@ -537,8 +537,8 @@ bool    ImGui::BeginTableEx(const char* name, ImGuiID id, int columns_count, ImG
     temp_data->AngledHeadersExtraWidth = 0.0f;
 
     // Using opaque colors facilitate overlapping lines of the grid, otherwise we'd need to improve TableDrawBorders()
-    table->BorderColorStrong = GetColorU32(ImGuiCol_TableBorderStrong);
-    table->BorderColorLight = GetColorU32(ImGuiCol_TableBorderLight);
+    table->BorderColorStrong = GetColoruint32_t(ImGuiCol_TableBorderStrong);
+    table->BorderColorLight = GetColoruint32_t(ImGuiCol_TableBorderLight);
 
     // Make table current
     g.CurrentTable = table;
@@ -668,9 +668,9 @@ void ImGui::TableBeginInitMemory(ImGuiTable* table, int columns_count)
     span_allocator.GetSpan(0, &table->Columns);
     span_allocator.GetSpan(1, &table->DisplayOrderToIndex);
     span_allocator.GetSpan(2, &table->RowCellData);
-    table->EnabledMaskByDisplayOrder = (ImU32*)span_allocator.GetSpanPtrBegin(3);
-    table->EnabledMaskByIndex = (ImU32*)span_allocator.GetSpanPtrBegin(4);
-    table->VisibleMaskByIndex = (ImU32*)span_allocator.GetSpanPtrBegin(5);
+    table->EnabledMaskByDisplayOrder = (Imuint32_t*)span_allocator.GetSpanPtrBegin(3);
+    table->EnabledMaskByIndex = (Imuint32_t*)span_allocator.GetSpanPtrBegin(4);
+    table->VisibleMaskByIndex = (Imuint32_t*)span_allocator.GetSpanPtrBegin(5);
 }
 
 // Apply queued resizing/reordering/hiding requests
@@ -1820,7 +1820,7 @@ int ImGui::TableGetHoveredRow()
     return (int)table_instance->HoveredRowLast;
 }
 
-void ImGui::TableSetBgColor(ImGuiTableBgTarget target, ImU32 color, int column_n)
+void ImGui::TableSetBgColor(ImGuiTableBgTarget target, Imuint32_t color, int column_n)
 {
     ImGuiContext& g = *GImGui;
     ImGuiTable* table = g.CurrentTable;
@@ -1938,7 +1938,7 @@ void ImGui::TableBeginRow(ImGuiTable* table)
     // Making the header BG color non-transparent will allow us to overlay it multiple times when handling smooth dragging.
     if (table->RowFlags & ImGuiTableRowFlags_Headers)
     {
-        TableSetBgColor(ImGuiTableBgTarget_RowBg0, GetColorU32(ImGuiCol_TableHeaderBg));
+        TableSetBgColor(ImGuiTableBgTarget_RowBg0, GetColoruint32_t(ImGuiCol_TableHeaderBg));
         if (table->CurrentRow == 0)
             table->IsUsingHeaders = true;
     }
@@ -1983,17 +1983,17 @@ void ImGui::TableEndRow(ImGuiTable* table)
             table_instance->HoveredRowNext = table->CurrentRow;
 
         // Decide of background color for the row
-        ImU32 bg_col0 = 0;
-        ImU32 bg_col1 = 0;
+        Imuint32_t bg_col0 = 0;
+        Imuint32_t bg_col1 = 0;
         if (table->RowBgColor[0] != IM_COL32_DISABLE)
             bg_col0 = table->RowBgColor[0];
         else if (table->Flags & ImGuiTableFlags_RowBg)
-            bg_col0 = GetColorU32((table->RowBgColorCounter & 1) ? ImGuiCol_TableRowBgAlt : ImGuiCol_TableRowBg);
+            bg_col0 = GetColoruint32_t((table->RowBgColorCounter & 1) ? ImGuiCol_TableRowBgAlt : ImGuiCol_TableRowBg);
         if (table->RowBgColor[1] != IM_COL32_DISABLE)
             bg_col1 = table->RowBgColor[1];
 
         // Decide of top border color
-        ImU32 top_border_col = 0;
+        Imuint32_t top_border_col = 0;
         const float border_size = TABLE_BORDER_SIZE;
         if (table->CurrentRow > 0 && (table->Flags & ImGuiTableFlags_BordersInnerH))
             top_border_col = (table->LastRowFlags & ImGuiTableRowFlags_Headers) ? table->BorderColorStrong : table->BorderColorLight;
@@ -2759,13 +2759,13 @@ void ImGui::TableMergeDrawChannels(ImGuiTable* table)
     }
 }
 
-static ImU32 TableGetColumnBorderCol(ImGuiTable* table, int order_n, int column_n)
+static Imuint32_t TableGetColumnBorderCol(ImGuiTable* table, int order_n, int column_n)
 {
     const bool is_hovered = (table->HoveredColumnBorder == column_n);
     const bool is_resized = (table->ResizedColumn == column_n) && (table->InstanceInteracted == table->InstanceCurrent);
     const bool is_frozen_separator = (table->FreezeColumnsCount == order_n + 1);
     if (is_resized || is_hovered)
-        return ImGui::GetColorU32(is_resized ? ImGuiCol_SeparatorActive : ImGuiCol_SeparatorHovered);
+        return ImGui::GetColoruint32_t(is_resized ? ImGuiCol_SeparatorActive : ImGuiCol_SeparatorHovered);
     if (is_frozen_separator || (table->Flags & (ImGuiTableFlags_NoBordersInBody | ImGuiTableFlags_NoBordersInBodyUntilResize)))
         return table->BorderColorStrong;
     return table->BorderColorLight;
@@ -2829,7 +2829,7 @@ void ImGui::TableDrawBorders(ImGuiTable* table)
         // of it in inner window, and the part that's over scrollbars in the outer window..)
         // Either solution currently won't allow us to use a larger border size: the border would clipped.
         const ImRect outer_border = table->OuterRect;
-        const ImU32 outer_col = table->BorderColorStrong;
+        const Imuint32_t outer_col = table->BorderColorStrong;
         if ((table->Flags & ImGuiTableFlags_BordersOuter) == ImGuiTableFlags_BordersOuter)
         {
             inner_drawlist->AddRect(outer_border.Min, outer_border.Max, outer_col, 0.0f, 0, border_size);
@@ -3213,7 +3213,7 @@ void ImGui::TableHeader(const char* label)
     bool pressed = ButtonBehavior(bb, id, &hovered, &held, ImGuiButtonFlags_AllowOverlap);
     if (held || hovered || highlight)
     {
-        const ImU32 col = GetColorU32(held ? ImGuiCol_HeaderActive : hovered ? ImGuiCol_HeaderHovered : ImGuiCol_Header);
+        const Imuint32_t col = GetColoruint32_t(held ? ImGuiCol_HeaderActive : hovered ? ImGuiCol_HeaderHovered : ImGuiCol_Header);
         //RenderFrame(bb.Min, bb.Max, col, false, 0.0f);
         TableSetBgColor(ImGuiTableBgTarget_CellBg, col, table->CurrentColumn);
     }
@@ -3221,7 +3221,7 @@ void ImGui::TableHeader(const char* label)
     {
         // Submit single cell bg color in the case we didn't submit a full header row
         if ((table->RowFlags & ImGuiTableRowFlags_Headers) == 0)
-            TableSetBgColor(ImGuiTableBgTarget_CellBg, GetColorU32(ImGuiCol_TableHeaderBg), table->CurrentColumn);
+            TableSetBgColor(ImGuiTableBgTarget_CellBg, GetColoruint32_t(ImGuiCol_TableHeaderBg), table->CurrentColumn);
     }
     RenderNavCursor(bb, id, ImGuiNavRenderCursorFlags_Compact | ImGuiNavRenderCursorFlags_NoRounding);
     if (held)
@@ -3259,12 +3259,12 @@ void ImGui::TableHeader(const char* label)
             float y = label_pos.y;
             if (column->SortOrder > 0)
             {
-                PushStyleColor(ImGuiCol_Text, GetColorU32(ImGuiCol_Text, 0.70f));
+                PushStyleColor(ImGuiCol_Text, GetColoruint32_t(ImGuiCol_Text, 0.70f));
                 RenderText(ImVec2(x + g.Style.ItemInnerSpacing.x, y), sort_order_suf);
                 PopStyleColor();
                 x += w_sort_text;
             }
-            RenderArrow(window->DrawList, ImVec2(x, y), GetColorU32(ImGuiCol_Text), column->SortDirection == ImGuiSortDirection_Ascending ? ImGuiDir_Up : ImGuiDir_Down, ARROW_SCALE);
+            RenderArrow(window->DrawList, ImVec2(x, y), GetColoruint32_t(ImGuiCol_Text), column->SortDirection == ImGuiSortDirection_Ascending ? ImGuiDir_Up : ImGuiDir_Down, ARROW_SCALE);
         }
 
         // Handle clicking on column header to adjust Sort Order
@@ -3308,8 +3308,8 @@ void ImGui::TableAngledHeadersRow()
             highlight_column_n = table->HoveredColumnBody;
 
     // Build up request
-    ImU32 col_header_bg = GetColorU32(ImGuiCol_TableHeaderBg);
-    ImU32 col_text = GetColorU32(ImGuiCol_Text);
+    Imuint32_t col_header_bg = GetColoruint32_t(ImGuiCol_TableHeaderBg);
+    Imuint32_t col_text = GetColoruint32_t(ImGuiCol_Text);
     for (int order_n = 0; order_n < table->ColumnsCount; order_n++)
         if (IM_BITARRAY_TESTBIT(table->EnabledMaskByDisplayOrder, order_n))
         {
@@ -3317,7 +3317,7 @@ void ImGui::TableAngledHeadersRow()
             ImGuiTableColumn* column = &table->Columns[column_n];
             if ((column->Flags & ImGuiTableColumnFlags_AngledHeader) == 0) // Note: can't rely on ImGuiTableColumnFlags_IsVisible test here.
                 continue;
-            ImGuiTableHeaderData request = { (ImGuiTableColumnIdx)column_n, col_text, col_header_bg, (column_n == highlight_column_n) ? GetColorU32(ImGuiCol_Header) : 0 };
+            ImGuiTableHeaderData request = { (ImGuiTableColumnIdx)column_n, col_text, col_header_bg, (column_n == highlight_column_n) ? GetColoruint32_t(ImGuiCol_Header) : 0 };
             temp_data->AngledHeadersRequests.push_back(request);
         }
 
@@ -3369,7 +3369,7 @@ void ImGui::TableAngledHeadersRowEx(ImGuiID row_id, float angle, float max_label
         clip_rect_min_x = ImMax(clip_rect_min_x, table->Columns[table->FreezeColumnsCount - 1].MaxX);
     TableSetBgColor(ImGuiTableBgTarget_RowBg0, 0); // Cancel
     PushClipRect(table->BgClipRect.Min, table->BgClipRect.Max, false); // Span all columns
-    draw_list->AddRectFilled(ImVec2(table->BgClipRect.Min.x, row_r.Min.y), ImVec2(table->BgClipRect.Max.x, row_r.Max.y), GetColorU32(ImGuiCol_TableHeaderBg, 0.25f)); // FIXME-STYLE: Change row background with an arbitrary color.
+    draw_list->AddRectFilled(ImVec2(table->BgClipRect.Min.x, row_r.Min.y), ImVec2(table->BgClipRect.Max.x, row_r.Max.y), GetColoruint32_t(ImGuiCol_TableHeaderBg, 0.25f)); // FIXME-STYLE: Change row background with an arbitrary color.
     PushClipRect(ImVec2(clip_rect_min_x, table->BgClipRect.Min.y), table->BgClipRect.Max, true); // Span all columns
 
     ButtonBehavior(row_r, row_id, NULL, NULL);
@@ -3869,7 +3869,7 @@ static void TableSettingsHandler_ReadLine(ImGuiContext*, ImGuiSettingsHandler*, 
         char c = 0;
         ImGuiTableColumnSettings* column = settings->GetColumnSettings() + column_n;
         column->Index = (ImGuiTableColumnIdx)column_n;
-        if (sscanf(line, "UserID=0x%08X%n", (ImU32*)&n, &r)==1) { line = ImStrSkipBlank(line + r); column->UserID = (ImGuiID)n; }
+        if (sscanf(line, "UserID=0x%08X%n", (Imuint32_t*)&n, &r)==1) { line = ImStrSkipBlank(line + r); column->UserID = (ImGuiID)n; }
         if (sscanf(line, "Width=%d%n", &n, &r) == 1)            { line = ImStrSkipBlank(line + r); column->WidthOrWeight = (float)n; column->IsStretch = 0; settings->SaveFlags |= ImGuiTableFlags_Resizable; }
         if (sscanf(line, "Weight=%f%n", &f, &r) == 1)           { line = ImStrSkipBlank(line + r); column->WidthOrWeight = f; column->IsStretch = 1; settings->SaveFlags |= ImGuiTableFlags_Resizable; }
         if (sscanf(line, "Visible=%d%n", &n, &r) == 1)          { line = ImStrSkipBlank(line + r); column->IsEnabled = (ImU8)n; settings->SaveFlags |= ImGuiTableFlags_Hideable; }
@@ -4510,7 +4510,7 @@ void ImGui::EndColumns()
             }
 
             // Draw column
-            const ImU32 col = GetColorU32(held ? ImGuiCol_SeparatorActive : hovered ? ImGuiCol_SeparatorHovered : ImGuiCol_Separator);
+            const Imuint32_t col = GetColoruint32_t(held ? ImGuiCol_SeparatorActive : hovered ? ImGuiCol_SeparatorHovered : ImGuiCol_Separator);
             const float xi = IM_TRUNC(x);
             window->DrawList->AddLine(ImVec2(xi, y1 + 1.0f), ImVec2(xi, y2), col);
         }
