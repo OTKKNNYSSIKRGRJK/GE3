@@ -154,6 +154,17 @@ namespace CG3Eval2 {
 			int Index;
 			Float4 Color;
 		};
+
+		struct RadialBlurParams {
+			Float2 ScreenSpaceCenter;
+			Float2 RCP_Size;
+			float BlurWidth_R;
+			float BlurWidth_G;
+			float BlurWidth_B;
+			uint32_t NUM_Samples;
+			float RCP_NUM_Samples;
+			float Time;
+		} radialBlurParams{};
 	}
 
 	void Scene::Update() {
@@ -468,10 +479,18 @@ namespace CG3Eval2 {
 		rtv = dxContext_.SwapChain().BackBufferRTVCPUHandle();
 		cmdList_->OMSetRenderTargets(1U, &rtv, false, &dsv);
 
+		static float t = 0.0f;
+		radialBlurParams.BlurWidth_R = std::abs(std::sin(t * 1.0f)) * 0.1f + 0.02f;
+		radialBlurParams.BlurWidth_G = std::abs(std::sin(t * 0.9f)) * 0.125f + 0.02f;
+		radialBlurParams.BlurWidth_B = std::abs(std::sin(t * 0.8f)) * 0.15f + 0.02f;
+		radialBlurParams.Time = t;
+		t += 0.05f;
+		RadialBlur_->UpdateConstant(&radialBlurParams, sizeof(RadialBlurParams));
+
 		Fullscreen_->Render(
 			cmdList_,
 			GlobalTable_Graphics_.GPUHandle(4U + 64U + 96U),
-			*Filtering_
+			*RadialBlur_
 		);
 
 		cmdList_->ResourceBarrier(1U, barriers_OSR0 + 1U);
@@ -825,7 +844,7 @@ namespace CG3Eval2 {
 			Float4 OutlineColor;
 			float OutlineLuminanceSize;
 			float OutlineDepthSize;
-		} filterParams;
+		} filterParams{};
 		filterParams.UVStepSize = { 1.0f / 1280.0f, 1.0f / 720.0f };
 		filterParams.KernelWidth = 3;
 		filterParams.KernelHeight = 3;
@@ -851,6 +870,20 @@ namespace CG3Eval2 {
 		);
 
 		Filtering_->UpdateConstant(&filterParams, sizeof(FilterParams));
+
+		RadialBlur_ = std::make_unique<Lumina::RadialBlur>();
+		RadialBlur_->Initialize(
+			dxContext_,
+			device,
+			*Fullscreen_,
+			L"Assets/CG5/RadialBlur.PS.hlsl"
+		);
+
+		radialBlurParams.ScreenSpaceCenter = { 640.0f, 360.0f };
+		radialBlurParams.RCP_Size = { 1.0f/ 1280.0f, 1.0f/ 720.0f };
+		radialBlurParams.NUM_Samples = 10U;
+		radialBlurParams.RCP_NUM_Samples = 1.0f / static_cast<float>(radialBlurParams.NUM_Samples);
+		RadialBlur_->UpdateConstant(&radialBlurParams, sizeof(RadialBlurParams));
 
 		OffscreenTextures_[0].Initialize(device, 1280U, 720U);
 		//OffscreenTextures_[1].Initialize(device, 1280U, 720U);
