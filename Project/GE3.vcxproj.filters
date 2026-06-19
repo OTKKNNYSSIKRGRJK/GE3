@@ -308,6 +308,12 @@
     <ClCompile Include="Src\CG5\Filtering.ixx">
       <Filter>CG5</Filter>
     </ClCompile>
+    <ClCompile Include="Src\CG5\RadialBlur.ixx">
+      <Filter>Src</Filter>
+    </ClCompile>
+    <ClCompile Include="HTTPTest.ixx">
+      <Filter>Src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include=".editorconfig" />
