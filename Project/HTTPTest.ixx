@@ -38,10 +38,10 @@ namespace Lumina {
 
 		/*if (response && response->status == 200) {
 			auto j = nlohmann::json::parse(response->body);
-			std::cout << "AI‚Ì•Ô“š: " << j["candidates"][0]["content"]["parts"][0]["text"] << std::endl;
+			std::cout << "Response: " << j["candidates"][0]["content"]["parts"][0]["text"] << std::endl;
 		}
 		else {
-			std::cout << "ƒGƒ‰[”­¶: " << (res ? std::to_string(res->status) : "Ú‘±¸”s") << std::endl;
+			std::cout << "Error: " << (response ? std::to_string(response->status) : "Failed to connect") << std::endl;
 		}*/
 	}
 }

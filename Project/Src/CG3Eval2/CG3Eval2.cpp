@@ -4,6 +4,7 @@ import <cstdint>;
 import <algorithm>;
 import <vector>;
 import <cassert>;
+import <cmath>;
 
 import Lumina.AssetManager;
 
@@ -31,8 +32,9 @@ namespace {
 	float ModelShininess_{ 32.0f };
 	int IsUsingBlinnPhong_{ 1 };
 
-	Vec3 LookAtSrc_{ -20.0f, 5.0f, -15.0f };
-	Vec3 LookAtDst_{ 0.0f, 0.0f, 0.0f };
+	//Vec3 LookAtSrc_{ -20.0f, 5.0f, -15.0f };
+	Vec3 LookAtSrc_{ 0.0f, 0.0f, -15.0f };
+	Vec3 LookAtDst_{ 0.0f, 0.0f, 10000.0f };
 
 	std::vector<uint32_t> ActivePtLightList_{};
 
@@ -341,6 +343,19 @@ namespace CG3Eval2 {
 
 		#endif
 
+		static float srcT = 0.0f;
+		LookAtSrc_.x = std::sin(srcT * 0.8f) * 0.5f;
+		LookAtSrc_.y = std::sin(srcT * 1.1f) * 0.5f;
+		LookAtSrc_.z += 0.1f;
+		srcT += 0.05f;
+
+		LookAtDst_.x = std::sin(srcT * 1.2f) * 0.5f;
+		LookAtDst_.y = std::sin(srcT * 0.7f) * 0.5f;
+		LookAtDst_.z = LookAtSrc_.z + 50.0f;
+		WorldToView_ = LookAt(LookAtSrc_, LookAtDst_, { 0.0f, 1.0f, 0.0f });
+		Constant_Scene_.WorldToProjective = WorldToView_ * ViewToProjective_;
+		ScreenToWorld_ = Inv_Viewport * Constant_Scene_.WorldToProjective.Inv();
+
 		Lighting_.Update(
 			List_DirectionalLight_,
 			List_PointLight_,
@@ -349,6 +364,23 @@ namespace CG3Eval2 {
 		);
 
 		SimpleFX_->Update({ fxTranslate.x, fxTranslate.y, fxTranslate.z });
+
+		SimpleFX3_->ClearBatch();
+		static float forwardT = 0.0f;
+		static float cylinderT = 0.0f;
+		float z0{ LookAtSrc_.z + forwardT };
+		for (int i = 0; i < 32; ++i) {
+			SimpleFX3_->Batch(
+				Mat4::SRT(
+					{ 1.0f, 1.0f, 1.0f },
+					{ -1.57079633f, std::sin(cylinderT + i * 0.1f) * 0.5f, std::sin(cylinderT - i * 0.2f) * 0.5f },
+					{ 0.0f, 0.0f, i * 2.5f + z0 }
+				)
+			);
+		}
+		cylinderT += 0.1f;
+		forwardT -= 0.25f;
+		forwardT = std::fmod(forwardT, 2.5f);
 	}
 
 	void Scene::Render(
@@ -790,7 +822,7 @@ namespace CG3Eval2 {
 
 		SimpleFX3_ = std::make_unique<Lumina::SimpleFX3>();
 		SimpleFX3_->Initialize(dxContext_, device, assetMngr);
-		SimpleFX3_->ResetCylinder({ 72, 2.0f, 5.0f, 3.0f });
+		SimpleFX3_->ResetCylinder({ 48, 3.0f, 5.0f, 1.0f });
 
 		Fullscreen_ = std::make_unique<Lumina::Fullscreen>();
 		Fullscreen_->Initialize(dxContext_, device);

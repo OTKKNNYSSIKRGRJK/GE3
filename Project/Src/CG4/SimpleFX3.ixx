@@ -14,6 +14,7 @@ import Lumina.DX12.Aux;
 import Lumina.DX12.Aux.View;
 import Lumina.AssetManager;
 import Lumina.Utils.Data;
+import Lumina.Utils.Color;
 
 namespace Lumina {
 	export class SimpleFX3 {
@@ -23,6 +24,13 @@ namespace Lumina {
 			float Height;
 			float Radius_Top;
 			float Radius_Bottom;
+		};
+
+		struct ShaderConstant {
+			float WorldToProjective[4][4];
+			float Time;
+			Float4 Color0;
+			Float4 Color1;
 		};
 
 	public:
@@ -143,11 +151,24 @@ namespace Lumina {
 			return props;
 		}
 
+	private:
+		int BatchedNum_ = 0;
 	public:
+		void Batch(
+			Mat4 const& world_
+		) {
+			UB_Worlds_.Store(&world_, sizeof(Mat4), sizeof(Mat4) * BatchedNum_);
+			++BatchedNum_;
+		}
+
+		void ClearBatch() { BatchedNum_ = 0; }
+
 		void Render(
 			DX12::CommandList const& cmdList_,
 			Mat4 const& worldToProjective_
 		) {
+			if (!BatchedNum_) { return; }
+
 			/*auto& rndGen{ reinterpret_cast<std::mt19937&>(Random::Generator()) };
 			static std::uniform_real_distribution<float> distScale{ -0.0625f, 0.0625f };
 			for (uint32_t idx_DIV{ 0U }; idx_DIV < CylinderProperties_.NUM_Division; ++idx_DIV) {
@@ -169,10 +190,37 @@ namespace Lumina {
 				sizeof(Mat4),
 				0LLU
 			);
+
+			static float h0{};
+			static float h0T = 0.0f;
+			h0 = 30.0f + std::sin(h0T) * 60.0f;
+			h0T += 0.05f;
+			auto rgb0 = Utils::Color::Convert(
+				Utils::Color::HSV{ h0, 0.75f, 0.75f }
+			);
+			static float h1{};
+			static float h1T = 0.0f;
+			h1 = 210.0f + std::sin(h1T) * 30.0f;
+			h1T += 0.03f;
+			auto rgb1 = Utils::Color::Convert(
+				Utils::Color::HSV{ h1, 0.75f, 1.0f }
+			);
+			Float4 color0{ rgb0.R, rgb0.G, rgb0.B, 1.0f };
+			Float4 color1{ rgb1.R, rgb1.G, rgb1.B, 1.0f };
+			UB_Constants_.Store(
+				&color0,
+				sizeof(Float4),
+				sizeof(Mat4)
+			);
+			UB_Constants_.Store(
+				&color1,
+				sizeof(Float4),
+				sizeof(Mat4) + sizeof(Float4)
+			);
 			UB_Constants_.Store(
 				&Time_,
 				sizeof(float),
-				sizeof(Mat4)
+				sizeof(Mat4) + sizeof(Float4) * 2
 			);
 
 			cmdList_->SetGraphicsRootSignature(RS_.Get());
@@ -182,7 +230,11 @@ namespace Lumina {
 			cmdList_->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 			cmdList_->IASetVertexBuffers(0U, 1U, &VBV_);
 			cmdList_->IASetIndexBuffer(&IBV_);
-			cmdList_->DrawIndexedInstanced(CylinderProperties_.NUM_Division * 6U, 1U, 0U, 0U, 0U);
+			cmdList_->DrawIndexedInstanced(
+				CylinderProperties_.NUM_Division * 6U,
+				BatchedNum_,
+				0U, 0U, 0U
+			);
 		}
 
 		void Initialize(
@@ -281,6 +333,10 @@ namespace Lumina {
 			CBV_Constants_ = dxContext_.GlobalDescriptorHeap().Allocate(1U);
 			DX12::CBV::Create(device_, CBV_Constants_.CPUHandle(0U), UB_Constants_);
 
+			UB_Worlds_.Initialize(device_, sizeof(Mat4) * 64LLU);
+			SRV_Worlds_ = dxContext_.GlobalDescriptorHeap().Allocate(1U);
+			DX12::SRV<Mat4>::Create(device_, SRV_Worlds_.CPUHandle(0U), UB_Worlds_);
+
 			Time_ = 0.0f;
 		}
 
@@ -306,7 +362,9 @@ namespace Lumina {
 		DX12::GraphicsPSO PSO_;
 
 		DX12::UploadBuffer UB_Constants_;
+		DX12::UploadBuffer UB_Worlds_;
 		DX12::DescriptorTable CBV_Constants_;
+		DX12::DescriptorTable SRV_Worlds_;
 		DX12::DescriptorTable SRV_Textures_;
 
 	public:
