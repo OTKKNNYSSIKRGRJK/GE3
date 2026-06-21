@@ -31,6 +31,9 @@ namespace {
 	Vec3 ModelTranslate_{ 0.0f, 0.0f, 0.0f };
 	float ModelShininess_{ 32.0f };
 	int IsUsingBlinnPhong_{ 1 };
+	float Spacing{ 2.5f };
+	float Spacing2{ 50.0f };
+	uint32_t CNT = 0;
 
 	//Vec3 LookAtSrc_{ -20.0f, 5.0f, -15.0f };
 	Vec3 LookAtSrc_{ 0.0f, 0.0f, -15.0f };
@@ -185,9 +188,6 @@ namespace CG3Eval2 {
 
 		ImGui::DragFloat("Model.Shininess", &ModelShininess_, 0.01f, 0.0f);
 		if (ModelShininess_ < 0.25f) { ModelShininess_ = 0.25f; }
-
-		static Lumina::Vec3 fxTranslate{ (LookAtSrc_ + LookAtDst_) * 0.5f };
-		ImGui::DragFloat3("FX Translate", fxTranslate(), 0.01f);
 
 		ImGui::Separator();
 
@@ -363,24 +363,56 @@ namespace CG3Eval2 {
 			ActivePtLightList_
 		);
 
-		SimpleFX_->Update({ fxTranslate.x, fxTranslate.y, fxTranslate.z });
-
 		SimpleFX3_->ClearBatch();
 		static float forwardT = 0.0f;
 		static float cylinderT = 0.0f;
 		float z0{ LookAtSrc_.z + forwardT };
 		for (int i = 0; i < 32; ++i) {
+			float const scale{ 1.0f - i * 0.03f };
 			SimpleFX3_->Batch(
 				Mat4::SRT(
-					{ 1.0f, 1.0f, 1.0f },
+					{ scale, scale, scale },
 					{ -1.57079633f, std::sin(cylinderT + i * 0.1f) * 0.5f, std::sin(cylinderT - i * 0.2f) * 0.5f },
-					{ 0.0f, 0.0f, i * 2.5f + z0 }
+					{ 0.0f, 0.0f, i * Spacing + z0 }
 				)
 			);
 		}
 		cylinderT += 0.1f;
+
+		SimpleFX2_->ClearBatch();
+		static float forwardT2 = 0.0f;
+		static float ringT = 0.0f;
+		float z02{ LookAtSrc_.z + forwardT2 };
+		{
+			float const scale{ 1.0f / std::max((Spacing2 + forwardT2) * 0.2f, 1.0f) };
+			for (int i = 0; i < 5; ++i) {
+				float const scale2{ scale * (1.0f - i * 0.1f) };
+				SimpleFX2_->Batch(
+					Mat4::SRT(
+						{ scale2, scale2, scale2 },
+						{ 0.0f, std::sin(ringT + i * 0.8f) * 0.5f, std::sin(ringT - i * 1.6f) * 0.5f },
+						{ 0.0f, 0.0f, i * Spacing + Spacing2 + z02 }
+					)
+				);
+			}
+		}
+		ringT += 0.1f;
+
+		Lumina::Vec3 fxTranslate{ (LookAtSrc_ + LookAtDst_) * 0.5f };
+		fxTranslate.z += forwardT * 5.0f;
+		SimpleFX_->Update({ fxTranslate.x, fxTranslate.y, fxTranslate.z });
+		FX1_->Update({ LookAtDst_.x, LookAtDst_.y, LookAtDst_.z });
+
+		if (forwardT == 0.0f) { ++CNT; }
 		forwardT -= 0.25f;
-		forwardT = std::fmod(forwardT, 2.5f);
+		if (forwardT < -Spacing - 0.0001f) {
+			forwardT = 0.0f;
+		}
+
+		forwardT2 -= 1.0f;
+		if (forwardT2 < -Spacing2 * 2.0f - 0.0001f) {
+			forwardT2 = 0.0f;
+		}
 	}
 
 	void Scene::Render(
@@ -435,7 +467,7 @@ namespace CG3Eval2 {
 			Canvas_.ScissorRects().data()
 		);
 
-		cmdList_->SetGraphicsRootSignature(RS_.Get());
+		/*cmdList_->SetGraphicsRootSignature(RS_.Get());
 		cmdList_->SetGraphicsRootDescriptorTable(0U, GlobalTable_Graphics_.GPUHandle(0U));
 		cmdList_->SetGraphicsRootDescriptorTable(1U, GlobalTable_Graphics_.GPUHandle(96U));
 		cmdList_->SetGraphicsRootDescriptorTable(2U, GlobalTable_ImageTextures_.GPUHandle(0U));
@@ -443,7 +475,7 @@ namespace CG3Eval2 {
 		cmdList_->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 		cmdList_->IASetVertexBuffers(0U, 1U, &VBV_Mesh_Sphere_);
 		cmdList_->IASetIndexBuffer(&IBV_Mesh_Sphere_);
-		cmdList_->DrawIndexedInstanced(Num_Indices_Sphere_, 1U, 0U, 0U, 0U);
+		cmdList_->DrawIndexedInstanced(Num_Indices_Sphere_, 1U, 0U, 0U, 0U);*/
 
 		Skybox_->Render(cmdList_, GlobalTable_Graphics_);
 
@@ -491,8 +523,9 @@ namespace CG3Eval2 {
 			0.0f, 0.0f, 0.0f, 1.0f,
 		};
 		SimpleFX_->Render(cmdList_, LocalHeap_CBV_, viewToWorld_NoTranslate);
+		FX1_->Render(cmdList_, LocalHeap_CBV_, viewToWorld_NoTranslate);
 		SimpleFX2_->Render(cmdList_, Constant_Scene_.WorldToProjective, viewToWorld_NoTranslate);
-		SimpleFX3_->Render(cmdList_, Constant_Scene_.WorldToProjective);
+		SimpleFX3_->Render(cmdList_, Constant_Scene_.WorldToProjective, CNT);
 
 		static D3D12_RESOURCE_BARRIER const barriers_OSR0[]{
 			Lumina::DX12::Barrier::Transition(
@@ -588,7 +621,7 @@ namespace CG3Eval2 {
 
 		GlobalTable_ImageTextures_ = dxContext_.GlobalDescriptorHeap().Allocate(32U);
 		auto& assetMngr{ const_cast<AssetManager&>(assetMngr_) };
-		std::vector<uint32_t> texIDs{};
+		/*std::vector<uint32_t> texIDs{};
 		assetMngr.Graphics().LoadImageTextures(
 			texIDs,
 			{
@@ -603,7 +636,7 @@ namespace CG3Eval2 {
 				assetMngr.Graphics().CPUHandle(texIDs.at(idx)),
 				D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
 			);
-		}
+		}*/
 
 		Canvas_.AllocateTextures(2U, true);
 		Canvas_.RenderTexture(0U).Initialize(device, 1280U, 720U);
@@ -655,7 +688,7 @@ namespace CG3Eval2 {
 		}
 		RenderPass_.DepthStencil().View() = Canvas_.DSV();
 
-		auto settings{ Utils::LoadFromFile<nlohmann::json>("Settings.json", "Src/CG3Eval2") };
+		/*auto settings{ Utils::LoadFromFile<nlohmann::json>("Settings.json", "Src/CG3Eval2") };
 		auto graphicsRSSetup{ DX12::LoadRootSignatureSetup(settings.at("General Graphics RS Test")) };
 		RS_.Initialize(device, graphicsRSSetup, "CG3Eval2::Graphics RS");
 
@@ -730,7 +763,7 @@ namespace CG3Eval2 {
 			device,
 			graphicsPSOSetup,
 			"CG3Eval2::GraphicsPSO"
-		);
+		);*/
 
 		std::vector<Vertex> sphereVertices;
 		std::vector<uint32_t> sphereIndices;
@@ -822,8 +855,11 @@ namespace CG3Eval2 {
 
 		SimpleFX3_ = std::make_unique<Lumina::SimpleFX3>();
 		SimpleFX3_->Initialize(dxContext_, device, assetMngr);
-		SimpleFX3_->ResetCylinder({ 48, 3.0f, 5.0f, 1.0f });
+		SimpleFX3_->ResetCylinder({ 24, 3.0f, 5.0f, 1.0f });
 
+		FX1_ = std::make_unique<Game::FX1>();
+		FX1_->Initialize(dxContext_, device, assetMngr);
+		
 		Fullscreen_ = std::make_unique<Lumina::Fullscreen>();
 		Fullscreen_->Initialize(dxContext_, device);
 

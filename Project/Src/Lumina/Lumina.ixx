@@ -1,4 +1,4 @@
-module;
+﻿module;
 
 #include<memory>
 
@@ -222,7 +222,7 @@ namespace Lumina {
 	void Context::Initialize() {
 		Lumina::WinApp::WindowConfig mainWindowConfig_{
 			.Name{ L"Main" },
-			.Title{ L"Usus Magister Est Optimus" },
+			.Title{ L"CG4 評価課題1" },
 			.Style{
 				Lumina::WinApp::WindowStyle::TitleBar |
 				Lumina::WinApp::WindowStyle::WindowMenu |

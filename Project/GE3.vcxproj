@@ -211,6 +211,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="Src\CG5\Filtering.ixx" />
     <ClCompile Include="Src\CG5\RadialBlur.ixx" />
     <ClCompile Include="Src\CG5\Vignetting.ixx" />
+    <ClCompile Include="Src\Game\FX1.ixx" />
     <ClCompile Include="Src\Lumina\Container\Container.Bitset.ixx" />
     <ClCompile Include="Src\Lumina\Container\Container.List.ixx" />
     <ClCompile Include="Src\Lumina\DX12\DX12.Aux.ixx" />

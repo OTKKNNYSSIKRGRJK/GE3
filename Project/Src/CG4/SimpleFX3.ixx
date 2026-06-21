@@ -165,7 +165,8 @@ namespace Lumina {
 
 		void Render(
 			DX12::CommandList const& cmdList_,
-			Mat4 const& worldToProjective_
+			Mat4 const& worldToProjective_,
+			uint32_t cnt_ = 0
 		) {
 			if (!BatchedNum_) { return; }
 
@@ -221,6 +222,11 @@ namespace Lumina {
 				&Time_,
 				sizeof(float),
 				sizeof(Mat4) + sizeof(Float4) * 2
+			);
+			UB_Constants_.Store(
+				&cnt_,
+				sizeof(float),
+				sizeof(Mat4) + sizeof(Float4) * 2 + sizeof(float)
 			);
 
 			cmdList_->SetGraphicsRootSignature(RS_.Get());

@@ -1,4 +1,4 @@
-export module Lumina.SimpleFX;
+export module Game.FX1;
 
 import <memory>;
 import <random>;
@@ -18,25 +18,35 @@ import Lumina.Utils.Data;
 
 import ParticleSystem;
 
-namespace Lumina {
+using namespace Lumina;
+
+namespace Game {
 	namespace {
+		constexpr float ThetaV{ 0.075f };
+		float const SIN_ThetaV{ std::sin(ThetaV) };
+		float const COS_ThetaV{ std::cos(ThetaV) };
+
 		bool UpdateParticle(Particle& p, void const*) {
 			p.Scale.x *= 1.02f;
-			p.Scale.y *= 1.05f;
+			p.Scale.y *= 1.02f;
 			p.Scale.z *= 1.02f;
 
-			p.Rotate.x += 0.01f;
+			float vx = p.Velocity.x;
+			float vy = p.Velocity.y;
+			p.Velocity.x = vx * COS_ThetaV - vy * SIN_ThetaV;
+			p.Velocity.y = vx * SIN_ThetaV + vy * COS_ThetaV;
+			
+			p.Translate.x += p.Velocity.x;
+			p.Translate.y += p.Velocity.y;
+			p.Translate.z += p.Velocity.z;
 
-			p.RenderData.RGBA.w *= 0.92f;
+			p.RenderData.RGBA.w *= 0.95f;
 			p.Life -= 1.0f;
 			return (p.Life > 0.0f);
 		}
 	}
 
-	export class SimpleFX {
-	public:
-		auto GlobalTable() const noexcept -> DX12::DescriptorTable const& { return SRV_Textures_; }
-
+	export class FX1 {
 	public:
 		void Update(
 			Lumina::Float3 const& translate_ = { 0.0f, 0.0f, 0.0f }
@@ -44,45 +54,87 @@ namespace Lumina {
 			++FrameCNT_;
 
 			auto& rndEngine{ reinterpret_cast<std::mt19937&>(Random::Generator()) };
-			static std::uniform_real_distribution<float> distScale{ 0.5f, 2.5f };
 			static std::uniform_real_distribution<float> distRotate{
 				-std::numbers::pi_v<float>,
 				std::numbers::pi_v<float>
 			};
-			static std::uniform_real_distribution<float> distTranslate{ -1.5f, 1.5f };
+			static std::uniform_real_distribution<float> distTranslate{ -2.5f, 2.5f };
 
-
-			static Lumina::Float3 translate{
+			Lumina::Float3 translate = {
 				distTranslate(rndEngine) + translate_.x,
 				distTranslate(rndEngine) + translate_.y,
 				distTranslate(rndEngine) + translate_.z
 			};
-			if ((FrameCNT_ & 0x7) == 0) {
-				translate = {
-					distTranslate(rndEngine) + translate_.x,
-					distTranslate(rndEngine) + translate_.y,
-					distTranslate(rndEngine) + translate_.z
-				};
-			}
 
-			{
+			constexpr static Float4 particleColor[3]{
+				{ 1.0f, 0.5f, 0.5f, 1.0f },
+				{ 0.5f, 1.0f, 0.5f, 1.0f },
+				{ 0.5f, 0.5f, 1.0f, 1.0f },
+			};
+			Float3 const rot{
+				distRotate(rndEngine),
+				distRotate(rndEngine),
+				distRotate(rndEngine)
+			};
+			for (int i = 0; i < 3; ++i) {
 				Particle p;
 				{
-					p.Scale = { 0.1f, distScale(rndEngine) * 2.0f * 0.1f, 1.5f };
-					p.Rotate = {
-						distRotate(rndEngine),
-						distRotate(rndEngine),
-						distRotate(rndEngine)
-					};
+					p.Scale = { 0.75f, 0.75f, 0.75f };
+					p.Rotate = rot;
 					p.Translate = translate;
-					p.Velocity = { 0.0f, 0.0f, 0.0f };
-					p.Life = 60.0f;
+					p.Velocity = { translate.y * 0.01f, -translate.x * 0.01f, -2.0f + i * 0.2f };
+					p.Life = 45.0f;
 					p.RenderData.DiffuseID = 0;
-					p.RenderData.DiffuseAtlasID = 0;
-					p.RenderData.RGBA = { 1.0f, 1.0f, 1.0f, 1.0f };
+					p.RenderData.DiffuseAtlasID = 5;
+					p.RenderData.RGBA = particleColor[i];
 				}
 				ParticleSystem_->Emit(std::move(p));
 			}
+
+			for (int i = 0; i < 3; ++i) {
+				Particle p;
+				{
+					p.Scale = { 0.5f, 0.5f, 0.5f };
+					p.Rotate = rot;
+					p.Translate = { translate.x * 3.0f, translate.y * 3.0f, translate.z };
+					p.Velocity = {
+						-p.Translate.y * (0.2f - i * 0.005f),
+						p.Translate.x * (0.2f - i * 0.005f),
+						-0.125f
+					};
+					p.Life = 60.0f;
+					p.RenderData.DiffuseID = 0;
+					p.RenderData.DiffuseAtlasID = 5;
+					p.RenderData.RGBA = particleColor[i];
+				}
+				ParticleSystem_->Emit(std::move(p));
+			}
+
+			static int speedLineTimer{ 0 };
+			if ((speedLineTimer & 0x01) == 0) {
+				Float3 const translate_SpeedLine = {
+					distTranslate(rndEngine) + translate_.x,
+					distTranslate(rndEngine) + translate_.y,
+					distTranslate(rndEngine) + translate_.z + 25.0f
+				};
+				for (int i = 0; i < 3; ++i) {
+					Particle p;
+					{
+						p.Scale = { 12.5f, 0.0625f, 1.0f };
+						p.Rotate = { 0.0f, std::numbers::pi_v<float> * 0.5f, distRotate(rndEngine) };
+						p.Translate = translate_SpeedLine;
+						p.Translate.x *= (1.0f - i * 0.05f);
+						p.Translate.y *= (1.0f - i * 0.05f);
+						p.Velocity = { 0.0f, 0.0f, -2.5f };
+						p.Life = 45.0f;
+						p.RenderData.DiffuseID = 0;
+						p.RenderData.DiffuseAtlasID = 0;
+						p.RenderData.RGBA = particleColor[i];
+					}
+					ParticleSystem_->Emit(std::move(p));
+				}
+			}
+			++speedLineTimer;
 		}
 
 		void Render(
@@ -117,7 +169,7 @@ namespace Lumina {
 			assetMngr_.Graphics().LoadImageTextures(
 				texIDs,
 				{
-					{ "FX.Particles", "Assets/Particles.png" },
+					{ "FX1.Particles", "Assets/Particles.png" },
 				}
 			);
 			for (uint32_t idx{ 0U }; idx < static_cast<uint32_t>(texIDs.size()); ++idx) {
@@ -131,21 +183,21 @@ namespace Lumina {
 
 			auto settings{ Utils::LoadFromFile<nlohmann::json>("ParticleSystem.json", "Assets/Configs") };
 			auto rsSetup{ DX12::LoadRootSignatureSetup(settings.at("Common RS")) };
-			RS_.Initialize(device_, rsSetup, "SimpleFX RS");
+			RS_.Initialize(device_, rsSetup, "FX1 RS");
 
 			dxContext_.Compile(
 				VS_,
 				L"Assets/Shaders/BasicParticle.VS.hlsl",
 				L"vs_6_6",
 				L"main",
-				"SimpleFX.VS"
+				"FX1.VS"
 			);
 			dxContext_.Compile(
 				PS_,
 				L"Assets/Shaders/BasicParticle.PS.hlsl",
 				L"ps_6_6",
 				L"main",
-				"SimpleFX.PS"
+				"FX1.PS"
 			);
 			DX12::GraphicsPipelineState::Setup graphicsPSOSetup{};
 			DX12::BlendState blendState{ .IndependentBlendEnable{ true }, };

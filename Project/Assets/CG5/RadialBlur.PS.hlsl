@@ -28,8 +28,8 @@ PSOutput main(VSOutput input_) {
 		sin(theta * 8.0f + Time * 1.0f),
 		sin(theta * 12.0f + Time * 1.5f),
 		sin(theta * 16.0f + Time * 2.0f)
-	) * 0.25f;
-	angleFactor += 0.75f;
+	) * 0.1f;
+	angleFactor += 0.9f;
 	
 	float3 blurColor = float3(0.0f, 0.0f, 0.0f);
 	for (uint i = 0; i < NUM_Samples; ++i) {

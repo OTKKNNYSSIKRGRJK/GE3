@@ -4,6 +4,7 @@ struct VSOutput {
 	float3 Normal : NORMAL0;
 	float3 LocalNormal : NORMAL1;
 	float WorldZ : POS1;
+	nointerpolation uint InstanceID : ID0;
 };
 
 struct PSOutput {
@@ -56,6 +57,7 @@ cbuffer Constants : register(b0) {
 	float4 Color0;
 	float4 Color1;
 	float Time;
+	uint CNT;
 }
 
 StructuredBuffer<float4x4> Worlds : register(t0, space1);
@@ -77,9 +79,11 @@ PSOutput main(VSOutput input_) {
 	output.Diffuse.rgb *= HSVToRGB(hsv);
 	float blendT = input_.Position.z / input_.Position.w;
 	blendT = saturate(blendT + 0.5f);
-	blendT = pow(blendT, 2.0f);
+	blendT = pow(blendT, 3.0f);
 	float3 blendRGB = Color0.rgb * blendT + Color1.rgb * (1.0f - blendT);
-	output.Diffuse.rgb = output.Diffuse.rgb * 0.75f + blendRGB * 0.25f;
+	output.Diffuse.rgb = output.Diffuse.rgb * 0.65f + blendRGB * 0.35f;
 	output.Diffuse.a *= blendT;
+	output.Diffuse.rgb *= ((input_.InstanceID % 4) == 3) ? (1.0f) : (0.5f);
+	output.Diffuse.a *= ((input_.InstanceID % 4) == 3) ? (10.0f) : (1.0f);
 	return output;
 }

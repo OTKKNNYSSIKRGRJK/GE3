@@ -136,12 +136,26 @@ namespace Lumina {
 			return props;
 		}
 
+	private:
+		int BatchedNum_ = 0;
+	public:
+		void Batch(
+			Mat4 const& world_
+		) {
+			UB_Worlds_.Store(&world_, sizeof(Mat4), sizeof(Mat4) * BatchedNum_);
+			++BatchedNum_;
+		}
+
+		void ClearBatch() { BatchedNum_ = 0; }
+
 	public:
 		void Render(
 			DX12::CommandList const& cmdList_,
 			Mat4 const& worldToProjective_,
 			Mat4 const& viewToWorld_NoTranslate_
 		) {
+			if (!BatchedNum_) { return; }
+
 			auto& rndGen{ reinterpret_cast<std::mt19937&>(Random::Generator()) };
 			static std::uniform_real_distribution<float> distScale{ -0.0625f, 0.0625f };
 			for (uint32_t idx_DIV{ 0U }; idx_DIV < RingProperties_.NUM_Division; ++idx_DIV) {
@@ -174,7 +188,11 @@ namespace Lumina {
 			cmdList_->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 			cmdList_->IASetVertexBuffers(0U, 1U, &VBV_);
 			cmdList_->IASetIndexBuffer(&IBV_);
-			cmdList_->DrawIndexedInstanced(RingProperties_.NUM_Division * 6U, 1U, 0U, 0U, 0U);
+			cmdList_->DrawIndexedInstanced(
+				RingProperties_.NUM_Division * 6U,
+				BatchedNum_,
+				0U, 0U, 0U
+			);
 		}
 
 		void Initialize(
@@ -269,6 +287,10 @@ namespace Lumina {
 			UB_Constants_.Initialize(device_, 256LLU);
 			CBV_Constants_ = dxContext_.GlobalDescriptorHeap().Allocate(1U);
 			DX12::CBV::Create(device_, CBV_Constants_.CPUHandle(0U), UB_Constants_);
+
+			UB_Worlds_.Initialize(device_, sizeof(Mat4) * 64LLU);
+			SRV_Worlds_ = dxContext_.GlobalDescriptorHeap().Allocate(1U);
+			DX12::SRV<Mat4>::Create(device_, SRV_Worlds_.CPUHandle(0U), UB_Worlds_);
 		}
 
 	private:
@@ -292,7 +314,9 @@ namespace Lumina {
 		DX12::GraphicsPSO PSO_;
 
 		DX12::UploadBuffer UB_Constants_;
+		DX12::UploadBuffer UB_Worlds_;
 		DX12::DescriptorTable CBV_Constants_;
+		DX12::DescriptorTable SRV_Worlds_;
 		DX12::DescriptorTable SRV_Textures_;
 
 	public:

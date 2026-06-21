@@ -16,6 +16,7 @@ import Lumina.Skybox;
 import Lumina.SimpleFX;
 import Lumina.SimpleFX2;
 import Lumina.SimpleFX3;
+import Game.FX1;
 
 import Lumina.Fullscreen;
 import Lumina.Grayscale;
@@ -85,6 +86,7 @@ namespace CG3Eval2 {
 		std::unique_ptr<Lumina::SimpleFX> SimpleFX_;
 		std::unique_ptr<Lumina::SimpleFX2> SimpleFX2_;
 		std::unique_ptr<Lumina::SimpleFX3> SimpleFX3_;
+		std::unique_ptr<Game::FX1> FX1_;
 
 		Lumina::DX12::RenderTexture2D OffscreenTextures_[2];
 		Lumina::DX12::DescriptorHeap LocalHeap_RTV_;
