@@ -36,7 +36,8 @@ namespace Lumina::Utils::Debug {
 
 	//----	------	------	------	------	----//
 
-	void Logger::Initialize(std::string_view logFileTitle_) {
+	void Logger::Initialize([[maybe_unused]] std::string_view logFileTitle_) {
+		#if defined(_DEBUG) || defined(_DEVELOPMENT)
 		std::filesystem::create_directory("../Generated/Logs");
 		std::string logFilePath{
 			std::format(
@@ -47,7 +48,6 @@ namespace Lumina::Utils::Debug {
 		};
 		FileOutputStream_.open(logFilePath);
 
-		#if defined(_DEBUG) || defined(_DEVELOPMENT)
 		SeverityLevelThreshold_ = 0U;
 		#else
 		SeverityLevelThreshold_ = 1U;

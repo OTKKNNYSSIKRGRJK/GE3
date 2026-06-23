@@ -361,7 +361,7 @@ namespace Lumina {
 		RenderPass_.RenderTarget(0U).View() = Canvas_.RTV(0U);
 
 		auto config{
-			Lumina::Utils::LoadFromFile<nlohmann::json>("Src/CG3Eval2/Lighting.json")
+			Lumina::Utils::LoadFromFile<nlohmann::json>("Assets/CG3Eval2/Lighting.json")
 		};
 		RootSignature_.Initialize(
 			device,
@@ -370,35 +370,35 @@ namespace Lumina {
 
 		dxContext_.Compile(
 			VS_Shape_,
-			L"Src/CG3Eval2/Lighting.VS.hlsl",
+			L"Assets/CG3Eval2/Lighting.VS.hlsl",
 			L"vs_6_6",
 			L"main",
 			"Lighting.VS"
 		);
 		dxContext_.Compile(
 			VS_Fullscreen_,
-			L"Src/CG3Eval2/Lighting.VS.hlsl",
+			L"Assets/CG3Eval2/Lighting.VS.hlsl",
 			L"vs_6_6",
 			L"Fullscreen",
 			"Lighting.Fullscreen.VS"
 		);
 		dxContext_.Compile(
 			PS_DirectionalLight_,
-			L"Src/CG3Eval2/Lighting.PS.hlsl",
+			L"Assets/CG3Eval2/Lighting.PS.hlsl",
 			L"ps_6_6",
 			L"CalcDirectionalLight",
 			"Lighting.DirLight.PS"
 		);
 		dxContext_.Compile(
 			PS_PointLight_,
-			L"Src/CG3Eval2/Lighting.PS.hlsl",
+			L"Assets/CG3Eval2/Lighting.PS.hlsl",
 			L"ps_6_6",
 			L"CalcPointLight",
 			"Lighting.PtLight.PS"
 		);
 		dxContext_.Compile(
 			PS_EnvMap_,
-			L"Src/CG3Eval2/Lighting.PS.hlsl",
+			L"Assets/CG3Eval2/Lighting.PS.hlsl",
 			L"ps_6_6",
 			L"CalcEnvironmentalLight",
 			"Lighting.EnvMap.PS"

@@ -1,0 +1,250 @@
+struct VSOutput {
+	float4 SVPos : SV_Position;
+	uint InstanceID : INSTID0;
+};
+
+struct PSOutput {
+	float4 Color : SV_TARGET0;
+};
+
+Texture2D<float4> SRV_GBuffer_Albedo : register(t0, space16);
+Texture2D<float4> SRV_GBuffer_Normal : register(t1, space16);
+Texture2D<float> SRV_GBuffer_Depth : register(t2, space16);
+Texture2D<float> SRV_GBuffer_Roughness : register(t3, space16);
+
+TextureCube<float4> SRV_EnvironmentMap : register(t0, space17);
+
+SamplerState Sampler_Default : register(s0);
+
+struct LIGHT {
+	float3 Color;
+	float Intensity;
+};
+struct DIRECTIONAL_LIGHT {
+	float3 Direction;
+	LIGHT Diffuse;
+	LIGHT Specular;
+};
+struct POINT_LIGHT {
+	float4 WorldPosition;
+	LIGHT Diffuse;
+	LIGHT Specular;
+};
+struct SPOT_LIGHT {
+	float3 WorldPosition;
+	float3 Direction;
+	float Distance;
+	float Decay;
+	float Cos_Angle;
+	float Cos_FalloffStart;
+	LIGHT Light;
+};
+
+ByteAddressBuffer SRV_Lights : register(t0, space1);
+void LoadDirectionalLight(inout DIRECTIONAL_LIGHT light_, uint id_) {
+	light_.Direction = asfloat(SRV_Lights.Load3(id_ * 44));
+	light_.Diffuse.Color = asfloat(SRV_Lights.Load3(id_ * 44 + 12));
+	light_.Diffuse.Intensity = asfloat(SRV_Lights.Load(id_ * 44 + 24));
+	light_.Specular.Color = asfloat(SRV_Lights.Load3(id_ * 44 + 28));
+	light_.Specular.Intensity = asfloat(SRV_Lights.Load(id_ * 44 + 40));
+}
+void LoadPointLight(inout POINT_LIGHT light_, uint id_) {
+	light_.WorldPosition = asfloat(SRV_Lights.Load4(id_ * 48));
+	light_.Diffuse.Color = asfloat(SRV_Lights.Load3(id_ * 48 + 16));
+	light_.Diffuse.Intensity = asfloat(SRV_Lights.Load(id_ * 48 + 28));
+	light_.Specular.Color = asfloat(SRV_Lights.Load3(id_ * 48 + 32));
+	light_.Specular.Intensity = asfloat(SRV_Lights.Load(id_ * 48 + 44));
+}
+//ConstantBuffer<LIGHT> CBV_AmbientLight : register(b0);
+
+cbuffer CBV_Scene : register(b0, space1) {
+	float4x4 ScreenToWorld;
+	float3 WorldPos_Camera;
+	float ModelShininess;
+	int IsUsingBlinnPhong;
+}
+
+float3 CalcDiffuse(
+	in LIGHT light_,
+	in float3 norm_,
+	in float3 lightDir_
+) {
+	float NDotL = saturate(dot(norm_, -lightDir_));
+	return
+		light_.Color *
+		light_.Intensity *
+		NDotL;
+}
+
+float3 CalcSpecularBlinnPhong(
+	in LIGHT light_,
+	in float3 worldPos_,
+	in float3 norm_,
+	in float3 lightDir_
+) {
+	float3 dir_TargetToEye = normalize(WorldPos_Camera.xyz - worldPos_);
+		
+	float3 halfVec = normalize(-lightDir_ + dir_TargetToEye);
+	float dot_N_H = saturate(dot(norm_, halfVec));
+	return
+		light_.Color *
+		light_.Intensity *
+		pow(dot_N_H, ModelShininess);
+}
+
+float3 CalcSpecularPhong(
+	in LIGHT light_,
+	in float3 worldPos_,
+	in float3 norm_,
+	in float3 lightDir_
+) {
+	float3 dir_TargetToEye = normalize(WorldPos_Camera.xyz - worldPos_);
+	
+	float3 refl = reflect(lightDir_, norm_);
+	float dot_R_E = saturate(dot(refl, dir_TargetToEye));
+	return
+		light_.Color *
+		light_.Intensity *
+		pow(dot_R_E, ModelShininess);
+}
+
+//static float Inv_0xFFFFFF = 1.0f / float(0xFFFFFF);
+//static float Inv_0xFF = 1.0f / float(0xFF);
+static float2 Inv_WH = float2(1.0f / 1280.0f, 1.0f / 720.0f);
+
+PSOutput CalcPointLight(VSOutput input_) {
+	PSOutput output;
+	
+	float4 albedo = SRV_GBuffer_Albedo.Sample(Sampler_Default, input_.SVPos.xy * Inv_WH);
+	float3 normal = SRV_GBuffer_Normal.Sample(Sampler_Default, input_.SVPos.xy * Inv_WH).xyz;
+	normal = normal * 2.0f - 1.0f;
+	
+	POINT_LIGHT pointLight;
+	LoadPointLight(pointLight, input_.InstanceID);
+	
+	float depth = SRV_GBuffer_Depth.Load(int3(input_.SVPos.xy, 0.0f));
+	float4 worldPos_Target = mul(float4(input_.SVPos.xy, depth, 1.0f), ScreenToWorld);
+	worldPos_Target /= worldPos_Target.w;
+	
+	float3 d_LightToTarget = worldPos_Target.xyz - pointLight.WorldPosition.xyz;
+	float lightDist = max(length(d_LightToTarget), 0.0625f);
+	float inv_LightDist = 1.0f / lightDist;
+	float3 lightDir = d_LightToTarget * inv_LightDist;
+	
+	float3 light_Diffuse = CalcDiffuse(
+		pointLight.Diffuse,
+		normal,
+		lightDir
+	);
+	
+	float3 light_Specular;
+	if (IsUsingBlinnPhong) {
+		light_Specular = CalcSpecularBlinnPhong(
+			pointLight.Specular,
+			worldPos_Target.xyz,
+			normal,
+			lightDir
+		);
+	}
+	else {
+		light_Specular = CalcSpecularPhong(
+			pointLight.Specular,
+			worldPos_Target.xyz,
+			normal,
+			lightDir
+		);
+	}
+	
+	output.Color = albedo * float4((light_Diffuse + light_Specular) * (inv_LightDist * inv_LightDist), 1.0f);
+	
+	return output;
+}
+
+PSOutput CalcDirectionalLight(VSOutput input_) {
+	PSOutput output;
+	
+	const float4 albedo = SRV_GBuffer_Albedo.Sample(Sampler_Default, input_.SVPos.xy * Inv_WH);
+	float4 normalAndMetalic = SRV_GBuffer_Normal.Sample(Sampler_Default, input_.SVPos.xy * Inv_WH);
+	float3 normal = normalAndMetalic.xyz;
+	normal = normal * 2.0f - 1.0f;
+	
+	float depth = SRV_GBuffer_Depth.Load(int3(input_.SVPos.xy, 0.0f));
+	
+	float4 worldPos_Target = mul(float4(input_.SVPos.xy, depth, 1.0f), ScreenToWorld);
+	worldPos_Target /= worldPos_Target.w;
+	
+	DIRECTIONAL_LIGHT directionalLight;
+	LoadDirectionalLight(directionalLight, input_.InstanceID);
+	
+	float3 light_Diffuse = CalcDiffuse(
+		directionalLight.Diffuse,
+		normal,
+		directionalLight.Direction
+	);
+	
+	float3 light_Specular;
+	if (IsUsingBlinnPhong) {
+		light_Specular = CalcSpecularBlinnPhong(
+			directionalLight.Specular,
+			worldPos_Target.xyz,
+			normal,
+			directionalLight.Direction
+		);
+	}
+	else {
+		light_Specular = CalcSpecularPhong(
+			directionalLight.Specular,
+			worldPos_Target.xyz,
+			normal,
+			directionalLight.Direction
+		);
+	}
+	
+	float metalic = normalAndMetalic.w;
+	float3 light = light_Diffuse + light_Specular * metalic;
+	
+	output.Color = albedo * float4(light, 1.0f);
+	
+	return output;
+}
+
+float4 CalcEnv(
+	in float3 worldPos_,
+	in float3 norm_
+) {
+	const float3 dir_EyeToTarget = normalize(worldPos_ - WorldPos_Camera.xyz);
+	
+	const float3 refl = reflect(dir_EyeToTarget, norm_);
+	const float4 envColor = SRV_EnvironmentMap.Sample(Sampler_Default, refl);
+	
+	return envColor;
+}
+
+PSOutput CalcEnvironmentalLight(VSOutput input_) {
+	PSOutput output;
+	
+	const float4 albedo = SRV_GBuffer_Albedo.Sample(Sampler_Default, input_.SVPos.xy * Inv_WH);
+	float4 normalAndMetalic = SRV_GBuffer_Normal.Sample(Sampler_Default, input_.SVPos.xy * Inv_WH);
+	float3 normal = normalAndMetalic.xyz;
+	normal = normal * 2.0f - 1.0f;
+	
+	float depth = SRV_GBuffer_Depth.Load(int3(input_.SVPos.xy, 0.0f));
+	
+	float4 worldPos_Target = mul(float4(input_.SVPos.xy, depth, 1.0f), ScreenToWorld);
+	worldPos_Target /= worldPos_Target.w;
+	
+	DIRECTIONAL_LIGHT directionalLight;
+	LoadDirectionalLight(directionalLight, input_.InstanceID);
+	
+	float3 light_Diffuse = CalcDiffuse(
+		directionalLight.Diffuse,
+		normal,
+		directionalLight.Direction
+	);
+	
+	float4 envColor = CalcEnv(worldPos_Target.xyz, normal);
+	float metalic = normalAndMetalic.w;
+	output.Color = envColor * metalic;
+	
+	return output;
+}

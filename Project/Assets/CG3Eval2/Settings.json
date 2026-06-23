@@ -1,0 +1,146 @@
+{
+  "General Graphics RS Test": {
+    "Parameters": [
+      {
+        "ShaderVisibility": "Vertex",
+        "ParameterType": "DescriptorTable",
+        "TableName": "VS DescriptorTable"
+      },
+      {
+        "ShaderVisibility": "Pixel",
+        "ParameterType": "DescriptorTable",
+        "TableName": "PS DescriptorTable"
+      },
+      {
+        "ShaderVisibility": "Pixel",
+        "ParameterType": "DescriptorTable",
+        "TableName": "ImageTextures"
+      }
+    ],
+
+    "VS DescriptorTable": [
+      {
+        "RangeType": "CBV",
+        "NumDescriptors": 32,
+        "BaseShaderRegister": 0,
+        "RegisterSpace": 0,
+        "OffsetInDescriptorsFromTableStart": 0
+      },
+      {
+        "RangeType": "SRV",
+        "NumDescriptors": 32,
+        "BaseShaderRegister": 0,
+        "RegisterSpace": 0,
+        "OffsetInDescriptorsFromTableStart": -1
+      },
+      {
+        "RangeType": "UAV",
+        "NumDescriptors": 32,
+        "BaseShaderRegister": 0,
+        "RegisterSpace": 0,
+        "OffsetInDescriptorsFromTableStart": -1
+      }
+    ],
+    "PS DescriptorTable": [
+      {
+        "RangeType": "CBV",
+        "NumDescriptors": 32,
+        "BaseShaderRegister": 0,
+        "RegisterSpace": 0,
+        "OffsetInDescriptorsFromTableStart": 0
+      },
+      {
+        "RangeType": "SRV",
+        "NumDescriptors": 32,
+        "BaseShaderRegister": 0,
+        "RegisterSpace": 0,
+        "OffsetInDescriptorsFromTableStart": -1
+      },
+      {
+        "RangeType": "UAV",
+        "NumDescriptors": 32,
+        "BaseShaderRegister": 0,
+        "RegisterSpace": 0,
+        "OffsetInDescriptorsFromTableStart": -1
+      }
+    ],
+    "ImageTextures": [
+      {
+        "RangeType": "SRV",
+        "NumDescriptors": 32,
+        "BaseShaderRegister": 0,
+        "RegisterSpace": 1,
+        "OffsetInDescriptorsFromTableStart": 0
+      }
+    ],
+
+    "StaticSamplers": [
+      {
+        "Name": "BilinearWrap",
+        "Filter": {
+          "ReductionType": "Standard",
+          "IsAnisotropic": 0,
+          "MinFilter": "Bilinear",
+          "MagFilter": "Bilinear",
+          "MipFilter": "Bilinear"
+        },
+        "TextureAddressU": "Wrap",
+        "TextureAddressV": "Wrap",
+        "TextureAddressW": "Wrap",
+        "ShaderRegister": 0,
+        "ShaderVisibility": "Vertex"
+      },
+      {
+        "Name": "BilinearWrap",
+        "Filter": {
+          "ReductionType": "Standard",
+          "IsAnisotropic": 0,
+          "MinFilter": "Bilinear",
+          "MagFilter": "Bilinear",
+          "MipFilter": "Bilinear"
+        },
+        "TextureAddressU": "Wrap",
+        "TextureAddressV": "Wrap",
+        "TextureAddressW": "Wrap",
+        "ShaderRegister": 0,
+        "ShaderVisibility": "Pixel"
+      }
+    ]
+  },
+
+  "General Compute RS Test": {
+    "Parameters": [
+      {
+        "ShaderVisibility": "All",
+        "ParameterType": "DescriptorTable",
+        "TableName": "CS DescriptorTable"
+      }
+    ],
+
+    "CS DescriptorTable": [
+      {
+        "RangeType": "CBV",
+        "NumDescriptors": 32,
+        "BaseShaderRegister": 0,
+        "RegisterSpace": 0,
+        "OffsetInDescriptorsFromTableStart": 0
+      },
+      {
+        "RangeType": "SRV",
+        "NumDescriptors": 32,
+        "BaseShaderRegister": 0,
+        "RegisterSpace": 0,
+        "OffsetInDescriptorsFromTableStart": -1
+      },
+      {
+        "RangeType": "UAV",
+        "NumDescriptors": 32,
+        "BaseShaderRegister": 0,
+        "RegisterSpace": 0,
+        "OffsetInDescriptorsFromTableStart": -1
+      }
+    ],
+
+    "StaticSamplers": []
+  }
+}
