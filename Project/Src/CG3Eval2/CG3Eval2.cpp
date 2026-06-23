@@ -50,6 +50,11 @@ namespace {
 		Float3 Normal;
 	};
 
+	struct DissolveConstants {
+		uint32_t MaskTextureID;
+		float Threshold;
+	} DissolveC;
+
 	template<uint32_t Div1 = 12U, uint32_t Div2 = 24U>
 		requires(Div1 > 0U && Div2 > 0U)
 	void CreateSphere(
@@ -349,6 +354,11 @@ namespace CG3Eval2 {
 		);
 
 		SimpleFX_->Update({ fxTranslate.x, fxTranslate.y, fxTranslate.z });
+
+		static float dissolveT{ 0.0f };
+		DissolveC.Threshold = std::abs(std::sin(dissolveT));
+		dissolveT += 0.01f;
+		UB_DissolveConstants_.Store(&DissolveC, sizeof(DissolveConstants), 0LLU);
 	}
 
 	void Scene::Render(
@@ -562,6 +572,7 @@ namespace CG3Eval2 {
 			{
 				{ "CG3.Tex0", "Src/CG3Eval2/monsterBall.png" },
 				{ "CG3.Tex1", "Src/CG3Eval2/checkerBoard.png" },
+				{ "CG3.Tex2", "Assets/noise0.png" },
 			}
 		);
 		for (uint32_t idx{ 0U }; idx < static_cast<uint32_t>(texIDs.size()); ++idx) {
@@ -884,6 +895,11 @@ namespace CG3Eval2 {
 		radialBlurParams.NUM_Samples = 10U;
 		radialBlurParams.RCP_NUM_Samples = 1.0f / static_cast<float>(radialBlurParams.NUM_Samples);
 		RadialBlur_->UpdateConstant(&radialBlurParams, sizeof(RadialBlurParams));
+
+		UB_DissolveConstants_.Initialize(device, 256LLU);
+		DX12::CBV::Create(device, GlobalTable_Graphics_.CPUHandle(0U + 96U), UB_DissolveConstants_);
+
+		DissolveC.MaskTextureID = 2U;
 
 		OffscreenTextures_[0].Initialize(device, 1280U, 720U);
 		//OffscreenTextures_[1].Initialize(device, 1280U, 720U);

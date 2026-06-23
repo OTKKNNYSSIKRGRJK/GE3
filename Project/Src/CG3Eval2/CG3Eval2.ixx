@@ -94,5 +94,8 @@ namespace CG3Eval2 {
 		std::unique_ptr<Lumina::Vignetting> Vignetting_;
 		std::unique_ptr<Lumina::Filtering> Filtering_;
 		std::unique_ptr<Lumina::RadialBlur> RadialBlur_;
+
+	private:
+		Lumina::DX12::UploadBuffer UB_DissolveConstants_;
 	};
 }
