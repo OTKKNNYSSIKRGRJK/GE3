@@ -809,6 +809,10 @@ namespace Game::Scene::Impl {
 
 			Skybox_ = std::make_unique<Lumina::Skybox>();
 			Skybox_->Initialize(dxContext_, device, assetMngr, "Assets/skybox.dds");
+
+			SimpleFX3_ = std::make_unique<Lumina::SimpleFX3>();
+			SimpleFX3_->Initialize(dxContext_, device, assetMngr);
+			SimpleFX3_->ResetCylinder({ 24, 3.0f, 5.0f, 1.0f });
 		}
 	}
 

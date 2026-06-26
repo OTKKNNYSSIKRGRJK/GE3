@@ -144,6 +144,8 @@ namespace Game::Scene::Impl {
 
 		Skybox_->Render(cmdList_, GlobalTable_CBV_Scene_);
 
+		SimpleFX3_->Render(cmdList_, PlayerCamera_->VP, 1U);
+
 		D3D12_RESOURCE_BARRIER const barriers_PostGeometryPass[]{
 			Lumina::DX12::Barrier::Transition(
 				Canvas_.RenderTexture(0U),

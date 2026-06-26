@@ -787,6 +787,15 @@ namespace Game::Scene::Impl {
 				animTimer_
 			);
 		}
+
+		SimpleFX3_->ClearBatch();
+		SimpleFX3_->Batch(
+			Lumina::Mat4::SRT(
+				{ 3.0f, 3.0f, 3.0f },
+				{ 0.0f, 0.0f, 0.0f },
+				{ Boss_Kinoko_->WorldPosition().x, Boss_Kinoko_->WorldPosition().y, Boss_Kinoko_->WorldPosition().z }
+			)
+		);
 	}
 
 	void InGame::PlayAnimation(

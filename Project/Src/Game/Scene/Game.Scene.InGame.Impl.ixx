@@ -22,6 +22,9 @@ import Lumina.CG3D.Animation;
 
 import Lumina.Skybox;
 
+import Lumina.SimpleFX2;
+import Lumina.SimpleFX3;
+
 namespace Game::Scene::Impl {
 	struct SkinnedModel {
 		Lumina::CG3D::Collection Collection_;
@@ -209,5 +212,8 @@ namespace Game::Scene::Impl {
 		//----	------	------	------	------	----//
 
 		std::unique_ptr<Lumina::Skybox> Skybox_;
+
+		std::unique_ptr<Lumina::SimpleFX2> SimpleFX2_;
+		std::unique_ptr<Lumina::SimpleFX3> SimpleFX3_;
 	};
 }
