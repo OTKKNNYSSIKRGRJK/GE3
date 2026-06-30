@@ -497,10 +497,17 @@ namespace CG3Eval2 {
 		t += 0.05f;
 		RadialBlur_->UpdateConstant(&radialBlurParams, sizeof(RadialBlurParams));
 
-		Fullscreen_->Render(
+		/*Fullscreen_->Render(
 			cmdList_,
 			GlobalTable_Graphics_.GPUHandle(4U + 64U + 96U),
 			*RadialBlur_
+		);*/
+
+		CG5Random_->UpdateConstant(&t, sizeof(float));
+		Fullscreen_->Render(
+			cmdList_,
+			GlobalTable_Graphics_.GPUHandle(4U + 64U + 96U),
+			*CG5Random_
 		);
 
 		cmdList_->ResourceBarrier(1U, barriers_OSR0 + 1U);
@@ -895,6 +902,15 @@ namespace CG3Eval2 {
 		radialBlurParams.NUM_Samples = 10U;
 		radialBlurParams.RCP_NUM_Samples = 1.0f / static_cast<float>(radialBlurParams.NUM_Samples);
 		RadialBlur_->UpdateConstant(&radialBlurParams, sizeof(RadialBlurParams));
+
+
+		CG5Random_ = std::make_unique<Lumina::CG5Random>();
+		CG5Random_->Initialize(
+			dxContext_,
+			device,
+			*Fullscreen_,
+			L"Assets/CG5/Random.PS.hlsl"
+		);
 
 		UB_DissolveConstants_.Initialize(device, 256LLU);
 		DX12::CBV::Create(device, GlobalTable_Graphics_.CPUHandle(0U + 96U), UB_DissolveConstants_);
