@@ -23,7 +23,7 @@ import Lumina.GradientMapping;
 import Lumina.Vignetting;
 import Lumina.Filtering;
 import Lumina.RadialBlur;
-import Lumina.CG5.Random;
+import Lumina.CG5.Dissolve;
 
 namespace CG3Eval2 {
 	struct Constant_Scene {
@@ -95,7 +95,7 @@ namespace CG3Eval2 {
 		std::unique_ptr<Lumina::Vignetting> Vignetting_;
 		std::unique_ptr<Lumina::Filtering> Filtering_;
 		std::unique_ptr<Lumina::RadialBlur> RadialBlur_;
-		std::unique_ptr<Lumina::CG5Random> CG5Random_;
+		std::unique_ptr<Lumina::CG5Dissolve> CG5Dissolve_;
 
 	private:
 		Lumina::DX12::UploadBuffer UB_DissolveConstants_;

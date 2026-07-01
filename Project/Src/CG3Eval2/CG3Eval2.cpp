@@ -55,6 +55,13 @@ namespace {
 		float Threshold;
 	} DissolveC;
 
+	struct FullscreenDissolveConstants {
+		Float4 MaskedColor;
+		Float4 EdgeColor;
+		float EdgeThreshold_MIN;
+		float EdgeThreshold_MAX;
+	} FSDissolveC;
+
 	template<uint32_t Div1 = 12U, uint32_t Div2 = 24U>
 		requires(Div1 > 0U && Div2 > 0U)
 	void CreateSphere(
@@ -359,6 +366,10 @@ namespace CG3Eval2 {
 		DissolveC.Threshold = std::abs(std::sin(dissolveT));
 		dissolveT += 0.01f;
 		UB_DissolveConstants_.Store(&DissolveC, sizeof(DissolveConstants), 0LLU);
+
+		FSDissolveC.EdgeThreshold_MIN = DissolveC.Threshold;
+		FSDissolveC.EdgeThreshold_MAX = DissolveC.Threshold + 0.03f;
+		CG5Dissolve_->UpdateConstant(&FSDissolveC, sizeof(FullscreenDissolveConstants));
 	}
 
 	void Scene::Render(
@@ -503,11 +514,11 @@ namespace CG3Eval2 {
 			*RadialBlur_
 		);*/
 
-		CG5Random_->UpdateConstant(&t, sizeof(float));
 		Fullscreen_->Render(
 			cmdList_,
 			GlobalTable_Graphics_.GPUHandle(4U + 64U + 96U),
-			*CG5Random_
+			*CG5Dissolve_,
+			GlobalTable_ImageTextures_.GPUHandle(2U)
 		);
 
 		cmdList_->ResourceBarrier(1U, barriers_OSR0 + 1U);
@@ -903,14 +914,15 @@ namespace CG3Eval2 {
 		radialBlurParams.RCP_NUM_Samples = 1.0f / static_cast<float>(radialBlurParams.NUM_Samples);
 		RadialBlur_->UpdateConstant(&radialBlurParams, sizeof(RadialBlurParams));
 
-
-		CG5Random_ = std::make_unique<Lumina::CG5Random>();
-		CG5Random_->Initialize(
+		CG5Dissolve_ = std::make_unique<Lumina::CG5Dissolve>();
+		CG5Dissolve_->Initialize(
 			dxContext_,
 			device,
 			*Fullscreen_,
-			L"Assets/CG5/Random.PS.hlsl"
+			L"Assets/CG5/Dissolve.PS.hlsl"
 		);
+		FSDissolveC.MaskedColor = { 0.5f, 0.2f, 0.25f, 1.0f };
+		FSDissolveC.EdgeColor = { 1.0f, 0.25f, 0.2f, 1.0f };
 
 		UB_DissolveConstants_.Initialize(device, 256LLU);
 		DX12::CBV::Create(device, GlobalTable_Graphics_.CPUHandle(0U + 96U), UB_DissolveConstants_);
