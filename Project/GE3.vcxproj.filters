@@ -347,6 +347,33 @@
     <ClCompile Include="Src\Game\Enemies\Boss.Kinoko.ixx">
       <Filter>Src\Game\Enemies\Boss.Kinoko</Filter>
     </ClCompile>
+    <ClCompile Include="Src\CG4\CG3D.Animation.cpp">
+      <Filter>Src</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\CG4\CG3D.Animation.ixx">
+      <Filter>Src</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\CG4\CG3D.ASSIMP.ixx">
+      <Filter>Src</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\CG4\CG3D.ixx">
+      <Filter>Src</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\CG4\CG3D.Struct.ixx">
+      <Filter>Src</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\CG4\SimpleFX.ixx">
+      <Filter>Src</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\CG4\SimpleFX2.ixx">
+      <Filter>Src</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\CG4\SimpleFX3.ixx">
+      <Filter>Src</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\CG4\Skybox.ixx">
+      <Filter>Src</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include=".editorconfig" />
