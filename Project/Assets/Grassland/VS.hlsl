@@ -121,6 +121,7 @@ GrassBlade::VSOutput main(GrassBlade::VSInput input_, uint instID_ : SV_Instance
 	const float3 p0 = float3(0.0f, 0.0f, 0.0f);
 	const float3 bend = BezierCurve(input_.LocalPos.y, p0, p1, p2, p3);
 	output.Position.xyz += bend;
+	output.Position.y *= 0.3f;
 	
 	output.Position = mul(output.Position, WorldToNDC);
 	

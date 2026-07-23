@@ -16,6 +16,14 @@ namespace Game::Scene::Impl {
 			b_.ATK *= 0.8f;
 			return (b_.Life > 0.0f);
 		}
+		bool UpdateBossBullet(Particle& b_, void const*) {
+			b_.Translate.x += b_.Velocity.x;
+			b_.Translate.y += b_.Velocity.y;
+			b_.Translate.z += b_.Velocity.z;
+			b_.RenderData.RGBA.w *= 0.9f;
+			b_.Life -= 1.0f;
+			return (b_.Life > 0.0f);
+		}
 
 		constexpr float Inv_0xFFFFFFFF{ 1.0f / static_cast<float>(0xFFFFFFFFU) };
 		Lumina::Mat4 const Mat4_I{};
@@ -34,17 +42,18 @@ namespace Game::Scene::Impl {
 
 		auto& rndEngine{ Lumina::Random::Generator() };
 
-		auto emitPlayerBullets{
-			[&, this] () -> void {
-				auto dPos_Normalized{ dPos.Unit() };
+		auto playerATK{
+			[&, this] (float k_, float k2_, float k3_) -> void {
+				/*auto dPos_Normalized{ dPos.Unit() };
 				if (
 					!std::isfinite(dPos_Normalized.x) ||
 					!std::isfinite(dPos_Normalized.y) ||
 					!std::isfinite(dPos_Normalized.z)
 				) {
 					dPos_Normalized = dPos;
-				}
-				for (int i = 0; i < 5; ++i) {
+				}*/
+				constexpr int fan = 15;
+				for (int i = 0; i < fan; ++i) {
 					PlayerBullet b{};
 					{
 						b.Translate = {
@@ -53,17 +62,17 @@ namespace Game::Scene::Impl {
 							Player_->WorldPosition().z,
 						};
 
-						float const angle{ Player_->Angle() + (i - 1) * 0.3f };
+						float const angle{ Player_->Angle() + (i - (fan >> 1)) * 0.05f + k2_ };
 
-						b.Velocity.x = std::cos(angle) * 1.0f;
-						b.Velocity.y = (-dPos_Normalized.y) * 1.0f;
-						b.Velocity.z = std::sin(angle) * 1.0f;
+						b.Velocity.x = std::cos(angle + k3_) * k_;
+						b.Velocity.y = 0.0f;
+						b.Velocity.z = std::sin(angle + k3_) * k_;
 
 						b.Translate.x += b.Velocity.x * 0.5f;
 						b.Translate.y += b.Velocity.y * 0.5f;
 						b.Translate.z += b.Velocity.z * 0.5f;
 
-						b.Scale.x = 2.0f;
+						b.Scale.x = 4.0f;
 						b.Scale.y = 2.0f;
 
 						b.Rotate.x = std::numbers::pi_v<float> * 0.5f + b.Velocity.y;
@@ -93,10 +102,23 @@ namespace Game::Scene::Impl {
 				}
 			}
 		};
-		if (!Player_->IsBeingKnockedBack()) {
-			emitPlayerBullets();
+		auto const& keyboard{ input_.Keyboard() };
+		using Lumina::WinApp::KEY;
+		static int atkCD = 0;
+		if (atkCD == 15) {
+			atkCD = 0;
+		}
+		if (atkCD > 0) {
+			atkCD += 1;
+		}
+		if (!Player_->IsBeingKnockedBack() && keyboard.IsPressed(KEY::Z) && atkCD == 0) {
+			playerATK(1.0f, 0.0f, 0.0f);
+			playerATK(0.8f, -0.1f, 0.2f);
+			playerATK(0.9f, 0.1f, -0.2f);
+			atkCD = 1;
 		}
 		PlayerBullets_->Update(cmdList_, Mat4_I, UpdatePlayerBullet);
+		BossBullets_->Update(cmdList_, Mat4_I, UpdateBossBullet);
 
 		UI_PlayerHPValue_ = UI_PlayerHPValue_ * 0.9f + Player_->HP_ * 0.1f;
 		if (std::abs(UI_PlayerHPValue_ - Player_->HP_) < 1.0E-2) { UI_PlayerHPValue_ = Player_->HP_; }

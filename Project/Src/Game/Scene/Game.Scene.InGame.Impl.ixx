@@ -116,6 +116,7 @@ namespace Game::Scene::Impl {
 		std::unique_ptr<ParticleSystem<Particle>> KnockEffects_{ nullptr };
 
 		std::unique_ptr<ParticleSystem<PlayerBullet>> PlayerBullets_{ nullptr };
+		std::unique_ptr<ParticleSystem<Particle>> BossBullets_{ nullptr };
 
 		std::unique_ptr<Lumina::Grassland> Grassland_{ nullptr };
 
@@ -190,6 +191,7 @@ namespace Game::Scene::Impl {
 
 		Lumina::DX12::DescriptorTable GlobalTable_Materials_;
 		Lumina::DX12::UploadBuffer UB_Transforms_;
+		Lumina::DX12::UploadBuffer UB_Transforms2_;
 
 		Lumina::DX12::DescriptorTable GlobalTable_CBV_Scene_;
 

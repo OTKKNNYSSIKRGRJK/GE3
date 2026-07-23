@@ -33,6 +33,7 @@ import Lumina.AssetManager;
 
 #if defined(_DEBUG)
 import Lumina.Utils.ImGui;
+import Lumina.EditorTest;
 #endif
 
 import Lumina.Utils.Time;
@@ -153,7 +154,7 @@ int32_t WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	[[maybe_unused]] auto const& swapChain{ dx12Context.SwapChain() };
 
 	#if defined(_DEBUG)
-	Lumina::Utils::ImGuiManager::Initialize(mainWindow.Handle(), device, swapChain, gpuDH);
+	Lumina::Utils::ImGuiManager::Initialize(mainWindow.Handle(), device, dx12Context.DirectQueue(), swapChain, gpuDH);
 	winAppContext.RegisterCallback(Lumina::Utils::ImGuiManager::WindowProcedure);
 	SetImGuiAppearance();
 	#endif
@@ -181,6 +182,8 @@ int32_t WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	std::unique_ptr<Game::Scene::InGame> scene_InGame{ new Game::Scene::InGame{} };
 	scene_InGame->Initialize(dx12Context, assetMngr);
+
+	Lumina::Editor::EditorLayout editorLayout{};
 
 	//----	------	------	------	------	----//
 
@@ -233,6 +236,9 @@ int32_t WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		cmdList->OMSetRenderTargets(1U, &rtv, false, nullptr);
 		Lumina::Utils::ImGuiManager::EndFrame(cmdList);
 		#endif
+
+		//editorLayout.OnImGuiRender();
+		//editorLayout.DrawWindowMenu();
 
 		//----	------	------	------	------	----//
 

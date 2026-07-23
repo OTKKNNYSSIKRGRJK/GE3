@@ -65,6 +65,12 @@
     <Filter Include="Src\Game\Scene\InGame">
       <UniqueIdentifier>{95ad7316-acee-48b0-8e5b-896d90693b36}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Src\Lumina\Test">
+      <UniqueIdentifier>{bcefcc79-5362-4467-bb29-ecd9530d453f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Src\Lumina\Test\Editor">
+      <UniqueIdentifier>{0c366062-b124-42a7-ac85-1e011bd88024}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
@@ -373,6 +379,33 @@
     </ClCompile>
     <ClCompile Include="Src\CG4\Skybox.ixx">
       <Filter>Src</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Test\BehaviorTree.ixx">
+      <Filter>Src\Lumina\Test</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Test\Editor\Lumina.EditorTest.ixx">
+      <Filter>Src\Lumina\Test\Editor</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Test\Editor\Lumina.Editor.Panel.Base.ixx">
+      <Filter>Src\Lumina\Test\Editor</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Test\Editor\Lumina.Editor.Panel.Hierarchy.cpp">
+      <Filter>Src\Lumina\Test\Editor</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Test\Editor\Lumina.Editor.Panel.Hierarchy.ixx">
+      <Filter>Src\Lumina\Test\Editor</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Test\Editor\Lumina.Editor.Panel.Inspector.cpp">
+      <Filter>Src\Lumina\Test\Editor</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Test\Editor\Lumina.Editor.Panel.Inspector.ixx">
+      <Filter>Src\Lumina\Test\Editor</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Test\Editor\Lumina.Editor.Layout.cpp">
+      <Filter>Src\Lumina\Test\Editor</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Test\Editor\Lumina.Editor.Layout.ixx">
+      <Filter>Src\Lumina\Test\Editor</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

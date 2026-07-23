@@ -336,6 +336,9 @@ namespace Game::Scene::Impl {
 		{
 			PlayerBullets_.reset(new ParticleSystem<PlayerBullet>{});
 			PlayerBullets_->Initialize(dxContext_, 512U);
+			BossBullets_.reset(new ParticleSystem<Particle>{});
+			BossBullets_->Initialize(dxContext_, 2048U);
+			Boss_Kinoko_->BuildBT(BossBullets_.get());
 		}
 
 		// DeferredLighting
@@ -801,11 +804,14 @@ namespace Game::Scene::Impl {
 			);
 
 			UB_Transforms_.Initialize(device, 256LLU);
-			GlobalTable_CBV_Scene_ = dxContext_.GlobalDescriptorHeap().Allocate(1U);
+			UB_Transforms2_.Initialize(device, 256LLU);
+			GlobalTable_CBV_Scene_ = dxContext_.GlobalDescriptorHeap().Allocate(2U);
 			Lumina::DX12::CBV::Create(device, GlobalTable_CBV_Scene_.CPUHandle(0U), UB_Transforms_);
+			Lumina::DX12::CBV::Create(device, GlobalTable_CBV_Scene_.CPUHandle(1U), UB_Transforms2_);
 
 			GlobalTable_Materials_ = dxContext_.GlobalDescriptorHeap().Allocate(16U);
 			Lumina::DX12::CBV::Create(device, GlobalTable_Materials_.CPUHandle(0U), UB_PlayerMaterial_);
+			Lumina::DX12::CBV::Create(device, GlobalTable_Materials_.CPUHandle(1U), UB_BossMaterial_);
 
 			Skybox_ = std::make_unique<Lumina::Skybox>();
 			Skybox_->Initialize(dxContext_, device, assetMngr, "Assets/skybox.dds");

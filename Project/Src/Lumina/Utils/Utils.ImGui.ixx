@@ -26,6 +26,7 @@ export namespace Lumina::Utils {
 		static void Initialize(
 			HWND hWnd_,
 			DX12::GraphicsDevice const& device_,
+			DX12::CommandQueue& cmdQueue_,
 			DX12::FrameBufferSwapChain const& swapChain_,
 			DX12::DescriptorHeap const& srvHeap_
 		);
@@ -54,6 +55,7 @@ namespace Lumina::Utils {
 	void ImGuiManager::Initialize(
 		HWND hWnd_,
 		DX12::GraphicsDevice const& device_,
+		DX12::CommandQueue& cmdQueue_,
 		DX12::FrameBufferSwapChain const& swapChain_,
 		DX12::DescriptorHeap const& srvHeap_
 	) {
@@ -67,17 +69,29 @@ namespace Lumina::Utils {
 		);
 
 		IMGUI_CHECKVERSION();
+
 		ImGui::CreateContext();
 		ImGui::StyleColorsDark();
+
+		//[[maybe_unused]] auto& flags{ ImGui::GetIO().BackendFlags };
+
+		ImGui_ImplDX12_InitInfo dx12InitInfo{};
+		{
+			dx12InitInfo.Device = device_.Get();
+			dx12InitInfo.CommandQueue = cmdQueue_.Get();
+			dx12InitInfo.NumFramesInFlight = swapChain_.Desc().BufferCount;
+			dx12InitInfo.RTVFormat = swapChain_.RTVDesc().Format;
+			dx12InitInfo.DSVFormat = DXGI_FORMAT_D24_UNORM_S8_UINT;
+			dx12InitInfo.SrvDescriptorHeap = srvHeap_.Get();
+			dx12InitInfo.LegacySingleSrvCpuDescriptor = srvForImGui.CPUHandle(0U);
+			dx12InitInfo.LegacySingleSrvGpuDescriptor = srvForImGui.GPUHandle(0U);
+		}
+
 		ImGui_ImplWin32_Init(hWnd_);
-		ImGui_ImplDX12_Init(
-			device_.Get(),
-			swapChain_.Desc().BufferCount,
-			swapChain_.RTVDesc().Format,
-			srvHeap_.Get(),
-			srvForImGui.CPUHandle(0U),
-			srvForImGui.GPUHandle(0U)
-		);
+		ImGui_ImplDX12_Init(&dx12InitInfo);
+
+		ImGui::GetIO().Fonts->Build();
+		ImGui::GetIO().ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 
 		logger.Message<0U>("ImGui initialization completed.\n");
 	}
@@ -94,8 +108,8 @@ namespace Lumina::Utils {
 	}
 
 	void ImGuiManager::BeginFrame() {
-		ImGui_ImplDX12_NewFrame();
 		ImGui_ImplWin32_NewFrame();
+		ImGui_ImplDX12_NewFrame();
 		ImGui::NewFrame();
 	}
 

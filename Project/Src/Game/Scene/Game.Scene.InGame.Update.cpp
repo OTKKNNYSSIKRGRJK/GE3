@@ -449,24 +449,24 @@ namespace Game::Scene::Impl {
 		for (it_PlayerBullet.Begin(); !it_PlayerBullet.End(); it_PlayerBullet.Next()) {
 			auto& b{ *it_PlayerBullet };
 
-			// Homing
-			{
-				Lumina::Vec2 const d_XZ{
-					Boss_Kinoko_->WorldPosition().x - b.Translate.x,
-					Boss_Kinoko_->WorldPosition().z - b.Translate.z
-				};
-				Lumina::Vec2 d_XZ_Normalized = d_XZ.Unit();
-				if (!std::isfinite(d_XZ_Normalized.x) || !std::isfinite(d_XZ_Normalized.y)) {
-					d_XZ_Normalized = { 0.0f, 0.0f };
-				}
-				Lumina::Vec2 vTmp{
-					b.Velocity.x + d_XZ_Normalized.x * (0.3f - b.Velocity.y),
-					b.Velocity.z + d_XZ_Normalized.y * (0.3f - b.Velocity.y)
-				};
-				vTmp = vTmp.Unit();
-				b.Velocity.x = vTmp.x;
-				b.Velocity.z = vTmp.y;
-			}
+			//// Homing
+			//{
+			//	Lumina::Vec2 const d_XZ{
+			//		Boss_Kinoko_->WorldPosition().x - b.Translate.x,
+			//		Boss_Kinoko_->WorldPosition().z - b.Translate.z
+			//	};
+			//	Lumina::Vec2 d_XZ_Normalized = d_XZ.Unit();
+			//	if (!std::isfinite(d_XZ_Normalized.x) || !std::isfinite(d_XZ_Normalized.y)) {
+			//		d_XZ_Normalized = { 0.0f, 0.0f };
+			//	}
+			//	Lumina::Vec2 vTmp{
+			//		b.Velocity.x + d_XZ_Normalized.x * (0.3f - b.Velocity.y),
+			//		b.Velocity.z + d_XZ_Normalized.y * (0.3f - b.Velocity.y)
+			//	};
+			//	vTmp = vTmp.Unit();
+			//	b.Velocity.x = vTmp.x;
+			//	b.Velocity.z = vTmp.y;
+			//}
 
 			if (!List_PointLight_.IsFull()) {
 				auto& light{ List_PointLight_.New() };
@@ -618,6 +618,57 @@ namespace Game::Scene::Impl {
 			}
 		}
 
+		Lumina::List<Particle>::Iterator it_BossATK{ BossBullets_->InstanceList() };
+		for (it_BossATK.Begin(); !it_BossATK.End(); it_BossATK.Next()) {
+			auto& atk{ *it_BossATK };
+			
+			// Collision detection
+			{
+				Lumina::Vec3 const d_XYZ{
+					Player_->WorldPosition().x - atk.Translate.x,
+					Player_->WorldPosition().y - atk.Translate.y,
+					Player_->WorldPosition().z - atk.Translate.z
+				};
+				if (Lumina::Vec3::Dot(d_XYZ, d_XYZ) < 9.0f) {
+					if (!Player_->IsBeingKnockedBack()) {
+						Player_->KnockedBack(1.0f, { d_XYZ.x, d_XYZ.z });
+						Player_->HP_ -= 0.1f;
+					}
+					atk.Life = 0.0f;
+				}
+			}
+
+			/*if (!List_PointLight_.IsFull()) {
+				auto& light{ List_PointLight_.New() };
+
+				light.WorldPosition = {
+					atk.Translate.x,
+					atk.Translate.y,
+					atk.Translate.z,
+					1.0f
+				};
+				light.RGB = {
+					atk.RenderData.RGBA.x,
+					atk.RenderData.RGBA.y,
+					atk.RenderData.RGBA.z
+				};
+				light.Intensity = atk.RenderData.RGBA.w * 50.0f;
+
+				auto& lightSphere{ List_LocalToWorld_LightSphere_.New() };
+
+				float const radius{ Lumina::LightSphereRadius(1024.0f, light.Intensity, 1.0f, 1.0f, 0.5f) };
+				lightSphere = {
+					radius, 0.0f, 0.0f, 0.0f,
+					0.0f, radius, 0.0f, 0.0f,
+					0.0f, 0.0f, radius, 0.0f,
+					light.WorldPosition.x,
+					light.WorldPosition.y,
+					light.WorldPosition.z,
+					1.0f,
+				};
+			}*/
+		}
+
 		Arr_Index_ActivePointLight_.clear();
 		Lumina::List<Lumina::PointLight>::Iterator it_Light{ List_PointLight_ };
 		for (it_Light.Begin(); !it_Light.End(); it_Light.Next()) {
@@ -744,13 +795,20 @@ namespace Game::Scene::Impl {
 					time = 0.0f;
 				}
 			}
+			/*if (PlayerJumpEffectEmitFrameCount || PlayerDashEffectEmitFrameCount) {
+				time += 0.01f;
+				PPConstants_.Time = time;
+				auto playerNDCPos = Lumina::Vec4{ Player_->WorldPosition() } * PlayerCamera_->VP;
+				PPConstants_.PlayerNDCPos = { playerNDCPos.x, playerNDCPos.y };
+				PPConstants_.IsEnemySuccessfullyAttacking = 1;
+			}*/
 		}
 		{
 			static float time = 0.0f;
 			if (Player_->IsBeingKnockedBack()) {
 				time += 0.01f;
 				PPConstants_.Time = time;
-				auto playerNDCPos = Lumina::Vec4{ Boss_Kinoko_->WorldPosition() } * PlayerCamera_->VP;
+				auto playerNDCPos = Lumina::Vec4{ Player_->WorldPosition() } * PlayerCamera_->VP;
 				PPConstants_.PlayerNDCPos = { playerNDCPos.x, playerNDCPos.y };
 				PPConstants_.IsEnemySuccessfullyAttacking = 1;
 			}

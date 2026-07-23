@@ -1,5 +1,8 @@
 export module Game.Boss.Kinoko;
 
+import <memory>;
+import BehaviorTree;
+
 import Lumina.DX12;
 
 import Lumina.Math;
@@ -91,5 +94,10 @@ namespace Game {
 		float MaxHP_{};
 		float Inv_MaxHP_{};
 		float HP_{};
+
+	public:
+		auto BuildBT(void* bossParticleSystem_) -> void;
+	private:
+		std::unique_ptr<Lumina::Behavior::Composite> BTRoot_;
 	};
 }
