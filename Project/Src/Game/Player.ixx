@@ -23,6 +23,7 @@ namespace Game {
 		constexpr int32_t IsTriggered_Jump() const noexcept { return Trigger_Jump_; }
 		constexpr int32_t IsTriggered_Dash() const noexcept { return Trigger_Dash_; }
 
+		inline int32_t IsMoving() const noexcept { return Lumina::Vec3::Dot(Velocity_, Velocity_) > 0.0f; }
 		constexpr int32_t IsDashing() const noexcept { return (DashStatus_ == 2); }
 
 		constexpr int32_t IsBeingKnockedBack() const noexcept { return IsBeingKnockedBack_; }

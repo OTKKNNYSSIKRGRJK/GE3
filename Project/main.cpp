@@ -38,6 +38,8 @@ import Lumina.EditorTest;
 
 import Lumina.Utils.Time;
 
+import Game.Scene;
+import Game.Scene.Title;
 import Game.Scene.InGame;
 
 namespace {
@@ -180,10 +182,12 @@ int32_t WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	//----	------	------	------	------	----//
 
+	std::unique_ptr<Game::Scene::Title> scene_Title{ new Game::Scene::Title{} };
+	scene_Title->Initialize(dx12Context, assetMngr);
 	std::unique_ptr<Game::Scene::InGame> scene_InGame{ new Game::Scene::InGame{} };
 	scene_InGame->Initialize(dx12Context, assetMngr);
 
-	Lumina::Editor::EditorLayout editorLayout{};
+	//Lumina::Editor::EditorLayout editorLayout{};
 
 	//----	------	------	------	------	----//
 
@@ -214,8 +218,16 @@ int32_t WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		}
 		grassland->Update(dx12Context, *vpInUse, player0.ModelTranslate(), playerRadius);*/
 
-		scene_InGame->Update(dx12Context, cmdList, mainWindowRawInput);
-		scene_InGame->Render(dx12Context, cmdList);
+		switch (Game::Scene::Flag) {
+		case 0:
+			scene_Title->Update(dx12Context, cmdList, mainWindowRawInput);
+			scene_Title->Render(dx12Context, cmdList);
+			break;
+		case 1:
+			scene_InGame->Update(dx12Context, cmdList, mainWindowRawInput);
+			scene_InGame->Render(dx12Context, cmdList);
+			break;
+		}
 
 		//----	------	------	------	------	----//
 

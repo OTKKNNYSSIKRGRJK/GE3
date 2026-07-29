@@ -740,10 +740,13 @@ namespace Game::Scene::Impl {
 			PlayerSkinnedInstance_->MeshRotate_ = { 0.0f, 0.0f, 0.0f };
 			PlayerSkinnedInstance_->MeshTranslate_ = { 0.0f, 0.0f, 0.0f };
 
+			auto animation_idle{ Lumina::CG3D::LoadAnimationFile("Idle.gltf", "Assets/Neki") };
 			auto animation_run{ Lumina::CG3D::LoadAnimationFile("Cool_Run.gltf", "Assets/Neki") };
 			
+			animDatabase_["Idle"] = animation_idle[0];
 			animDatabase_["Run"] = animation_run[0];
-			PlayAnimation("Run", true);
+			PlayAnimation("Idle", true);
+			animTimer_ = 0.0f;
 
 			auto config{ Lumina::Utils::LoadFromFile<nlohmann::json>("Assets/Configs/SkinnedMesh.json") };
 			auto&& rsSetup{ Lumina::DX12::LoadRootSignatureSetup(config.at("RS")) };

@@ -206,6 +206,12 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="Src\Game\Scene\Game.Scene.InGame.Render.cpp" />
     <ClCompile Include="Src\Game\Scene\Game.Scene.InGame.Startup.cpp" />
     <ClCompile Include="Src\Game\Scene\Game.Scene.InGame.Update.cpp" />
+    <ClCompile Include="Src\Game\Scene\Game.Scene.ixx" />
+    <ClCompile Include="Src\Game\Scene\Title\Game.Scene.Title.Impl.ixx" />
+    <ClCompile Include="Src\Game\Scene\Title\Game.Scene.Title.Initialize.cpp" />
+    <ClCompile Include="Src\Game\Scene\Title\Game.Scene.Title.ixx" />
+    <ClCompile Include="Src\Game\Scene\Title\Game.Scene.Title.Render.cpp" />
+    <ClCompile Include="Src\Game\Scene\Title\Game.Scene.Title.Update.cpp" />
     <ClCompile Include="Src\Lumina\Container\Container.Bitset.ixx" />
     <ClCompile Include="Src\Lumina\Container\Container.List.ixx" />
     <ClCompile Include="Src\Lumina\DeferredLighting.cpp" />

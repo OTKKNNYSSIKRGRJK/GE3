@@ -823,6 +823,12 @@ namespace Game::Scene::Impl {
 		}
 		UB_PostProcessingConstants_.Store(&PPConstants_, sizeof(PostProcessingConstants), 0LLU);
 		
+		if (Player_->IsMoving()) {
+			PlayAnimation("Run", true);
+		}
+		else {
+			PlayAnimation("Idle", true);
+		}
 
 		if (currentAnim_) {
 			animTimer_ += 1.0f / 60.0f * 4.0f;
@@ -861,7 +867,7 @@ namespace Game::Scene::Impl {
 		bool isLoop_
 	) {
 		auto it = animDatabase_.find(name_.data());
-		animTimer_ = 0.0f;
+		//animTimer_ = 0.0f;
 		IsAnimationLoop_ = isLoop_;
 		if (it != animDatabase_.end()) {
 			currentAnim_ = &(it->second);
