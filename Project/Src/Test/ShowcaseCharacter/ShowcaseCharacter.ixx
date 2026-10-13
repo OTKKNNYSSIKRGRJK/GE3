@@ -108,6 +108,11 @@ export namespace Lumina {
 		void Play(std::string_view name_, bool isLoop_ = true);
 		// deltaTime_ × AnimationSpeed だけ進めてスキンクラスタを更新する
 		void Advance(float deltaTime_);
+		// 指定したクリップの、指定した時刻（クリップ上の秒）の姿勢にする。時刻を外から決めたいとき用（Outro など）。
+		// ループしない（範囲外はクランプ）。AnimationSpeed は掛けない。クリップが無ければ何もしない
+		void Pose(std::string_view name_, float clipTime_);
+		// クリップの長さ（クリップ上の秒）。無ければ 0
+		auto AnimationDuration(std::string_view name_) const -> float;
 
 		auto AnimationNames() const noexcept -> std::vector<std::string> const& { return AnimationNames_; }
 		auto CurrentAnimationName() const noexcept -> std::string const& { return CurrentAnimationName_; }

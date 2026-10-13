@@ -296,6 +296,30 @@ namespace Lumina {
 		AnimationTime_ = 0.0f;
 	}
 
+	void ShowcaseCharacter::Pose(std::string_view name_, float clipTime_) {
+		auto const itr{ Skinned_->Animations.find(std::string{ name_ }) };
+		if (itr == Skinned_->Animations.end()) { return; }
+
+		CurrentAnimation_ = &(itr->second);
+		CurrentAnimationName_ = itr->first;
+		IsLoop_ = false;
+
+		float const duration{ CurrentAnimation_->DurationInSeconds };
+		AnimationTime_ = (duration > 0.0f) ? std::clamp(clipTime_, 0.0f, duration) : 0.0f;
+
+		CG3D::Update(
+			Skinned_->SkinCluster,
+			Skinned_->Skeleton,
+			*CurrentAnimation_,
+			AnimationTime_
+		);
+	}
+
+	auto ShowcaseCharacter::AnimationDuration(std::string_view name_) const -> float {
+		auto const itr{ Skinned_->Animations.find(std::string{ name_ }) };
+		return (itr != Skinned_->Animations.end()) ? itr->second.DurationInSeconds : 0.0f;
+	}
+
 	auto ShowcaseCharacter::CurrentAnimationTake() const noexcept -> std::string const& {
 		static std::string const empty{};
 		return (CurrentAnimation_ != nullptr) ? CurrentAnimation_->Name : empty;

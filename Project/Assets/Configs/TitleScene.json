@@ -1,18 +1,12 @@
 {
   "Camera": {
     "AutoOrbit": true,
-    "ClearColor": [
-      0.0,
-      0.0,
-      0.0,
-      1.0
-    ],
-    "Distance": 13.049216,
-    "FovY": 0.789797,
+    "Distance": 15.375153,
+    "FovY": 0.771898,
     "OrbitSpeed": 0.78,
-    "Pitch": -0.045742,
-    "TargetY": 2.396721,
-    "Yaw": 0.766447
+    "Pitch": 0.121134,
+    "TargetY": 2.883064,
+    "Yaw": 0.068774
   },
   "CameraSway": {
     "Distance": {
@@ -572,6 +566,150 @@
     "UnselectedScale": 0.943,
     "Width": 360.0
   },
+  "Outro": {
+    "Animation": {
+      "ChargeClip": "ATK1",
+      "ChargeSpeed": 0.6,
+      "ChargeStart": 0.0,
+      "FollowSpeedScale": 0.5,
+      "HitStopDuration": 0.1,
+      "SlashTime": 1.23,
+      "SwingClip": "ATK1",
+      "SwingSpeed": 1.8
+    },
+    "Camera": {
+      "Approach": {
+        "Distance": 6.5,
+        "FovY": 1.0,
+        "Pitch": 0.276,
+        "TargetY": 4.188
+      },
+      "PushDistanceScale": 1.2,
+      "PushFovYAdd": 0.16,
+      "ShakeAmplitude": 0.5,
+      "ShakeDuration": 0.25,
+      "ShakeFrequency": 24.0,
+      "YawOffset": 2.718
+    },
+    "FirePillar": {
+      "HeightPeak": 1.6,
+      "IntensityPeak": 2.5,
+      "LightPeak": 2.0,
+      "RiseCurve": 2.0
+    },
+    "MagicCircle": {
+      "CollapseDuration": 0.55,
+      "CollapseStagger": 0.2,
+      "CollapseStart": 0.25,
+      "FadeOutDuration": 0.2,
+      "IntensityBoost": 1.8,
+      "ShrinkAmount": 0.3,
+      "SpinMultiplier": 6.0
+    },
+    "Post": {
+      "Bloom": {
+        "Base": 0.0,
+        "Charge": 0.4,
+        "Hit": 1.5,
+        "Split": 2.0
+      },
+      "BloomRadiusPx": 32.0,
+      "BloomTaps": 16,
+      "BloomThreshold": 0.6,
+      "Chromatic": {
+        "Base": 0.0059,
+        "Charge": 0.0157,
+        "Hit": 0.0211,
+        "Split": 0.0361
+      },
+      "Vignette": {
+        "Base": 0.0,
+        "Charge": 0.1,
+        "Hit": 0.5,
+        "Split": 0.9
+      },
+      "VignetteColor": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "VignetteRadius": 0.45,
+      "VignetteSoftness": 0.5,
+      "ZoomBlur": {
+        "Base": 0.0,
+        "Charge": 0.02,
+        "Hit": 0.034,
+        "Split": 0.102
+      },
+      "ZoomTaps": 16
+    },
+    "Rays": {
+      "ChargeLevel": 0.309,
+      "Color": [
+        0.946078,
+        0.897792,
+        0.672458
+      ],
+      "CoreColor": [
+        0.54902,
+        0.438202,
+        0.279892
+      ],
+      "CoreIntensity": 1.087,
+      "CoreRadius": 0.048,
+      "DecayDuration": 1.265,
+      "Enabled": true,
+      "FlickerSpeed": 8.0,
+      "LengthAfter": 1.363,
+      "LengthCharge": 1.418,
+      "LengthPeak": 1.487,
+      "Peak": 2.822,
+      "RayCount": 40,
+      "RotateSpeed": 0.3,
+      "Sharpness": 6.0
+    },
+    "Screen": {
+      "FlashAttack": 0.02,
+      "FlashDecay": 0.2,
+      "FlashPeak": 0.8,
+      "WhiteRampDuration": 0.4
+    },
+    "Timeline": {
+      "ChargeEnd": 1.3,
+      "ImpactEnd": 1.65,
+      "SplitEnd": 2.693,
+      "SwingEnd": 1.55,
+      "WhiteEnd": 3.2
+    },
+    "UI": {
+      "FadeDuration": 0.35,
+      "SelectedGlowBoost": 3.0
+    },
+    "WeaponGlow": {
+      "AlphaScale": 2.0,
+      "FlareAlpha": 1.0,
+      "FlareAtlas": 4,
+      "FlareCameraOffset": 0.3,
+      "FlareChargeLevel": 0.35,
+      "FlareColor": [
+        1.0,
+        0.95,
+        0.85
+      ],
+      "FlareFadeOutDuration": 0.3,
+      "FlareFlickerDepth": 0.35,
+      "FlareFlickerFrequency": 12.0,
+      "FlareSize": 2.5,
+      "FlareSpin": 1.5,
+      "RateScale": 4.0,
+      "SizeScale": 1.5,
+      "SpanBegin": 0.0,
+      "StartFlash": 0.6,
+      "StartFlashDuration": 0.25,
+      "Steps": 3,
+      "WhiteHot": 0.8
+    }
+  },
   "Particles": {
     "Aura": {
       "Alpha": 0.225,
@@ -665,7 +803,7 @@
       "Value": 1.111
     }
   },
-  "TimeScale": 0.363022,
+  "TimeScale": 1.655053,
   "TimeScaleSway": {
     "Channel": {
       "Dwell": 0.52,

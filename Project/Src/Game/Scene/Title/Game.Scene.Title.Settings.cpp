@@ -474,6 +474,149 @@ namespace Game::Scene::Impl {
 			ar_("Atlas", v_.Atlas);
 		}
 
+		template<typename Ar, typename T> requires Is<T, OutroTimeline>
+		void Visit(Ar& ar_, T& v_) {
+			ar_("ChargeEnd", v_.ChargeEnd);
+			ar_("SwingEnd", v_.SwingEnd);
+			ar_("ImpactEnd", v_.ImpactEnd);
+			ar_("SplitEnd", v_.SplitEnd);
+			ar_("WhiteEnd", v_.WhiteEnd);
+		}
+
+		template<typename Ar, typename T> requires Is<T, OutroCameraStyle>
+		void Visit(Ar& ar_, T& v_) {
+			ar_.Object("Approach", v_.Approach, [](auto& a_, auto& x_) { Visit(a_, x_); });
+			ar_("YawOffset", v_.YawOffset);
+			ar_("PushDistanceScale", v_.PushDistanceScale);
+			ar_("PushFovYAdd", v_.PushFovYAdd);
+			ar_("ShakeAmplitude", v_.ShakeAmplitude);
+			ar_("ShakeDuration", v_.ShakeDuration);
+			ar_("ShakeFrequency", v_.ShakeFrequency);
+		}
+
+		template<typename Ar, typename T> requires Is<T, OutroMagicCircleStyle>
+		void Visit(Ar& ar_, T& v_) {
+			ar_("SpinMultiplier", v_.SpinMultiplier);
+			ar_("IntensityBoost", v_.IntensityBoost);
+			ar_("CollapseStart", v_.CollapseStart);
+			ar_("CollapseDuration", v_.CollapseDuration);
+			ar_("CollapseStagger", v_.CollapseStagger);
+			ar_("ShrinkAmount", v_.ShrinkAmount);
+			ar_("FadeOutDuration", v_.FadeOutDuration);
+		}
+
+		template<typename Ar, typename T> requires Is<T, OutroFirePillarStyle>
+		void Visit(Ar& ar_, T& v_) {
+			ar_("IntensityPeak", v_.IntensityPeak);
+			ar_("HeightPeak", v_.HeightPeak);
+			ar_("LightPeak", v_.LightPeak);
+			ar_("RiseCurve", v_.RiseCurve);
+		}
+
+		template<typename Ar, typename T> requires Is<T, OutroUIStyle>
+		void Visit(Ar& ar_, T& v_) {
+			ar_("FadeDuration", v_.FadeDuration);
+			ar_("SelectedGlowBoost", v_.SelectedGlowBoost);
+		}
+
+		template<typename Ar, typename T> requires Is<T, OutroScreenStyle>
+		void Visit(Ar& ar_, T& v_) {
+			ar_("WhiteRampDuration", v_.WhiteRampDuration);
+			ar_("FlashPeak", v_.FlashPeak);
+			ar_("FlashAttack", v_.FlashAttack);
+			ar_("FlashDecay", v_.FlashDecay);
+		}
+
+		template<typename Ar, typename T> requires Is<T, OutroRaysStyle>
+		void Visit(Ar& ar_, T& v_) {
+			ar_("Enabled", v_.Enabled);
+			ar_("ChargeLevel", v_.ChargeLevel);
+			ar_("Peak", v_.Peak);
+			ar_("DecayDuration", v_.DecayDuration);
+			ar_("LengthCharge", v_.LengthCharge);
+			ar_("LengthPeak", v_.LengthPeak);
+			ar_("LengthAfter", v_.LengthAfter);
+			ar_("RayCount", v_.RayCount);
+			ar_("Sharpness", v_.Sharpness);
+			ar_("RotateSpeed", v_.RotateSpeed);
+			ar_("FlickerSpeed", v_.FlickerSpeed);
+			ar_("Color", v_.Color);
+			ar_("CoreColor", v_.CoreColor);
+			ar_("CoreRadius", v_.CoreRadius);
+			ar_("CoreIntensity", v_.CoreIntensity);
+		}
+
+		template<typename Ar, typename T> requires Is<T, OutroAnimationStyle>
+		void Visit(Ar& ar_, T& v_) {
+			ar_.Chars("ChargeClip", v_.ChargeClip);
+			ar_("ChargeStart", v_.ChargeStart);
+			ar_("ChargeSpeed", v_.ChargeSpeed);
+			ar_.Chars("SwingClip", v_.SwingClip);
+			ar_("SlashTime", v_.SlashTime);
+			ar_("SwingSpeed", v_.SwingSpeed);
+			ar_("HitStopDuration", v_.HitStopDuration);
+			ar_("FollowSpeedScale", v_.FollowSpeedScale);
+		}
+
+		template<typename Ar, typename T> requires Is<T, OutroWeaponGlowStyle>
+		void Visit(Ar& ar_, T& v_) {
+			ar_("Steps", v_.Steps);
+			ar_("StartFlash", v_.StartFlash);
+			ar_("StartFlashDuration", v_.StartFlashDuration);
+			ar_("RateScale", v_.RateScale);
+			ar_("SpanBegin", v_.SpanBegin);
+			ar_("SizeScale", v_.SizeScale);
+			ar_("AlphaScale", v_.AlphaScale);
+			ar_("WhiteHot", v_.WhiteHot);
+			ar_("FlareChargeLevel", v_.FlareChargeLevel);
+			ar_("FlareFadeOutDuration", v_.FlareFadeOutDuration);
+			ar_("FlareSize", v_.FlareSize);
+			ar_("FlareAlpha", v_.FlareAlpha);
+			ar_("FlareColor", v_.FlareColor);
+			ar_("FlareFlickerDepth", v_.FlareFlickerDepth);
+			ar_("FlareFlickerFrequency", v_.FlareFlickerFrequency);
+			ar_("FlareSpin", v_.FlareSpin);
+			ar_("FlareCameraOffset", v_.FlareCameraOffset);
+			ar_("FlareAtlas", v_.FlareAtlas);
+		}
+
+		template<typename Ar, typename T> requires Is<T, OutroPostCurve>
+		void Visit(Ar& ar_, T& v_) {
+			ar_("Base", v_.Base);
+			ar_("Charge", v_.Charge);
+			ar_("Hit", v_.Hit);
+			ar_("Split", v_.Split);
+		}
+
+		template<typename Ar, typename T> requires Is<T, OutroPostStyle>
+		void Visit(Ar& ar_, T& v_) {
+			ar_.Object("ZoomBlur", v_.ZoomBlur, [](auto& a_, auto& x_) { Visit(a_, x_); });
+			ar_.Object("Chromatic", v_.Chromatic, [](auto& a_, auto& x_) { Visit(a_, x_); });
+			ar_.Object("Bloom", v_.Bloom, [](auto& a_, auto& x_) { Visit(a_, x_); });
+			ar_.Object("Vignette", v_.Vignette, [](auto& a_, auto& x_) { Visit(a_, x_); });
+			ar_("ZoomTaps", v_.ZoomTaps);
+			ar_("BloomTaps", v_.BloomTaps);
+			ar_("BloomRadiusPx", v_.BloomRadiusPx);
+			ar_("BloomThreshold", v_.BloomThreshold);
+			ar_("VignetteColor", v_.VignetteColor);
+			ar_("VignetteRadius", v_.VignetteRadius);
+			ar_("VignetteSoftness", v_.VignetteSoftness);
+		}
+
+		template<typename Ar, typename T> requires Is<T, OutroSettings>
+		void Visit(Ar& ar_, T& v_) {
+			ar_.Object("Timeline", v_.Timeline, [](auto& a_, auto& x_) { Visit(a_, x_); });
+			ar_.Object("Camera", v_.Camera, [](auto& a_, auto& x_) { Visit(a_, x_); });
+			ar_.Object("MagicCircle", v_.MagicCircle, [](auto& a_, auto& x_) { Visit(a_, x_); });
+			ar_.Object("FirePillar", v_.FirePillar, [](auto& a_, auto& x_) { Visit(a_, x_); });
+			ar_.Object("UI", v_.UI, [](auto& a_, auto& x_) { Visit(a_, x_); });
+			ar_.Object("Screen", v_.Screen, [](auto& a_, auto& x_) { Visit(a_, x_); });
+			ar_.Object("Animation", v_.Animation, [](auto& a_, auto& x_) { Visit(a_, x_); });
+			ar_.Object("WeaponGlow", v_.WeaponGlow, [](auto& a_, auto& x_) { Visit(a_, x_); });
+			ar_.Object("Rays", v_.Rays, [](auto& a_, auto& x_) { Visit(a_, x_); });
+			ar_.Object("Post", v_.Post, [](auto& a_, auto& x_) { Visit(a_, x_); });
+		}
+
 		template<typename Ar, typename T> requires Is<T, TitleGlowStyle>
 		void Visit(Ar& ar_, T& v_) {
 			ar_("Enabled", v_.Enabled);
@@ -496,6 +639,7 @@ namespace Game::Scene::Impl {
 		ar_.Object("Menu", self_.MenuStyle_, [](auto& a_, auto& x_) { Visit(a_, x_); });
 		ar_.Object("Logo", self_.LogoStyle_, [](auto& a_, auto& x_) { Visit(a_, x_); });
 		ar_.Object("LabelGlow", self_.GlowStyle_, [](auto& a_, auto& x_) { Visit(a_, x_); });
+		ar_.Object("Outro", self_.Outro_, [](auto& a_, auto& x_) { Visit(a_, x_); });
 
 		ar_.Object("Camera", self_, [](auto& a_, auto& s_) {
 			a_("AutoOrbit", s_.AutoOrbit_);
@@ -505,7 +649,6 @@ namespace Game::Scene::Impl {
 			a_("Distance", s_.CameraDistance_);
 			a_("TargetY", s_.CameraTargetY_);
 			a_("FovY", s_.CameraFovY_);
-			a_.Floats("ClearColor", s_.ClearColor_, 4U);
 		});
 
 		ar_.Object("Character", self_.Character_, [](auto& a_, auto& x_) { Visit(a_, x_); });

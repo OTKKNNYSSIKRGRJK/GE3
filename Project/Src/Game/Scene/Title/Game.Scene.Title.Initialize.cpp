@@ -120,7 +120,8 @@ namespace Game::Scene::Impl {
 		[[maybe_unused]] auto const& device{ dxContext_.Device() };
 		[[maybe_unused]] auto& assetMngr{ const_cast<Lumina::AssetManager&>(assetMngr_) };
 
-		// いずれもバックバッファ（SRGB RTV）＋ スワップチェインの深度（D24S8）に描く
+		// シーンは Title 用 Canvas（SRGB ＋ D24S8。バックバッファ・スワップチェインの深度と同じフォーマット）に、
+		// メニュー UI はバックバッファに描く（Game.Scene.Title.Post.cpp）
 
 		//----	------	------	------	------	----//
 		// Character（原点に立たせる）
@@ -151,6 +152,16 @@ namespace Game::Scene::Impl {
 		// Particles（本編の ParticleSystem を流用）
 
 		InitializeParticles(dxContext_, assetMngr);
+
+		//----	------	------	------	------	----//
+		// Outro の放射光線（スクリーン空間・加算）
+
+		InitializeRays(dxContext_);
+
+		//----	------	------	------	------	----//
+		// Title 用 Canvas とポスト（シーンは Canvas に描き、ポスト PS でバックバッファへ写す）
+
+		InitializePost(dxContext_);
 
 		//----	------	------	------	------	----//
 		// Menu UI（Start / Exit。本編の SpriteRenderer を流用）

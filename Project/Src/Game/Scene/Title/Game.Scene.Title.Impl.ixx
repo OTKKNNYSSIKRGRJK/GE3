@@ -209,6 +209,159 @@ namespace Game::Scene::Impl {
 		float PhaseStep{ 0.15f };			// ラベルごとの位相のずれ（周期に対する割合。上から順に少しずつ遅れる）
 	};
 
+	//----	------	------	------	------	----//
+	// Outro（Start 決定 → 溜め → 振り抜き → 命中 → 割れる → 白 → 次のシーンへ）
+	// Outro 開始からの秒 t を 1 本のタイムラインとして、各要素が t を読んで動く。
+	// 時計は Pause / TimeScale の影響を受けない固定 1/60 秒（メニューと同じ）
+	//----	------	------	------	------	----//
+
+	// 各区間の終わりの時刻（Outro 開始からの秒）。前後が逆になった値は使う側で揃える
+	struct OutroTimeline {
+		float ChargeEnd{ 1.30f };			// 区間 1 溜め     → 区間 2 振り抜き
+		float SwingEnd{ 1.55f };			// 区間 2 振り抜き → 区間 3 命中
+		float ImpactEnd{ 1.65f };			// 区間 3 命中     → 区間 4 割れる
+		float SplitEnd{ 2.70f };			// 区間 4 割れる   → 区間 5 白
+		float WhiteEnd{ 3.20f };			// 区間 5 白       → 次のシーンへ
+	};
+
+	// カメラ：開始時のポーズから Approach へドリーイン（区間 1）→ さらに寄る（区間 2）→ シェイク（区間 3 の頭から）
+	struct OutroCameraStyle {
+		CameraPose Approach{ 0.10f, 6.5f, 3.0f, 1.00f };	// 区間 1 の終わりのポーズ（FovY は広げる）
+		float YawOffset{ 2.2f };			// 区間 1 の終わりの Yaw（キャラの Yaw からの相対, rad）。側面〜背後へ
+		float PushDistanceScale{ 0.8f };	// 区間 2 で Distance に掛ける
+		float PushFovYAdd{ 0.12f };			// 区間 2 で FovY に足す
+		float ShakeAmplitude{ 0.06f };		// 注視点をずらす量（ワールド単位）
+		float ShakeDuration{ 0.25f };		// 区間 3 の頭から減衰しきるまでの秒数
+		float ShakeFrequency{ 24.0f };		// Hz
+	};
+
+	// 魔法陣：回転を加速しつつ、外周のレイヤーから順に Reveal を戻して内側へ収束。区間 4 の頭で消す
+	struct OutroMagicCircleStyle {
+		float SpinMultiplier{ 6.0f };		// 区間 1 の終わりの回転速度の倍率（2 乗で加速し、以降は維持）
+		float IntensityBoost{ 1.8f };		// 区間 1 の終わりの明るさの倍率
+		float CollapseStart{ 0.25f };		// 外周のレイヤーが消え始める時刻（Outro 開始からの秒）
+		float CollapseDuration{ 0.55f };	// 1 レイヤーの Reveal が 1 → 0 になる秒数
+		float CollapseStagger{ 0.2f };		// 外周 → 内側の時間差（半径の大きい順）
+		float ShrinkAmount{ 0.3f };			// 消えるまでに半径をどれだけ縮めるか（0..1）
+		float FadeOutDuration{ 0.2f };		// 区間 4 の頭から、残っている分も含めて消す秒数
+	};
+
+	// 火柱：区間 1 で強度・高さを上げ、区間 2 以降は最大のまま
+	struct OutroFirePillarStyle {
+		float IntensityPeak{ 2.5f };		// IntensityScale に掛ける倍率（最大時）
+		float HeightPeak{ 1.6f };			// Height に掛ける倍率（最大時）
+		float LightPeak{ 2.0f };			// キャラへの照り返しの強さに掛ける倍率（最大時）
+		float RiseCurve{ 2.0f };			// 上がり方（1 = 一定、大きいほど終盤で一気に上がる）
+	};
+
+	// ロゴ・メニュー：Outro の頭で、フェードインを逆再生して消す
+	struct OutroUIStyle {
+		float FadeDuration{ 0.35f };
+		float SelectedGlowBoost{ 3.0f };	// 消え始めに、選んだ項目のグローを何倍まで上げるか
+	};
+
+	// キャラのアニメ：区間 1 は ChargeClip、区間 2 以降は SwingClip。どちらも t からクリップ上の時刻を決める
+	// （同じクリップを指定すれば、切り替えなしで溜め → 振り抜きを通しで再生できる）
+	struct OutroAnimationStyle {
+		char ChargeClip[32]{ "ATK1" };
+		float ChargeStart{ 0.0f };			// 区間 1 の頭のクリップ上の時刻（秒）
+		float ChargeSpeed{ 0.6f };			// 区間 1 の再生速度（クリップ秒 / 実秒）
+		char SwingClip[32]{ "ATK1" };
+		float SlashTime{ 1.23f };			// 区間 2 の終わり（命中）に合わせる、SwingClip 上の時刻（秒）
+		float SwingSpeed{ 1.8f };			// 区間 2 の再生速度（区間 2 の頭の時刻は SlashTime から逆算）
+		float HitStopDuration{ 0.1f };		// 命中後、アニメの時間だけ止める秒数（Outro の時計は止めない）
+		float FollowSpeedScale{ 0.5f };		// ヒットストップ明けの再生速度（SwingSpeed に掛ける）
+	};
+
+	// 武器の光：区間 1 で段階的に強め（粒数・Span・大きさ・白熱寄りの色）、先端にフレア
+	struct OutroWeaponGlowStyle {
+		int Steps{ 3 };						// 区間 1 で何段階に分けて強めるか（0 = 連続）
+		float StartFlash{ 0.6f };			// Outro の頭の一瞬の発光（クリップの切り替わりを隠す）
+		float StartFlashDuration{ 0.25f };
+		float RateScale{ 4.0f };			// 最大時に Rate に掛ける倍率
+		float SpanBegin{ 0.0f };			// 最大時の SpanBegin（根元側へ広げる）
+		float SizeScale{ 1.5f };			// 最大時に SizeMin / SizeMax に掛ける倍率
+		float AlphaScale{ 2.0f };			// 最大時に Alpha に掛ける倍率
+		float WhiteHot{ 0.8f };				// 最大時に色をどれだけ白へ寄せるか
+
+		// 先端のフレア（Particles.png の 4 番 = 四芒星をビルボードで 1 枚）
+		float FlareChargeLevel{ 0.35f };	// 区間 1 の終わりの強さ（区間 2・3 で 1、区間 4 の頭から消える）
+		float FlareFadeOutDuration{ 0.3f };
+		float FlareSize{ 2.5f };
+		float FlareAlpha{ 1.0f };
+		Lumina::Float3 FlareColor{ 1.00f, 0.95f, 0.85f };	// sRGB
+		float FlareFlickerDepth{ 0.35f };	// 明滅の深さ（0 = 明滅しない）
+		float FlareFlickerFrequency{ 12.0f };	// Hz
+		float FlareSpin{ 1.5f };			// rad/s
+		float FlareCameraOffset{ 0.3f };	// カメラ側へ寄せる距離（刀身に半分埋もれないように）
+		int FlareAtlas{ 4 };
+	};
+
+	// 白（メニューのフェード用スプライトを白で重ねる。割れ目の光は手順 4 以降）
+	// 命中の白フラッシュと、区間 5 への白への抜けの、大きい方を使う
+	struct OutroScreenStyle {
+		float WhiteRampDuration{ 0.4f };	// 区間 4 の終わりまでの何秒で白にするか
+		float FlashPeak{ 0.8f };			// 命中（区間 3 の頭）の白フラッシュの濃さ
+		float FlashAttack{ 0.02f };			// 命中からピークまでの秒数
+		float FlashDecay{ 0.2f };			// ピークから消えるまでの秒数
+	};
+
+	// 放射光線：武器の先端のスクリーン位置から放射状に伸びる光（スクリーン空間・加算）
+	// 区間 1 は武器の光に合わせて弱く、区間 2 で伸びて強まり、命中でピーク → 減衰
+	struct OutroRaysStyle {
+		bool Enabled{ true };
+		float ChargeLevel{ 0.15f };			// 区間 1 の終わりの強さ（武器の光の段階に合わせて上がる）
+		float Peak{ 1.0f };					// 命中の瞬間の強さ
+		float DecayDuration{ 0.5f };		// 命中から消えるまでの秒数
+		float LengthCharge{ 0.25f };		// 区間 1 の長さ（画面の高さに対する割合）
+		float LengthPeak{ 1.2f };			// 命中の瞬間の長さ
+		float LengthAfter{ 1.6f };			// 消えるまでに伸びる長さ
+		int RayCount{ 40 };					// 一周あたりの光線の数
+		float Sharpness{ 6.0f };			// 大きいほど細く・まばら
+		float RotateSpeed{ 0.3f };			// 模様の回転（rad/s）
+		float FlickerSpeed{ 8.0f };			// 光線の入れ替わりの速さ（/秒）
+		Lumina::Float3 Color{ 1.00f, 0.85f, 0.60f };		// sRGB
+		Lumina::Float3 CoreColor{ 1.00f, 0.97f, 0.90f };	// sRGB
+		float CoreRadius{ 0.05f };			// 中心の光の半径（画面の高さに対する割合）
+		float CoreIntensity{ 1.5f };
+	};
+
+	// ポストの効果 1 つ分の強さの流れ。各区間の終わりの値を補間する（区間 4 の終わり以降は Split のまま）
+	struct OutroPostCurve {
+		float Base{ 0.0f };					// Outro 外と、Outro の頭（t = 0）
+		float Charge{ 0.0f };				// 区間 1 の終わり
+		float Hit{ 0.0f };					// 命中（区間 2 の終わり）
+		float Split{ 0.0f };				// 区間 4 の終わり
+	};
+
+	// ポスト（ズームブラー・色収差・簡易ブルーム・白ビネット）。Title 用 Canvas → バックバッファ
+	struct OutroPostStyle {
+		OutroPostCurve ZoomBlur{ 0.0f, 0.02f, 0.10f, 0.25f };		// 中心へ向かってぼかす長さ（中心までの距離に対する割合）
+		OutroPostCurve Chromatic{ 0.0f, 0.002f, 0.010f, 0.020f };	// 画面端での RGB のずれ（UV）
+		OutroPostCurve Bloom{ 0.0f, 0.4f, 1.5f, 2.0f };			// ブルームの強さ
+		OutroPostCurve Vignette{ 0.0f, 0.1f, 0.5f, 0.9f };			// 白ビネットの濃さ（0..1）
+		int ZoomTaps{ 16 };					// ズームブラーのタップ数（1..32）
+		int BloomTaps{ 16 };				// ブルームのタップ数（1..32）
+		float BloomRadiusPx{ 32.0f };
+		float BloomThreshold{ 0.6f };		// これより明るい分（リニア）だけにじませる
+		Lumina::Float3 VignetteColor{ 1.0f, 1.0f, 1.0f };	// sRGB
+		float VignetteRadius{ 0.45f };		// 画面中心からの距離（画面の高さ = 1）。ここから色が付き始める
+		float VignetteSoftness{ 0.5f };
+	};
+
+	struct OutroSettings {
+		OutroTimeline Timeline{};
+		OutroCameraStyle Camera{};
+		OutroMagicCircleStyle MagicCircle{};
+		OutroFirePillarStyle FirePillar{};
+		OutroUIStyle UI{};
+		OutroScreenStyle Screen{};
+		OutroAnimationStyle Animation{};
+		OutroWeaponGlowStyle WeaponGlow{};
+		OutroRaysStyle Rays{};
+		OutroPostStyle Post{};
+	};
+
 	export class Title {
 	private:
 		template<typename...ArgTypes>
@@ -264,6 +417,7 @@ namespace Game::Scene::Impl {
 		Lumina::FlamePillar::Renderer FirePillarRenderer_{};
 		std::vector<FirePillarEntry> FirePillars_{};
 		std::vector<Lumina::FlamePillar::Instance> FirePillarInstances_{};	// 毎フレーム FirePillars_ から作り直す
+		std::vector<Lumina::FlamePillar::Description> FirePillarRenderDescs_{};	// 描画用の Desc のコピー（Outro の駆動はこちらに掛ける。Instance::Desc はここを指す）
 		float FirePillarAge_{ 0.0f };
 
 		//----	------	------	------	------	----//
@@ -279,6 +433,7 @@ namespace Game::Scene::Impl {
 
 		Lumina::MagicCircle::Renderer MagicCircleRenderer_{};
 		std::vector<Lumina::MagicCircle::Layer> MagicCircleLayers_{};
+		std::vector<Lumina::MagicCircle::Layer> MagicCircleRenderLayers_{};	// 描画・パーティクル用のコピー（毎フレーム作る。Outro の駆動はこちらに掛ける）
 		float MagicCircleIntensity_{ 1.0f };
 
 		// 描き込み演出（Replay で全レイヤーの Reveal を 0 から順に伸ばす）
@@ -319,6 +474,7 @@ namespace Game::Scene::Impl {
 		std::unique_ptr<ParticleSystem<TitleParticle>> Embers_{ nullptr };
 		std::unique_ptr<ParticleSystem<TitleParticle>> CircleLights_{ nullptr };
 		std::unique_ptr<ParticleSystem<TitleParticle>> WeaponGlow_{ nullptr };
+		std::unique_ptr<ParticleSystem<TitleParticle>> WeaponFlare_{ nullptr };	// Outro の先端フレア（毎フレーム 1 枚だけ置き直す）
 
 		SparkleEmitter SparkleParams_{};
 		AuraEmitter AuraParams_{};
@@ -351,6 +507,7 @@ namespace Game::Scene::Impl {
 			Decided,	// 選んだ項目が点滅
 			FadeOut,	// 黒へ
 			Done,		// シーン切り替え / 終了を要求済み
+			Outro,		// Start 決定後の演出中（入力は受け付けない）
 		};
 		static constexpr int NumMenuItems{ 2 };		// 0: Start / 1: Exit
 
@@ -399,7 +556,85 @@ namespace Game::Scene::Impl {
 		float CameraTargetY_{ 3.0f };
 		float CameraFovY_{ 0.8f };
 		CameraSway CameraSway_{};
+		Lumina::Float3 CameraShake_{ 0.0f, 0.0f, 0.0f };	// 注視点のずれ（Outro のシェイク）
 
-		float ClearColor_[4]{ 0.03f, 0.03f, 0.05f, 1.0f };
+		// 黒で固定（Title 用 Canvas の RT のクリア値と同じにする。違う色でクリアするとデバッグレイヤーが警告する）
+		static constexpr float ClearColor_[4]{ 0.0f, 0.0f, 0.0f, 1.0f };
+
+		//----	------	------	------	------	----//
+		// Outro（実装は Game.Scene.Title.Outro.cpp）
+
+		enum class OutroState : int {
+			None,		// タイトル表示中
+			Playing,
+			Finished,	// 最後まで再生した（本番は次のシーンへ渡し済み / プレビューは最後の状態で止めている）
+		};
+
+		void StartOutro(bool isPreview_);	// isPreview_ = ImGui から再生（最後に次のシーンへ渡さない）
+		void RewindOutro();					// タイトルの状態に戻す
+		void FinishOutro();					// 次のシーンへ渡す（遷移シーンを作ったらここだけ変える）
+		auto AdvanceOutro() -> float;		// Outro の時計を進め、Outro 中のシーンの deltaTime を返す
+		void ApplyOutroCamera();
+		void ApplyOutroAnimation();
+		void ApplyOutroToMagicCircle(std::vector<Lumina::MagicCircle::Layer>& layers_) const;
+		auto OutroFirePillarBoost() const -> float;	// 0..1（Outro 外は 0）
+		auto OutroUIVisibility() const -> float;		// 1 = 表示 / 0 = 消えた（Outro 外は 1）
+		auto OutroWhiteAmount() const -> float;		// 0..1（Outro 外は 0）
+		auto OutroWeaponGlowLevel() const -> float;	// 0..1（Outro 外は 0）
+		auto OutroWeaponFlareStrength() const -> float;	// 0..1（Outro 外は 0）
+		auto OutroRaysIntensity() const -> float;		// Outro 外は 0
+		auto OutroRaysLength() const -> float;
+		auto OutroPostValue(OutroPostCurve const& curve_) const -> float;	// Outro 外は Base
+		void EditOutro();					// ImGui（Release では何もしない）
+		bool IsOutroActive() const noexcept { return OutroState_ != OutroState::None; }
+
+		OutroSettings Outro_{};
+		OutroState OutroState_{ OutroState::None };
+		float OutroTime_{ 0.0f };
+		bool OutroIsPreview_{ false };
+		bool OutroSwitchSceneInPreview_{ false };	// Debug：プレビューでも最後に次のシーンへ渡す（保存しない）
+		float OutroDebugRate_{ 1.0f };				// Debug：再生速度（保存しない）
+
+		// 開始時のカメラ（ここから補間する。巻き戻しでも使う）
+		CameraPose OutroStartPose_{};
+		float OutroStartYaw_{ 0.0f };
+		std::string OutroStartAnimation_{};	// 巻き戻しで再生し直す
+
+		//----	------	------	------	------	----//
+		// 放射光線（実装は Game.Scene.Title.Rays.cpp。スクリーン空間・加算。シーンのテクスチャは読まない）
+
+		void InitializeRays(Lumina::DX12::Context const& dxContext_);
+		void UpdateRays(Lumina::Mat4 const& viewProj_);		// Character の姿勢とカメラが決まった後に呼ぶ
+		void RenderRays(Lumina::DX12::CommandList const& cmdList_);
+
+		Lumina::DX12::RootSignature RS_Rays_{};
+		Lumina::DX12::Shader VS_Rays_{};
+		Lumina::DX12::Shader PS_Rays_{};
+		Lumina::DX12::GraphicsPSO PSO_Rays_{};
+		Lumina::DX12::UploadBuffer UB_Rays_{};
+		bool IsRaysVisible_{ false };
+
+		// 武器の先端のスクリーン位置（UpdateRays で毎フレーム更新。光線とズームブラーの中心）
+		float TipU_{ 0.5f };
+		float TipV_{ 0.5f };
+		bool IsTipOnScreen_{ false };
+
+		//----	------	------	------	------	----//
+		// Title 用 Canvas とポスト（実装は Game.Scene.Title.Post.cpp）
+		// シーンは Canvas（SRGB ＋ D24S8）に描き、ポスト PS でバックバッファへ写す。メニュー UI はその上に描く
+
+		void InitializePost(Lumina::DX12::Context const& dxContext_);
+		void UpdatePost();		// UpdateRays の後に呼ぶ
+		void BeginSceneCanvas(Lumina::DX12::CommandList const& cmdList_);
+		void EndSceneCanvasAndPost(Lumina::DX12::Context const& dxContext_, Lumina::DX12::CommandList const& cmdList_);
+
+		Lumina::DX12::Canvas Canvas_{};
+		Lumina::DX12::DescriptorTable GlobalTable_PostSRV_{};	// 0: Canvas の RT0
+		bool IsCanvasDepthWritable_{ false };					// 深度は最初のフレームに DEPTH_WRITE へ遷移したらそのまま
+		Lumina::DX12::RootSignature RS_Post_{};
+		Lumina::DX12::Shader VS_Post_{};
+		Lumina::DX12::Shader PS_Post_{};
+		Lumina::DX12::GraphicsPSO PSO_Post_{};
+		Lumina::DX12::UploadBuffer UB_Post_{};
 	};
 }

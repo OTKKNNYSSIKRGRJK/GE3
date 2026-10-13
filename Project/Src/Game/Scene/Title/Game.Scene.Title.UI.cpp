@@ -30,8 +30,10 @@ import Lumina.Utils.ImGui;
 // ラベルのグロー：TitleLabelGlow.PS（α をぼかす）を加算で、ラベルの下に描く。グロー専用の SpriteRenderer を使う
 //                 （SpriteRenderer は 1 フレームに 1 回しかバッチできないため）。明滅は CPU で色の強さに掛ける。
 // タイトルロゴ：Assets/UI/Label.Title.png（今は仮画像）を少し遅れて下からフェードインさせるだけ。
-// 演出：フェードイン → 選択中は不透明・等倍・少し左へ、非選択は半透明・縮小 → 決定で点滅 → 黒へフェードアウト
-//       → Start なら Game::Scene::Flag = 1、Exit なら Flag = -1（main.cpp がウィンドウを閉じる）
+// 演出：フェードイン → 選択中は不透明・等倍・少し左へ、非選択は半透明・縮小
+//       → Start：Outro を開始（ロゴ・メニューはフェードインを逆再生して消え、Outro の最後に次のシーンへ。
+//                Game.Scene.Title.Outro.cpp）
+//       → Exit：点滅 → 黒へフェードアウト → Flag = -1（main.cpp がウィンドウを閉じる）
 // メニューは Pause / TimeScale の影響を受けない（固定の 1/60 秒で進める）。
 
 namespace Game::Scene::Impl {
@@ -284,9 +286,19 @@ namespace Game::Scene::Impl {
 				MenuSelected_ = (MenuSelected_ + 1) % NumMenuItems;
 			}
 			if (triggeredConfirm) {
-				MenuPhase_ = MenuPhase::Decided;
-				MenuTimer_ = 0.0f;
+				if (MenuSelected_ == 0) {
+					StartOutro(false);	// Start：Outro へ（MenuPhase_ も Outro になる）
+				}
+				else {
+					MenuPhase_ = MenuPhase::Decided;
+					MenuTimer_ = 0.0f;
+				}
 			}
+			break;
+
+		case MenuPhase::Outro:
+			// フェードイン途中で決めた場合も、黒はそのまま明けていく
+			FadeAlpha_ = std::max(FadeAlpha_ - dt / std::max(style.FadeInDuration, 0.001f), 0.0f);
 			break;
 
 		case MenuPhase::Decided:
@@ -320,6 +332,10 @@ namespace Game::Scene::Impl {
 		//----	------	------	------	------	----//
 		// 見た目
 
+		// Outro の頭でロゴ・メニューを消す（1 → 0。ロゴのフェードインと同じ曲線を逆にたどる）
+		float const outroVisibility{ OutroUIVisibility() };
+		float const outroEased{ 1.0f - (1.0f - outroVisibility) * (1.0f - outroVisibility) * (1.0f - outroVisibility) };
+
 		float const follow{ 1.0f - std::exp(-std::max(style.Smoothing, 0.0f) * dt) };
 		for (int idx{ 0 }; idx < NumMenuItems; ++idx) {
 			float const target{ (idx == MenuSelected_) ? 1.0f : 0.0f };
@@ -337,6 +353,7 @@ namespace Game::Scene::Impl {
 				};
 				alpha *= (wave > 0.0f) ? 1.0f : 0.25f;
 			}
+			alpha *= outroEased;
 
 			auto& item{ UI_Items_[idx] };
 			item.Translate({
@@ -353,7 +370,13 @@ namespace Game::Scene::Impl {
 		{
 			auto const& logo{ LogoStyle_ };
 			LogoTimer_ += dt;
-			float const t{ Saturate((LogoTimer_ - logo.Delay) / std::max(logo.FadeDuration, 0.001f)) };
+			// Outro では今の位置から 0 へ逆再生する（浮き上がりも逆に沈む）
+			float const t{
+				std::min(
+					Saturate((LogoTimer_ - logo.Delay) / std::max(logo.FadeDuration, 0.001f)),
+					outroVisibility
+				)
+			};
 			float const eased{ 1.0f - (1.0f - t) * (1.0f - t) * (1.0f - t) };	// 終わりでゆっくり止まる
 
 			UI_Logo_.AnchorPoint({ logo.AnchorX, logo.AnchorY });
@@ -384,7 +407,10 @@ namespace Game::Scene::Impl {
 				float const pulse{
 					1.0f - Saturate(glow.PulseDepth) * (0.5f + 0.5f * std::cos(std::numbers::pi_v<float> * 2.0f * phase))
 				};
-				float const strength{ glow.Enabled ? (glow.Intensity * pulse * source.RGBA().w) : 0.0f };
+				// Outro の消え始めに、選んだ項目のグローを強める（消えるにつれて元に戻る）
+				bool const isOutroSelected{ (MenuPhase_ == MenuPhase::Outro) && (idx == 1 + MenuSelected_) };
+				float const boost{ isOutroSelected ? (1.0f + Outro_.UI.SelectedGlowBoost * outroVisibility) : 1.0f };
+				float const strength{ glow.Enabled ? (glow.Intensity * pulse * source.RGBA().w * boost) : 0.0f };
 
 				Lumina::Vec2 const scale{ source.Scale() };
 				Lumina::Vec2 const anchor{ source.AnchorPoint() };
@@ -408,7 +434,14 @@ namespace Game::Scene::Impl {
 			}
 		}
 
-		UI_Fade_.RGBA({ 0.0f, 0.0f, 0.0f, Saturate(FadeAlpha_) });
+		// 一番手前の全画面スプライト：Outro の白への抜けがあれば白、無ければ黒のフェード
+		float const white{ OutroWhiteAmount() };
+		if (white > 0.0f) {
+			UI_Fade_.RGBA({ 1.0f, 1.0f, 1.0f, Saturate(white) });
+		}
+		else {
+			UI_Fade_.RGBA({ 0.0f, 0.0f, 0.0f, Saturate(FadeAlpha_) });
+		}
 	}
 
 	//////	//////	//////	//////	//////	//////
@@ -462,11 +495,13 @@ namespace Game::Scene::Impl {
 		#if defined(_DEBUG)
 		ImGui::Begin("Menu");
 
-		constexpr char const* phaseNames[]{ "FadeIn", "Idle", "Decided", "FadeOut", "Done" };
+		constexpr char const* phaseNames[]{ "FadeIn", "Idle", "Decided", "FadeOut", "Done", "Outro" };
 		ImGui::Text("Phase: %s  /  Selected: %s", phaseNames[static_cast<int>(MenuPhase_)], (MenuSelected_ == 0) ? "Start" : "Exit");
+		ImGui::BeginDisabled(IsOutroActive());	// Outro 中は「Outro」ウィンドウの Rewind で戻す
 		if (ImGui::Button("Replay (fade in)")) {
 			ResetMenu();
 		}
+		ImGui::EndDisabled();
 		ImGui::TextDisabled("Up/Down or W/S to select, SPACE/ENTER to decide (ignored while ImGui has keyboard focus)");
 
 		auto& style{ MenuStyle_ };

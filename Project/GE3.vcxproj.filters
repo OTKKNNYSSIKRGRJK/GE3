@@ -422,10 +422,19 @@
     <ClCompile Include="Src\Game\Scene\Title\Game.Scene.Title.Initialize.cpp">
       <Filter>Src</Filter>
     </ClCompile>
+    <ClCompile Include="Src\Game\Scene\Title\Game.Scene.Title.Outro.cpp">
+      <Filter>Src</Filter>
+    </ClCompile>
     <ClCompile Include="Src\Game\Scene\Title\Game.Scene.Title.Particles.cpp">
       <Filter>Src</Filter>
     </ClCompile>
     <ClCompile Include="Src\Game\Scene\Title\Game.Scene.Title.ixx">
+      <Filter>Src</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Game\Scene\Title\Game.Scene.Title.Post.cpp">
+      <Filter>Src</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Game\Scene\Title\Game.Scene.Title.Rays.cpp">
       <Filter>Src</Filter>
     </ClCompile>
     <ClCompile Include="Src\Game\Scene\Title\Game.Scene.Title.Render.cpp">
@@ -475,6 +484,18 @@
       <Filter>Assets\Title</Filter>
     </None>
     <None Include="Assets\Title\MagicCircle.json">
+      <Filter>Assets\Title</Filter>
+    </None>
+    <None Include="Assets\Title\TitleRays.hlsl">
+      <Filter>Assets\Title</Filter>
+    </None>
+    <None Include="Assets\Title\TitleRays.json">
+      <Filter>Assets\Title</Filter>
+    </None>
+    <None Include="Assets\Title\TitlePost.hlsl">
+      <Filter>Assets\Title</Filter>
+    </None>
+    <None Include="Assets\Title\TitlePost.json">
       <Filter>Assets\Title</Filter>
     </None>
     <None Include="Assets\Title\ShowcaseCharacter.hlsl">

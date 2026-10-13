@@ -39,9 +39,9 @@ namespace Game::Scene::Impl {
 	// Update（パーティクルのビルボード用）と Render の両方から呼ぶ
 	void Title::BuildCamera(Lumina::Mat4& view_, Lumina::Mat4& viewProj_, Lumina::Vec3& eye_) const {
 		Lumina::Vec3 const target{
-			Character_.Position.x,
-			Character_.Position.y + CameraTargetY_,
-			Character_.Position.z,
+			Character_.Position.x + CameraShake_.x,
+			Character_.Position.y + CameraTargetY_ + CameraShake_.y,
+			Character_.Position.z + CameraShake_.z,
 		};
 		eye_ = Lumina::Vec3{
 			target.x + std::sin(CameraYaw_) * std::cos(CameraPitch_) * CameraDistance_,
@@ -64,16 +64,10 @@ namespace Game::Scene::Impl {
 		BuildCamera(view, viewProj, eye);
 
 		//----	------	------	------	------	----//
-		// バックバッファ＋スワップチェインの深度に直接描く
-		// （BeginFrame はクリアしないのでここでクリアする。Viewport/Scissor は BeginFrame で設定済み）
+		// 1〜4.5 は Title 用 Canvas（SRGB ＋ D24S8）に描く。黒と深度 1.0 でクリア済みになる
+		// （Game.Scene.Title.Post.cpp。Viewport / Scissor も Canvas のものに設定する）
 
-		auto const& swapChain{ dxContext_.SwapChain() };
-		D3D12_CPU_DESCRIPTOR_HANDLE const rtv{ swapChain.BackBufferRTVCPUHandle() };
-		D3D12_CPU_DESCRIPTOR_HANDLE const dsv{ swapChain.DSVCPUHandle() };
-
-		cmdList_->OMSetRenderTargets(1U, &rtv, false, &dsv);
-		cmdList_->ClearRenderTargetView(rtv, ClearColor_, 0U, nullptr);
-		cmdList_->ClearDepthStencilView(dsv, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0U, 0U, nullptr);
+		BeginSceneCanvas(cmdList_);
 
 		//----	------	------	------	------	----//
 		// 1. Character（不透明・深度書き込みあり）
@@ -85,7 +79,7 @@ namespace Game::Scene::Impl {
 
 		MagicCircleRenderer_.Render(
 			cmdList_,
-			std::span<Lumina::MagicCircle::Layer const>{ MagicCircleLayers_ },
+			std::span<Lumina::MagicCircle::Layer const>{ MagicCircleRenderLayers_ },
 			Character_.Position,
 			Time_,
 			MagicCircleIntensity_,
@@ -109,7 +103,18 @@ namespace Game::Scene::Impl {
 		RenderParticles(cmdList_);
 
 		//----	------	------	------	------	----//
-		// 5. Menu UI（アルファ合成・深度なし。黒のフェードもここ）
+		// 4.5 Outro の放射光線（スクリーン空間・加算・深度なし。Outro 中で強さがあるときだけ。ポストが掛かる）
+
+		RenderRays(cmdList_);
+
+		//----	------	------	------	------	----//
+		// ポスト：Canvas → バックバッファ（ズームブラー・色収差・簡易ブルーム・白ビネット）
+		// ここから先の RT はバックバッファ、DSV はスワップチェインの深度
+
+		EndSceneCanvasAndPost(dxContext_, cmdList_);
+
+		//----	------	------	------	------	----//
+		// 5. Menu UI（バックバッファ。アルファ合成・深度なし。黒のフェード・白のフラッシュ・白への抜けもここ）
 
 		RenderUI(cmdList_);
 	}

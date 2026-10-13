@@ -34,7 +34,8 @@ import Lumina.Utils.ImGui;
 // Sparkles / Aura … 本編の AmbientSparkles / PlayerEffects の移植（フレーム単位の係数 × 経過フレーム数）
 // Embers          … 火の粉（秒単位）
 // CircleLights    … 魔法陣のリングから立ち昇る光（秒単位）
-// WeaponGlow      … 武器の軸に沿って置く、動かない大きめの光（秒単位）
+// WeaponGlow      … 武器の軸に沿って置く、動かない大きめの光（秒単位）。Outro 中は Outro の WeaponGlow 設定で強める
+// WeaponFlare     … Outro 中だけ、武器の先端に置く四芒星のフレア（毎フレーム 1 枚だけ置き直す）
 
 namespace Game::Scene::Impl {
 	namespace {
@@ -230,6 +231,11 @@ namespace Game::Scene::Impl {
 
 			return (p_.Life > 0.0f);
 		}
+
+		// 何もしない（毎フレーム Clear してから 1 枚だけ置き直すので、寿命で消す必要がない）
+		bool UpdateWeaponFlare(TitleParticle&, void const*) {
+			return true;
+		}
 	}
 
 	//////	//////	//////	//////	//////	//////
@@ -349,6 +355,8 @@ namespace Game::Scene::Impl {
 		CircleLights_->Initialize(dxContext_, 1024U);
 		WeaponGlow_ = std::make_unique<ParticleSystem<TitleParticle>>();
 		WeaponGlow_->Initialize(dxContext_, 512U);
+		WeaponFlare_ = std::make_unique<ParticleSystem<TitleParticle>>();
+		WeaponFlare_->Initialize(dxContext_, 4U);
 	}
 
 	//////	//////	//////	//////	//////	//////
@@ -536,7 +544,7 @@ namespace Game::Scene::Impl {
 			float const lifeMax{ std::max(prm.LifeMax, lifeMin) };
 
 			float totalWeight{ 0.0f };
-			for (auto const& layer : MagicCircleLayers_) {
+			for (auto const& layer : MagicCircleRenderLayers_) {
 				if (layer.Enabled) { totalWeight += std::max(layer.Radius, 0.0f); }
 			}
 
@@ -545,7 +553,7 @@ namespace Game::Scene::Impl {
 				// レイヤーを選ぶ
 				float pick{ Rand01() * totalWeight };
 				Lumina::MagicCircle::Layer const* layer{ nullptr };
-				for (auto const& candidate : MagicCircleLayers_) {
+				for (auto const& candidate : MagicCircleRenderLayers_) {
 					if (!candidate.Enabled) { continue; }
 					layer = &candidate;
 					pick -= std::max(candidate.Radius, 0.0f);
@@ -603,12 +611,23 @@ namespace Game::Scene::Impl {
 
 		//----	------	------	------	------	----//
 		// WeaponGlow：武器の軸上のランダムな点＋軸に垂直な方向へ散らす（Character_.Advance の後なのでこのフレームの姿勢）
+		// Outro 中は、調整値のコピーに Outro の強め方を掛けて使う（元の調整値は書き換えない）
+
+		float const glowLevel{ OutroWeaponGlowLevel() };	// 0..1（Outro 外は 0）
+		auto const& outroGlow{ Outro_.WeaponGlow };
+		WeaponGlowEmitter glowParams{ WeaponGlowParams_ };
+		glowParams.Rate *= std::lerp(1.0f, outroGlow.RateScale, glowLevel);
+		glowParams.SpanBegin = std::lerp(glowParams.SpanBegin, outroGlow.SpanBegin, glowLevel);
+		glowParams.SizeMin *= std::lerp(1.0f, outroGlow.SizeScale, glowLevel);
+		glowParams.SizeMax *= std::lerp(1.0f, outroGlow.SizeScale, glowLevel);
+		glowParams.Alpha *= std::lerp(1.0f, outroGlow.AlphaScale, glowLevel);
+		float const whiteHot{ Saturate(outroGlow.WhiteHot) * glowLevel };
 
 		Lumina::Float3 weaponBase{};
 		Lumina::Float3 weaponTip{};
 		float weaponRadius{ 0.0f };
-		if (WeaponGlowParams_.Enabled && Character_.WeaponAxis(weaponBase, weaponTip, weaponRadius)) {
-			auto const& prm{ WeaponGlowParams_ };
+		if (glowParams.Enabled && Character_.WeaponAxis(weaponBase, weaponTip, weaponRadius)) {
+			auto const& prm{ glowParams };
 			float const lifeMin{ std::max(std::min(prm.LifeMin, prm.LifeMax), 0.05f) };
 			float const lifeMax{ std::max(prm.LifeMax, lifeMin) };
 			Lumina::Float3 const fixedColor{ SRGBToLinear(prm.Color) };
@@ -655,14 +674,57 @@ namespace Game::Scene::Impl {
 					};
 					color = SRGBToLinear(Lumina::Float3{ rgb.R, rgb.G, rgb.B });
 				}
+				color = Lerp3(color, Lumina::Float3{ 1.0f, 1.0f, 1.0f }, whiteHot);	// Outro：白熱寄りに
 				p.RenderData.RGBA = { color.x, color.y, color.z, 0.0f };
 				p.RenderData.DiffuseID = 0U;
 				p.RenderData.DiffuseAtlasID = ClampAtlas(prm.Atlas);
 				WeaponGlow_->Emit(std::move(p));
 			}
 		}
-		ctx.Params = &WeaponGlowParams_;
+		ctx.Params = &glowParams;
 		WeaponGlow_->Update(cmdList_, viewToWorld, UpdateWeaponGlow, &ctx);
+
+		//----	------	------	------	------	----//
+		// WeaponFlare：Outro 中だけ、武器の先端に四芒星を 1 枚（明滅・回転）
+
+		WeaponFlare_->Clear();
+		float const flare{ OutroWeaponFlareStrength() };
+		if (flare > 0.0f && Character_.WeaponAxis(weaponBase, weaponTip, weaponRadius)) {
+			auto const& style{ Outro_.WeaponGlow };
+
+			// カメラの方へ少し寄せる（ViewToWorld の 3 行目 = カメラの位置）
+			Lumina::Float3 toEye{
+				viewToWorld[3][0] - weaponTip.x,
+				viewToWorld[3][1] - weaponTip.y,
+				viewToWorld[3][2] - weaponTip.z,
+			};
+			float const distance{ std::sqrt(Dot3(toEye, toEye)) };
+			float const offset{ (distance > 1e-4f) ? (std::min(style.FlareCameraOffset, distance * 0.5f) / distance) : 0.0f };
+
+			// 明滅：周波数の違う 2 つの波を混ぜて、規則的に見えすぎないように
+			float const phase{ TwoPi * style.FlareFlickerFrequency * OutroTime_ };
+			float const wave{ 0.5f + 0.25f * std::sin(phase) + 0.25f * std::sin(phase * 1.73f + 0.9f) };
+			float const flicker{ 1.0f - Saturate(style.FlareFlickerDepth) * wave };
+
+			float const size{ std::max(style.FlareSize, 0.0f) * (0.6f + 0.4f * flare) };
+			Lumina::Float3 const color{ SRGBToLinear(style.FlareColor) };
+
+			TitleParticle p{};
+			p.Translate = {
+				weaponTip.x + toEye.x * offset,
+				weaponTip.y + toEye.y * offset,
+				weaponTip.z + toEye.z * offset,
+			};
+			p.Life = 1.0f;
+			p.MaxLife = 1.0f;
+			p.Scale = { size, size, 1.0f };
+			p.Rotate.z = style.FlareSpin * OutroTime_;
+			p.RenderData.RGBA = { color.x, color.y, color.z, std::max(style.FlareAlpha, 0.0f) * flare * flicker };
+			p.RenderData.DiffuseID = 0U;
+			p.RenderData.DiffuseAtlasID = ClampAtlas(style.FlareAtlas);
+			WeaponFlare_->Emit(std::move(p));
+		}
+		WeaponFlare_->Update(cmdList_, viewToWorld, UpdateWeaponFlare, &ctx);
 	}
 
 	//////	//////	//////	//////	//////	//////
@@ -676,6 +738,7 @@ namespace Game::Scene::Impl {
 			Embers_.get(),
 			CircleLights_.get(),
 			WeaponGlow_.get(),
+			WeaponFlare_.get(),
 		};
 		for (auto* const system : systems) {
 			system->Render(

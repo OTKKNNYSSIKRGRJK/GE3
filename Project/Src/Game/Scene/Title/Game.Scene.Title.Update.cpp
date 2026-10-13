@@ -218,18 +218,23 @@ namespace Game::Scene::Impl {
 
 		constexpr float twoPi{ std::numbers::pi_v<float> * 2.0f };
 
+		// Outro 中は Pause / TimeScale を無視して、Outro の時計と同じ刻み（固定 1/60 秒）でシーンを進める。
+		// 往復用の時計も止める（巻き戻したときに、止めた所から往復を再開する）
+		bool const isOutro{ IsOutroActive() };
+		float const outroDeltaTime{ isOutro ? AdvanceOutro() : 0.0f };
+
 		// 往復用の時計は実時間で進める（TimeScale 自体も往復させるので、その影響を受けないように）
-		float const realDeltaTime{ IsPaused_ ? 0.0f : (1.0f / 60.0f) };
+		float const realDeltaTime{ (IsPaused_ || isOutro) ? 0.0f : (1.0f / 60.0f) };
 		SwayClock_ += realDeltaTime;
 
-		if (TimeScaleSway_.Enabled && TimeScaleSway_.Channel.Enabled) {
+		if (!isOutro && TimeScaleSway_.Enabled && TimeScaleSway_.Channel.Enabled) {
 			TimeScale_ = std::lerp(
 				TimeScaleSway_.Max,
 				TimeScaleSway_.Min,
 				SwayWeight(TimeScaleSway_.Channel, SwayClock_)
 			);
 		}
-		float const deltaTime{ realDeltaTime * TimeScale_ };
+		float const deltaTime{ isOutro ? outroDeltaTime : (realDeltaTime * TimeScale_) };
 
 		Time_ += deltaTime;
 
@@ -238,6 +243,8 @@ namespace Game::Scene::Impl {
 			ImGui::Begin("TitleStage");
 
 			// * 調整結果の保存・読み込み（火柱・魔法陣・キャラ・照明・カメラをまとめて）
+			//   Outro 中はカメラが Outro 側の値に書き換わっているので無効にする
+			ImGui::BeginDisabled(IsOutroActive());
 			if (ImGui::Button("Save")) {
 				SettingsStatus_ = SaveSettings() ? "Saved" : "Save FAILED";
 			}
@@ -245,6 +252,7 @@ namespace Game::Scene::Impl {
 			if (ImGui::Button("Load")) {
 				SettingsStatus_ = LoadSettings() ? "Loaded" : "Load FAILED (file missing or broken)";
 			}
+			ImGui::EndDisabled();
 			ImGui::SameLine();
 			ImGui::TextDisabled("%s  %s", SettingsFilePath, SettingsStatus_.c_str());
 
@@ -311,7 +319,6 @@ namespace Game::Scene::Impl {
 				ImGui::BeginDisabled(swayOn && sway.FovY.Enabled);
 				ImGui::SliderFloat("FovY", &CameraFovY_, 0.2f, 1.6f);
 				ImGui::EndDisabled();
-				ImGui::ColorEdit3("Background", ClearColor_);
 
 				ImGui::SeparatorText("Sway (Hero <-> Overview)");
 				ImGui::Checkbox("Enabled##CameraSway", &sway.Enabled);
@@ -503,13 +510,22 @@ namespace Game::Scene::Impl {
 
 		EditParticles();
 		EditUI();
+		EditOutro();
 		#endif
 
 		//----	------	------	------	------	----//
 		// Camera
 
+		// Outro 中は往復・自動回転を止め、開始時のポーズから Outro のポーズへ補間する
+		if (IsOutroActive()) {
+			ApplyOutroCamera();
+		}
+		else {
+			CameraShake_ = Lumina::Float3{ 0.0f, 0.0f, 0.0f };
+		}
+
 		// Hero ⇔ Overview の往復（チャンネルごとに別周期。実時間で動く）
-		if (CameraSway_.Enabled) {
+		if (!IsOutroActive() && CameraSway_.Enabled) {
 			auto const& sway{ CameraSway_ };
 			auto const apply{
 				[this](SwayChannel const& channel_, float hero_, float overview_, float& out_) {
@@ -524,7 +540,7 @@ namespace Game::Scene::Impl {
 			apply(sway.FovY, sway.Hero.FovY, sway.Overview.FovY, CameraFovY_);
 		}
 
-		if (AutoOrbit_) {
+		if (!IsOutroActive() && AutoOrbit_) {
 			CameraYaw_ += OrbitSpeed_ * deltaTime;
 			if (CameraYaw_ > std::numbers::pi_v<float>) { CameraYaw_ -= twoPi; }
 			if (CameraYaw_ < -std::numbers::pi_v<float>) { CameraYaw_ += twoPi; }
@@ -532,19 +548,29 @@ namespace Game::Scene::Impl {
 
 		//----	------	------	------	------	----//
 		// FirePillar：エントリから描画用 Instance を作り直す（位置はキャラの足元＋オフセット）
-		// Instance::Desc は FirePillars_ の要素を指すので、ここより後で FirePillars_ を増減しないこと
+		// Instance::Desc は FirePillarRenderDescs_（エントリの Desc のコピー。Outro の駆動はこちらに掛ける）
+		// の要素を指すので、ここより後で FirePillarRenderDescs_ を増減しないこと
 
 		FirePillarAge_ += deltaTime;
 
-		FirePillarEntry const* lightSource{ nullptr };
+		float const pillarBoost{ OutroFirePillarBoost() };
+		float const pillarIntensityScale{ std::lerp(1.0f, Outro_.FirePillar.IntensityPeak, pillarBoost) };
+		float const pillarHeightScale{ std::lerp(1.0f, Outro_.FirePillar.HeightPeak, pillarBoost) };
+
+		Lumina::FlamePillar::Description const* lightSource{ nullptr };
 		FirePillarInstances_.clear();
+		FirePillarRenderDescs_.clear();
+		FirePillarRenderDescs_.reserve(FirePillars_.size());	// 以降の emplace_back で再確保させない
 		for (auto const& entry : FirePillars_) {
 			if (!entry.Enabled) { continue; }
 			if (FirePillarInstances_.size() >= Lumina::FlamePillar::Renderer::MaxInstances) { break; }
-			if (lightSource == nullptr) { lightSource = &entry; }
+
+			auto& desc{ FirePillarRenderDescs_.emplace_back(entry.Desc) };
+			desc.Height *= pillarHeightScale;
+			if (lightSource == nullptr) { lightSource = &desc; }
 
 			auto& instance{ FirePillarInstances_.emplace_back() };
-			instance.Desc = &entry.Desc;
+			instance.Desc = &desc;
 			instance.Position = {
 				Character_.Position.x + entry.Offset.x,
 				Character_.Position.y + entry.Offset.y,
@@ -552,19 +578,25 @@ namespace Game::Scene::Impl {
 			};
 			instance.Age = FirePillarAge_;
 			instance.Seed = entry.Seed;
-			instance.IntensityScale = entry.IntensityScale;
+			instance.IntensityScale = entry.IntensityScale * pillarIntensityScale;
 		}
 
 		//----	------	------	------	------	----//
 		// Character / Lighting
 
-		Character_.Advance(deltaTime);
+		// Outro 中は t からクリップと時刻を決める（ヒットストップもここ）
+		if (IsOutroActive()) {
+			ApplyOutroAnimation();
+		}
+		else {
+			Character_.Advance(deltaTime);
+		}
 
 		Lighting_.FireBase = Character_.Position;
-		Lighting_.FireIntensity = FireLightIntensity_;
+		Lighting_.FireIntensity = FireLightIntensity_ * std::lerp(1.0f, Outro_.FirePillar.LightPeak, pillarBoost);
 		if (LinkFireToPillar_ && lightSource != nullptr) {
-			Lighting_.FireColor = lightSource->Desc.Ramp.Mid;
-			Lighting_.FireHeight = lightSource->Desc.Height;
+			Lighting_.FireColor = lightSource->Ramp.Mid;
+			Lighting_.FireHeight = lightSource->Height;
 		}
 
 		//----	------	------	------	------	----//
@@ -585,6 +617,12 @@ namespace Game::Scene::Impl {
 			if (isFinished) { IsRevealPlaying_ = false; }
 		}
 
+		// 描画・パーティクル用のコピー（Outro の駆動はこちらにだけ掛け、元の調整値は書き換えない）
+		MagicCircleRenderLayers_ = MagicCircleLayers_;
+		if (IsOutroActive()) {
+			ApplyOutroToMagicCircle(MagicCircleRenderLayers_);
+		}
+
 		//----	------	------	------	------	----//
 		// Particles（ビルボード用にここでもカメラを作る。Render でも同じものを作り直す）
 
@@ -594,6 +632,8 @@ namespace Game::Scene::Impl {
 			Lumina::Vec3 eye{};
 			BuildCamera(view, viewProj, eye);
 			UpdateParticles(cmdList_, deltaTime, view, viewProj);
+			UpdateRays(viewProj);
+			UpdatePost();
 		}
 
 		//----	------	------	------	------	----//
