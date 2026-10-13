@@ -1,0 +1,29 @@
+{
+  "RS": {
+    "Parameters": [
+      {
+        "ShaderVisibility": "All",
+        "ParameterType": "CBV",
+        "ShaderRegister": 0,
+        "RegisterSpace": 0
+      }
+    ],
+
+    "StaticSamplers": [
+      {
+        "Filter": {
+          "ReductionType": "Standard",
+          "IsAnisotropic": 0,
+          "MinFilter": "Bilinear",
+          "MagFilter": "Bilinear",
+          "MipFilter": "Bilinear"
+        },
+        "TextureAddressU": "Wrap",
+        "TextureAddressV": "Wrap",
+        "TextureAddressW": "Wrap",
+        "ShaderRegister": 0,
+        "ShaderVisibility": "Pixel"
+      }
+    ]
+  }
+}

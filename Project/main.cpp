@@ -106,7 +106,7 @@ int32_t WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 	Lumina::WinApp::Context winAppContext{};
 	Lumina::WinApp::WindowConfig mainWindowConfig_{
 		.Name{ L"Main" },
-		.Title{ L"123456789" },
+		.Title{ L"Chanbara" },
 		.Style{
 			Lumina::WinApp::WindowStyle::TitleBar |
 			Lumina::WinApp::WindowStyle::WindowMenu |
@@ -220,11 +220,19 @@ int32_t WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 		switch (Game::Scene::Flag) {
 		case 0:
-			scene_Title->Update(dx12Context, cmdList, mainWindowRawInput);
+			scene_Title->Update(
+				std::as_const(dx12Context),
+				std::as_const(cmdList),
+				std::as_const(mainWindowRawInput)
+			);
 			scene_Title->Render(dx12Context, cmdList);
 			break;
 		case 1:
-			scene_InGame->Update(dx12Context, cmdList, mainWindowRawInput);
+			scene_InGame->Update(
+				std::as_const(dx12Context),
+				std::as_const(cmdList),
+				std::as_const(mainWindowRawInput)
+			);
 			scene_InGame->Render(dx12Context, cmdList);
 			break;
 		}
@@ -257,6 +265,11 @@ int32_t WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		dx12Context.EndFrame(cmdAllocator, cmdList);
 
 		//----	------	------	------	------	----//
+
+		// タイトルのメニューで Exit を選ぶと Game::Scene::Flag < 0 になる
+		if (Game::Scene::Flag < 0) {
+			::SendMessage(mainWindow.Handle(), WM_CLOSE, 0, 0);
+		}
 
 		if (keyboard.IsPressed(Lumina::WinApp::KEY::ESC)) {
 			::SendMessage(mainWindow.Handle(), WM_CLOSE, 0, 0);

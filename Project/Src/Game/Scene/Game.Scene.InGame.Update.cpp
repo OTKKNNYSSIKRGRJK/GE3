@@ -65,15 +65,26 @@ namespace Game::Scene::Impl {
 				0.0f, 0.0f, 0.0f, 1.0f,
 			};
 		}
+
+		float hitBoss = 0.0f;
 	}
 
 	namespace {
+		constexpr float Inv_0xFFFFFFFF{ 1.0f / static_cast<float>(0xFFFFFFFFU) };
+		constexpr float Inv_900{ 1.0f / 900.0f };
+
 		void UpdatePlayerCamera(TrackingCamera& camera_, Player const& player_) {
 			camera_.Target = player_.WorldPosition();
 			camera_.Position =
 				camera_.Position * (1.0f - camera_.DelayFactor) +
 				camera_.Target * camera_.DelayFactor;
 			camera_.Position.y += camera_.Target.y * 0.175f;
+
+			if (hitBoss > 0.05f) {
+				camera_.Position.x += std::cos(hitBoss * 15.0f) * hitBoss * 3.0f;
+				camera_.Position.y += std::cos(hitBoss * 20.0f) * hitBoss * 3.0f;
+				camera_.Position.z += std::cos(hitBoss * 25.0f) * hitBoss * 3.0f;
+			}
 
 			Lumina::Vec4 cameraTranslateSwayingOffset{
 				Lumina::Vec4{ camera_.Position } +
@@ -97,9 +108,6 @@ namespace Game::Scene::Impl {
 	}
 
 	namespace {
-		constexpr float Inv_0xFFFFFFFF{ 1.0f / static_cast<float>(0xFFFFFFFFU) };
-		constexpr float Inv_900{ 1.0f / 900.0f };
-
 		bool UpdateAmbientSparkle(Particle& p_, void const*) {
 			p_.Translate.x += (Lumina::Random::Generator()() * Inv_0xFFFFFFFF - 0.5f) * 0.05f;
 			p_.Translate.y += Lumina::Random::Generator()() * Inv_0xFFFFFFFF * 0.05f;
@@ -136,6 +144,40 @@ namespace Game::Scene::Impl {
 		int PlayerDashEffectEmitFrameCount = 0;
 	}
 
+	struct Tag_HoldWeapon {};
+
+	template<>
+	void InGame::Update(
+		Tag_HoldWeapon&&
+	) {
+		static auto const& animatedModel{ PlayerSkinnedInstance_ };
+		static auto const& skeleton{ animatedModel->Skeleton_ };
+		static uint32_t idx_LeftHand{ skeleton.IDX_Joint.find("Bone.012")->second };
+		static uint32_t idx_RightHand{ skeleton.IDX_Joint.find("Bone.024")->second };
+		static auto const& leftHand{ skeleton.ARR_Joint[idx_LeftHand] };
+		static auto const& rightHand{ skeleton.ARR_Joint[idx_RightHand] };
+
+		Lumina::Mat4 meshWorld{
+			Lumina::Mat4::SRT(
+				Player_->ModelScale() * 2.0f,
+				Player_->ModelRotate() + Lumina::Vec3{ 0.0f, 1.57f, 0.0f },
+				Player_->ModelTranslate()
+			)
+		};
+
+		World_Hands[0] = leftHand.SkeletonSpace * meshWorld;
+		World_Hands[1] = rightHand.SkeletonSpace * meshWorld;
+
+		WorldPos_Weapon_ =
+			Lumina::Vec4{ 0.0f, 3.0f, 0.0f, 1.0f } *
+			Lumina::Mat4::SRT(
+				{ 0.125f, 0.5f, 0.125f },
+				{ -std::numbers::pi_v<float> * 0.5f, 0.0f, 0.0f },
+				{ 0.0f, 0.0f, 0.0f }
+			) *
+			World_Hands[1];
+	}
+
 	template<>
 	void InGame::Update(
 		Lumina::DX12::Context const& dxContext_,
@@ -164,6 +206,7 @@ namespace Game::Scene::Impl {
 			PlayerDashEffectEmitFrameCount = 15;
 		}
 
+		hitBoss *= 0.9f;
 		UpdatePlayerCamera(*PlayerCamera_, *Player_);
 
 		Boss_Kinoko_->Update(*Player_);
@@ -224,22 +267,36 @@ namespace Game::Scene::Impl {
 
 		Lumina::Vec3 const dPos{ Player_->WorldPosition() - Boss_Kinoko_->WorldPosition() };
 		Lumina::Vec2 const dPos_XZ{ dPos.x, dPos.z };
-		if (Lumina::Vec2::Dot(dPos_XZ, dPos_XZ) <= 9.0f && dPos.y < 10.0f) {
+		if (playerATKFlag != 0 && !Boss_Kinoko_->IsBeingKnockedBack()) {
+			Lumina::Vec3 const weaponPos{ WorldPos_Weapon_.x, WorldPos_Weapon_.y, WorldPos_Weapon_.z };
+			Lumina::Vec3 const dWeaponPos{ weaponPos - Boss_Kinoko_->WorldPosition() };
+			Lumina::Vec2 const dWeaponPos_XZ{ dWeaponPos.x, dWeaponPos.z };
+			if (Lumina::Vec2::Dot(dWeaponPos_XZ, dWeaponPos_XZ) <= 9.0f && dPos.y < 10.0f) {
+				Lumina::Vec3 const contactPoint = weaponPos;
+				Boss_Kinoko_->KnockedBack(5.0f * playerATKFlag, { -dPos.x, -dPos.z });
+				Boss_Kinoko_->HP_ -= 100.0f * playerATKFlag;
+				emitKnockEffectParticles(contactPoint, 195.0f);
+				hitBoss = 1.0f;
+			}
+		}
+		else if (Lumina::Vec2::Dot(dPos_XZ, dPos_XZ) <= 9.0f && dPos.y < 10.0f) {
 			Lumina::Vec3 const contactPoint = Player_->WorldPosition() + dPos * 0.25f;
-			if (Player_->IsDashing() && !Boss_Kinoko_->IsBeingKnockedBack()) {
+			/*if (Player_->IsDashing() && !Boss_Kinoko_->IsBeingKnockedBack()) {
 				Boss_Kinoko_->KnockedBack(15.0f, { -dPos.x, -dPos.z });
 				Boss_Kinoko_->HP_ -= 100.0f;
 				emitKnockEffectParticles(contactPoint, 195.0f);
-			}
-			else if (!Player_->IsDashing() && !Player_->IsBeingKnockedBack()) {
-				Player_->KnockedBack(15.0f, { dPos.x, dPos.z });
-				Player_->HP_ -= 10.0f;
+			}*/
+			if (!Player_->IsDashing() && !Player_->IsBeingKnockedBack()) {
+				Player_->KnockedBack(5.0f, { dPos.x, dPos.z });
+				Player_->HP_ -= 5.0f;
 				emitKnockEffectParticles(contactPoint, -7.5f);
 			}
 		}
 
 		Lumina::Mat4 viewToWorld{ PlayerCamera_->View.Inv() };
 		UB_ViewToWorld_.Store(&viewToWorld, sizeof(Lumina::Mat4), 0LLU);
+
+		Update(Tag_HoldWeapon{});
 
 		float playerRadius{ 1.35f };
 		if (Player_->WorldPosition().y > 0.5f) {
@@ -288,6 +345,40 @@ namespace Game::Scene::Impl {
 					p.Translate.x += Player_->ModelTranslate().x;
 					p.Translate.y += Player_->ModelTranslate().y;
 					p.Translate.z += Player_->ModelTranslate().z;
+
+					p.Scale.x = 0.7f;
+					p.Scale.y = 0.7f;
+
+					p.Rotate.z = rndEngine() * Inv_0xFFFFFFFF * std::numbers::pi_v<float> *2.0f;
+
+					p.Life = 64.0f;
+
+					p.RenderData.RGBA = {
+						rgb_Gaming.R + rndEngine() * Inv_0xFFFFFFFF * 0.1f,
+						rgb_Gaming.G + rndEngine() * Inv_0xFFFFFFFF * 0.1f,
+						rgb_Gaming.B,
+						0.15f
+					};
+					p.RenderData.DiffuseID = 0U;
+					p.RenderData.DiffuseAtlasID = (rndEngine() & 3) ? (3U) : (4U);
+					PlayerEffects_->Emit(std::move(p));
+				}
+			}
+			for (int i = 0; i < 2; ++i) {
+				Particle p{};
+				{
+					p.Translate = {
+						std::cos(playerEffectTimeFactor * 0.3f + i * 3.6f) * 0.1f,
+						std::sin(playerEffectTimeFactor * 0.4f * i) * 0.1f,
+						std::sin(playerEffectTimeFactor * 0.5f - i * 1.2f) * 0.1f
+					};
+
+					p.Velocity.x = p.Translate.z * (-0.05f);
+					p.Velocity.z = p.Translate.x * (-0.05f);
+
+					p.Translate.x += World_Hands[i][3][0];
+					p.Translate.y += World_Hands[i][3][1];
+					p.Translate.z += World_Hands[i][3][2];
 
 					p.Scale.x = 0.7f;
 					p.Scale.y = 0.7f;
@@ -822,12 +913,28 @@ namespace Game::Scene::Impl {
 			}
 		}
 		UB_PostProcessingConstants_.Store(&PPConstants_, sizeof(PostProcessingConstants), 0LLU);
-		
-		if (Player_->IsMoving()) {
-			PlayAnimation("Run", true);
-		}
-		else {
-			PlayAnimation("Idle", true);
+
+		switch (playerATKFlag) {
+		case 0:
+			if (Player_->IsMoving()) {
+				PlayAnimation(currentAnim_, currentAnimName_, animTimer_, IsAnimationLoop_, "Run", true);
+			}
+			else {
+				PlayAnimation(currentAnim_, currentAnimName_, animTimer_, IsAnimationLoop_, "Idle", true);
+			}
+			break;
+
+		case 1:
+			PlayAnimation(currentAnim_, currentAnimName_, animTimer_, IsAnimationLoop_, "ATK1", false);
+			break;
+
+		case 2:
+			PlayAnimation(currentAnim_, currentAnimName_, animTimer_, IsAnimationLoop_, "ATK2", false);
+			break;
+
+		case 3:
+			PlayAnimation(currentAnim_, currentAnimName_, animTimer_, IsAnimationLoop_, "ATK3", false);
+			break;
 		}
 
 		if (currentAnim_) {
@@ -852,6 +959,48 @@ namespace Game::Scene::Impl {
 			);
 		}
 
+		if (Boss_Kinoko_->IsMoving()) {
+			PlayAnimation(
+				currentAnim_Boss_,
+				currentAnimName_Boss_,
+				animTimer_Boss_,
+				IsAnimationLoop_Boss_,
+				"Run",
+				true
+			);
+		}
+		else {
+			PlayAnimation(
+				currentAnim_Boss_,
+				currentAnimName_Boss_,
+				animTimer_Boss_,
+				IsAnimationLoop_Boss_,
+				"Idle",
+				true
+			);
+		}
+
+		if (currentAnim_Boss_) {
+			animTimer_Boss_ += 1.0f / 60.0f * 4.0f;
+
+			if (IsAnimationLoop_Boss_) {
+				animTimer_Boss_ = std::fmod(animTimer_Boss_, currentAnim_Boss_->DurationInSeconds);
+			}
+			else {
+				// ループしない場合は Duration で止める（これなら > 判定でOK）
+				if (animTimer_Boss_ > currentAnim_Boss_->DurationInSeconds) {
+					animTimer_Boss_ = currentAnim_Boss_->DurationInSeconds;
+				}
+			}
+
+			Lumina::CG3D::Update(
+				BossSkinnedInstance_->SkinCluster_,
+				BossSkinnedInstance_->Skeleton_,
+				*currentAnim_Boss_,
+				animTimer_Boss_
+			);
+		}
+
 		SimpleFX3_->ClearBatch();
 		SimpleFX3_->Batch(
 			Lumina::Mat4::SRT(
@@ -863,19 +1012,25 @@ namespace Game::Scene::Impl {
 	}
 
 	void InGame::PlayAnimation(
+		Lumina::CG3D::MyAnimation*& curAnim_,
+		std::string& curName_,
+		float& timer_,
+		bool& isAnimLoop_,
 		std::string_view name_,
 		bool isLoop_
 	) {
 		auto it = animDatabase_.find(name_.data());
-		//animTimer_ = 0.0f;
-		IsAnimationLoop_ = isLoop_;
+		if (curName_ != name_) {
+			timer_ = 0.0f;
+		}
+		isAnimLoop_ = isLoop_;
 		if (it != animDatabase_.end()) {
-			currentAnim_ = &(it->second);
-			currentAnimName_ = name_;
+			curAnim_ = &(it->second);
+			curName_ = name_;
 			return;
 		}
 		/*throw std::runtime_error("Motion not found: " + name);*/
-		currentAnim_ = &(animDatabase_.begin()->second);
+		curAnim_ = &(animDatabase_.begin()->second);
 	}
 }
 

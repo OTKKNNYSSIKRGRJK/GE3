@@ -209,8 +209,11 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="Src\Game\Scene\Game.Scene.ixx" />
     <ClCompile Include="Src\Game\Scene\Title\Game.Scene.Title.Impl.ixx" />
     <ClCompile Include="Src\Game\Scene\Title\Game.Scene.Title.Initialize.cpp" />
+    <ClCompile Include="Src\Game\Scene\Title\Game.Scene.Title.Particles.cpp" />
     <ClCompile Include="Src\Game\Scene\Title\Game.Scene.Title.ixx" />
     <ClCompile Include="Src\Game\Scene\Title\Game.Scene.Title.Render.cpp" />
+    <ClCompile Include="Src\Game\Scene\Title\Game.Scene.Title.Settings.cpp" />
+    <ClCompile Include="Src\Game\Scene\Title\Game.Scene.Title.UI.cpp" />
     <ClCompile Include="Src\Game\Scene\Title\Game.Scene.Title.Update.cpp" />
     <ClCompile Include="Src\Lumina\Container\Container.Bitset.ixx" />
     <ClCompile Include="Src\Lumina\Container\Container.List.ixx" />
@@ -277,6 +280,12 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="Src\Lumina\WinApp\WinApp.RawInput.ixx" />
     <ClCompile Include="Src\PrimitiveManager.ixx" />
     <ClCompile Include="Src\Test\BehaviorTree.ixx" />
+    <ClCompile Include="Src\Test\FirePillar\FilePillar.cpp" />
+    <ClCompile Include="Src\Test\FirePillar\FirePillar.ixx" />
+    <ClCompile Include="Src\Test\MagicCircle\MagicCircle.cpp" />
+    <ClCompile Include="Src\Test\MagicCircle\MagicCircle.ixx" />
+    <ClCompile Include="Src\Test\ShowcaseCharacter\ShowcaseCharacter.cpp" />
+    <ClCompile Include="Src\Test\ShowcaseCharacter\ShowcaseCharacter.ixx" />
     <ClCompile Include="Src\Test\Editor\Lumina.Editor.Layout.cpp" />
     <ClCompile Include="Src\Test\Editor\Lumina.Editor.Layout.ixx" />
     <ClCompile Include="Src\Test\Editor\Lumina.Editor.Panel.Base.ixx" />
@@ -290,6 +299,14 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <None Include="..\readme.md" />
     <None Include=".editorconfig" />
     <None Include=".gitignore" />
+    <None Include="Assets\Title\FirePillar.hlsl" />
+    <None Include="Assets\Title\TitleLabelGlow.PS.hlsl" />
+    <None Include="Assets\Title\FirePillar.json" />
+    <None Include="Assets\Title\TitleParticle.PS.hlsl" />
+    <None Include="Assets\Title\MagicCircle.hlsl" />
+    <None Include="Assets\Title\MagicCircle.json" />
+    <None Include="Assets\Title\ShowcaseCharacter.hlsl" />
+    <None Include="Assets\Title\ShowcaseCharacter.json" />
     <None Include="Assets\Shaders\Basic.hlsli">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">true</ExcludedFromBuild>

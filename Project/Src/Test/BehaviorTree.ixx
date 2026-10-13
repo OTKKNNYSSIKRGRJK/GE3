@@ -132,7 +132,10 @@ namespace Lumina::Behavior {
 				};
 
 				if (status == Status::Running) {
-					if (isInterrupted) { child->OnTerminate(Status::Failure); }
+					if (isInterrupted) {
+						auto& child_PREV{ Children_.at(IDX_RunningChild_) };
+						child_PREV->OnTerminate(Status::Failure);
+					}
 					
 					IDX_RunningChild_ = static_cast<int>(idx);
 					
@@ -140,7 +143,10 @@ namespace Lumina::Behavior {
 
 				}
 				else if (status == Status::Success) {
-					if (isInterrupted) { child->OnTerminate(Status::Failure); }
+					if (isInterrupted) {
+						auto& child_PREV{ Children_.at(IDX_RunningChild_) };
+						child_PREV->OnTerminate(Status::Failure);
+					}
 					
 					IDX_RunningChild_ = -1;
 					

@@ -1,6 +1,7 @@
 export module Game.Scene.Title;
 
 import <memory>;
+import <concepts>;
 
 import Lumina;
 

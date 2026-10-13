@@ -105,6 +105,7 @@ namespace Game::Scene::Impl {
 		auto const& keyboard{ input_.Keyboard() };
 		using Lumina::WinApp::KEY;
 		static int atkCD = 0;
+		static int atkCD2 = 0;
 		if (atkCD == 15) {
 			atkCD = 0;
 		}
@@ -117,6 +118,23 @@ namespace Game::Scene::Impl {
 			playerATK(0.9f, 0.1f, -0.2f);
 			atkCD = 1;
 		}
+
+		if (atkCD2 == 45) {
+			atkCD2 = 0;
+			playerATKFlag = 0;
+		}
+		if (atkCD2 > 0) {
+			atkCD2 += 1;
+		}
+		if (playerATKFlag != 3) {
+			if (!Player_->IsBeingKnockedBack() && keyboard.IsPressed(KEY::Z) && (atkCD2 == 0 || atkCD2 > 30)) {
+				atkCD2 = 1;
+				if (playerATKFlag == 0) { playerATKFlag = 1; }
+				else if (playerATKFlag == 1) { playerATKFlag = 2; }
+				else if (playerATKFlag == 2) { playerATKFlag = 3; }
+			}
+		}
+
 		PlayerBullets_->Update(cmdList_, Mat4_I, UpdatePlayerBullet);
 		BossBullets_->Update(cmdList_, Mat4_I, UpdateBossBullet);
 

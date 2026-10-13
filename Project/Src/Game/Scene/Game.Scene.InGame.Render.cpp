@@ -116,6 +116,11 @@ namespace Game::Scene::Impl {
 			kinokoShear * Lumina::Mat4::SRT(Boss_Kinoko_->ModelScale(), Boss_Kinoko_->ModelRotate(), Boss_Kinoko_->ModelTranslate())
 		};*/
 
+		Lumina::Mat4 weaponWorld{ World_Hands[1] };
+		weaponWorld =
+			Lumina::Mat4::SRT({ 0.125f, 0.5f, 0.125f }, { -std::numbers::pi_v<float> * 0.5f, 0.0f, 0.0f }, { 0.0f, 0.0f, 0.0f }) *
+			weaponWorld;
+
 		MeshManager_->Begin(cmdList_);
 		MeshManager_->BatchBegin();
 		/*MeshManager_->Batch(
@@ -124,11 +129,20 @@ namespace Game::Scene::Impl {
 			LocalHeap_Materials_.CPUHandle(0U),
 			playerLocalToWorld
 		);*/
-		/*MeshManager_->Batch(
+		MeshManager_->Batch(
 			MeshShaderAssets_[1],
 			1U,
 			LocalHeap_Materials_.CPUHandle(1U),
-			bossLocalToWorld
+			weaponWorld
+		);
+		/*weaponWorld[3][0] = WorldPos_Weapon_.x;
+		weaponWorld[3][1] = WorldPos_Weapon_.y;
+		weaponWorld[3][2] = WorldPos_Weapon_.z;
+		MeshManager_->Batch(
+			MeshShaderAssets_[1],
+			1U,
+			LocalHeap_Materials_.CPUHandle(1U),
+			weaponWorld
 		);*/
 		MeshManager_->BatchEnd();
 
@@ -179,7 +193,7 @@ namespace Game::Scene::Impl {
 
 		if (Boss_Kinoko_) {
 			cmdList_->SetGraphicsRootDescriptorTable(0U, GlobalTable_CBV_Scene_.GPUHandle(1U));
-			cmdList_->SetGraphicsRootDescriptorTable(1U, PlayerSkinnedInstance_->SkinCluster_.PaletteSRVHandle.second);
+			cmdList_->SetGraphicsRootDescriptorTable(1U, BossSkinnedInstance_->SkinCluster_.PaletteSRVHandle.second);
 			cmdList_->SetGraphicsRootDescriptorTable(2U, GlobalTable_Materials_.GPUHandle(1U));
 			cmdList_->SetGraphicsRootDescriptorTable(3U, GlobalTable_SRV_ImageTexture_.GPUHandle(0U));
 			cmdList_->SetGraphicsRootDescriptorTable(5U, Skybox_->GlobalTable().GPUHandle(0U));
@@ -188,7 +202,7 @@ namespace Game::Scene::Impl {
 
 			D3D12_VERTEX_BUFFER_VIEW const vbvs[2]{
 				reinterpret_cast<D3D12_VERTEX_BUFFER_VIEW const&>(PlayerSkinnedModel_->VBV_),
-				reinterpret_cast<D3D12_VERTEX_BUFFER_VIEW const&>(PlayerSkinnedInstance_->SkinCluster_.InfluenceBufferView)
+				reinterpret_cast<D3D12_VERTEX_BUFFER_VIEW const&>(BossSkinnedInstance_->SkinCluster_.InfluenceBufferView)
 			};
 			cmdList_->IASetVertexBuffers(0, 2, vbvs);
 			cmdList_->IASetIndexBuffer(reinterpret_cast<D3D12_INDEX_BUFFER_VIEW const*>(&PlayerSkinnedModel_->IBV_));

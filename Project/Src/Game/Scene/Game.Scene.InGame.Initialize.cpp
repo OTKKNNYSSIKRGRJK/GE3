@@ -724,7 +724,6 @@ namespace Game::Scene::Impl {
 			PlayerSkinnedModel_->IBV_ = Lumina::DX12::IBV::Create(PlayerSkinnedModel_->IndexBuffer_);
 
 			PlayerSkinnedInstance_ = std::make_unique<SkinnedInstance>();
-
 			PlayerSkinnedInstance_->Skeleton_ =
 				Lumina::CG3D::CreateSkeleton(PlayerSkinnedModel_->Collection_.Root);
 			Lumina::CG3D::CreateSkinCluster(
@@ -735,17 +734,38 @@ namespace Game::Scene::Impl {
 				// メッシュ
 				PlayerSkinnedModel_->Collection_.Meshes[0]
 			);
-
 			PlayerSkinnedInstance_->MeshScale_ = { 1.0f, 1.0f, 1.0f };
 			PlayerSkinnedInstance_->MeshRotate_ = { 0.0f, 0.0f, 0.0f };
 			PlayerSkinnedInstance_->MeshTranslate_ = { 0.0f, 0.0f, 0.0f };
 
+			BossSkinnedInstance_ = std::make_unique<SkinnedInstance>();
+			BossSkinnedInstance_->Skeleton_ =
+				Lumina::CG3D::CreateSkeleton(PlayerSkinnedModel_->Collection_.Root);
+			Lumina::CG3D::CreateSkinCluster(
+				BossSkinnedInstance_->SkinCluster_,
+				device,
+				dxContext_.GlobalDescriptorHeap(),
+				BossSkinnedInstance_->Skeleton_,
+				// メッシュ
+				PlayerSkinnedModel_->Collection_.Meshes[0]
+			);
+			BossSkinnedInstance_->MeshScale_ = { 1.0f, 1.0f, 1.0f };
+			BossSkinnedInstance_->MeshRotate_ = { 0.0f, 0.0f, 0.0f };
+			BossSkinnedInstance_->MeshTranslate_ = { 0.0f, 0.0f, 0.0f };
+
 			auto animation_idle{ Lumina::CG3D::LoadAnimationFile("Idle.gltf", "Assets/Neki") };
 			auto animation_run{ Lumina::CG3D::LoadAnimationFile("Cool_Run.gltf", "Assets/Neki") };
+			auto animation_atk1{ Lumina::CG3D::LoadAnimationFile("ATKY1_H2.gltf", "Assets/Neki") };
+			auto animation_atk2{ Lumina::CG3D::LoadAnimationFile("ATKY2_H2.gltf", "Assets/Neki") };
+			auto animation_atk3{ Lumina::CG3D::LoadAnimationFile("ATKY3_H3.gltf", "Assets/Neki") };
 			
 			animDatabase_["Idle"] = animation_idle[0];
 			animDatabase_["Run"] = animation_run[0];
-			PlayAnimation("Idle", true);
+			animDatabase_["ATK1"] = animation_atk1[0];
+			animDatabase_["ATK2"] = animation_atk2[0];
+			animDatabase_["ATK3"] = animation_atk3[0];
+			PlayAnimation(currentAnim_, currentAnimName_, animTimer_, IsAnimationLoop_, "Idle", true);
+			PlayAnimation(currentAnim_Boss_, currentAnimName_Boss_, animTimer_Boss_, IsAnimationLoop_Boss_, "Idle", true);
 			animTimer_ = 0.0f;
 
 			auto config{ Lumina::Utils::LoadFromFile<nlohmann::json>("Assets/Configs/SkinnedMesh.json") };

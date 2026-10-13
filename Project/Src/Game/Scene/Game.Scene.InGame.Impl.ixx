@@ -74,7 +74,7 @@ namespace Game::Scene::Impl {
 
 	public:
 		template<typename...ArgTypes>
-		void Update(typename ArgTypes const&...args_);
+		void Update(ArgTypes&&...args_);
 		template<typename...ArgTypes>
 		void Render(typename ArgTypes const&...args_);
 
@@ -197,18 +197,31 @@ namespace Game::Scene::Impl {
 
 		std::unique_ptr<SkinnedModel> PlayerSkinnedModel_;
 		std::unique_ptr<SkinnedInstance> PlayerSkinnedInstance_;
+		std::unique_ptr<SkinnedInstance> BossSkinnedInstance_;
 
 		using AnimationDatabase = std::unordered_map<std::string, Lumina::CG3D::MyAnimation>;
 		AnimationDatabase animDatabase_;
 		Lumina::CG3D::MyAnimation* currentAnim_ = nullptr;
+		Lumina::CG3D::MyAnimation* currentAnim_Boss_ = nullptr;
 		std::string currentAnimName_;
+		std::string currentAnimName_Boss_;
 		float animTimer_ = 0.0f;
-		bool IsAnimationLoop_ = 0.0f;
+		float animTimer_Boss_ = 0.0f;
+		bool IsAnimationLoop_ = 0;
+		bool IsAnimationLoop_Boss_ = 0;
+		Lumina::Mat4 World_Hands[2]{};
+		Lumina::Vec4 WorldPos_Weapon_{};
 
 		void PlayAnimation(
+			Lumina::CG3D::MyAnimation*& curAnim_,
+			std::string& curName_,
+			float& timer_,
+			bool& isAnimLoop_,
 			std::string_view name_,
 			bool isLoop_ = false
 		);
+
+		int playerATKFlag = 0;
 
 		//----	Skybox							----//
 		//----	------	------	------	------	----//

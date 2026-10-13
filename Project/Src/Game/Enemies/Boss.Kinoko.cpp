@@ -10,6 +10,8 @@ import Game.Player;
 
 import ParticleSystem;
 
+import Lumina.Utils.ImGui;
+
 namespace Game {
 	namespace {
 		enum BOSS_STATE {
@@ -43,10 +45,35 @@ namespace Game {
 			// ── 出力（ツリーからゲーム側への書き出し）──
 			ParticleSystem<Particle>* hitboxOutput;
 
-			int isIdling = 0;
+			int isIdling = 1;
+
+			int CurrentBehaviorID = -1;
 		};
 
 		BossBlackboard BBB;
+
+		class Decorator_ConditionCheck : public Lumina::Behavior::Decorator {
+			using BTStatus = Lumina::Behavior::Status;
+
+		public:
+			Decorator_ConditionCheck(int behaviorID_): BehaviorID_(behaviorID_) {}
+
+			auto Tick(Lumina::Behavior::Blackboard& bb) -> BTStatus override {
+				auto& bossBB{ reinterpret_cast<BossBlackboard&>(bb) };
+
+				if (
+					(bossBB.CurrentBehaviorID != -1) &&
+					(bossBB.CurrentBehaviorID != BehaviorID_)
+				) { return BTStatus::Failure; }
+				
+				BTStatus result = Child_->Tick(bb);
+				if (result == BTStatus::Success) { bossBB.CurrentBehaviorID = BehaviorID_; }
+				else { bossBB.CurrentBehaviorID = -1; }
+				return result;
+			}
+		private:
+			int BehaviorID_;
+		};
 
 		class Condition_DistanceCheck : public Lumina::Behavior::Leaf {
 			using BTStatus = Lumina::Behavior::Status;
@@ -189,17 +216,29 @@ namespace Game {
 				auto& bossBB{ reinterpret_cast<BossBlackboard&>(bb) };
 
 				if (!m_started) {
+					if (bossBB.isIdling) {
+						bossBB.isIdling = 0;
+						m_attack.Start(bossBB.bossPos, bossBB.bossForward, bossBB.bossId);
+						m_started = true;
+						return BTStatus::Running;
+					}
+				}
+				else {
 					bossBB.isIdling = 0;
-					m_attack.Start(bossBB.bossPos, bossBB.bossForward, bossBB.bossId);
-					m_started = true;
+					m_attack.Update(bossBB.deltaTime, bossBB.hitboxOutput);
+					if (m_attack.IsFinished()) {
+						m_started = false;
+						bossBB.CurrentBehaviorID = -1;
+						return BTStatus::Success;
+					}
+					return BTStatus::Running;
 				}
-				m_attack.Update(bossBB.deltaTime, bossBB.hitboxOutput);
-				if (m_attack.IsFinished()) {
-					m_started = false;
-					return BTStatus::Success;
-				}
-				return BTStatus::Running;
+
+				return BTStatus::Failure;
 			}
+
+			virtual auto OnTerminate([[maybe_unused]] BTStatus status_) -> void override {}
+
 		private:
 			WaveLineAttack m_attack;
 			bool m_started = false;
@@ -266,16 +305,25 @@ namespace Game {
 				auto& bossBB{ reinterpret_cast<BossBlackboard&>(bb) };
 
 				if (!m_started) {
+					if (bossBB.isIdling) {
+						bossBB.isIdling = 0;
+						m_attack.Start();
+						m_started = true;
+						return BTStatus::Running;
+					}
+				}
+				else {
 					bossBB.isIdling = 0;
-					m_attack.Start();
-					m_started = true;
+					m_attack.Update(bossBB.deltaTime, bossBB.bossPos, bossBB.hitboxOutput);
+					if (m_attack.IsFinished()) {
+						m_started = false;
+						bossBB.CurrentBehaviorID = -1;
+						return BTStatus::Success;
+					}
+					return BTStatus::Running;
 				}
-				m_attack.Update(bossBB.deltaTime, bossBB.bossPos, bossBB.hitboxOutput);
-				if (m_attack.IsFinished()) {
-					m_started = false;
-					return BTStatus::Success;
-				}
-				return BTStatus::Running;
+
+				return BTStatus::Failure;
 			}
 		private:
 			CircularAttack m_attack;
@@ -300,9 +348,13 @@ namespace Game {
 
 		// 円形範囲攻撃の枝
 		auto circularSeq{ std::make_unique<Sequence>() };
-		circularSeq->AddChild(std::make_unique<Condition_DistanceCheck>(10.0f, true));
 		{
-			auto cd{ std::make_unique<Decorator_Cooldown>(&BossBlackboard::circularCooldown, 8.0f) };
+			auto dec{ std::make_unique<Decorator_ConditionCheck>(1) };
+			dec->SetChild(std::make_unique<Condition_DistanceCheck>(30.0f, true));
+			circularSeq->AddChild(std::move(dec));
+		}
+		{
+			auto cd{ std::make_unique<Decorator_Cooldown>(&BossBlackboard::circularCooldown, 5.0f) };
 			cd->SetChild(std::make_unique<SkillNode_CircularBurst>());
 			circularSeq->AddChild(std::move(cd));
 		}
@@ -310,9 +362,13 @@ namespace Game {
 
 		// 波濤攻撃の枝
 		auto waveSeq = std::make_unique<Sequence>();
-		waveSeq->AddChild(std::make_unique<Condition_DistanceCheck>(10.0f, false));
 		{
-			auto cd = std::make_unique<Decorator_Cooldown>(&BossBlackboard::waveLineCooldown, 6.0f);
+			auto dec{ std::make_unique<Decorator_ConditionCheck>(2) };
+			dec->SetChild(std::make_unique<Condition_DistanceCheck>(30.0f, false));
+			waveSeq->AddChild(std::move(dec));
+		}
+		{
+			auto cd = std::make_unique<Decorator_Cooldown>(&BossBlackboard::waveLineCooldown, 5.0f);
 			cd->SetChild(std::make_unique<SkillNode_WaveLine>());
 			waveSeq->AddChild(std::move(cd));
 		}
@@ -325,7 +381,7 @@ namespace Game {
 	}
 
 	void Boss_Kinoko::Move() {
-		if (!BBB.isIdling) { return; }
+		if (!BBB.isIdling) { IsMoving_ = 0; return; }
 
 		float speedFactor{
 			Lumina::Vec3::Dot(RelPos_SelfToPlayer_, RelPos_SelfToPlayer_) * 0.0078125f * 0.25f
@@ -341,6 +397,8 @@ namespace Game {
 		Position_.z += SpeedByMove_ * relPosUnit.z;
 
 		ModelTranslate_.y += std::sin(Boing_.Timer * 0.2f) * 0.02f;
+
+		IsMoving_ = 1;
 	}
 
 	void Boss_Kinoko::Dash() {
@@ -481,6 +539,13 @@ namespace Game {
 		BBB.circularCooldown -= dt;
 
 		BTRoot_->Tick(BBB);
+
+		/*ImGui::Begin("BossBT");
+		ImGui::Text("IsIdling = %d", BBB.isIdling);
+		ImGui::Text("waveLineCooldown = %f", BBB.waveLineCooldown);
+		ImGui::Text("circularCooldown = %f", BBB.circularCooldown);
+		ImGui::Text("CurrentBehaviorID = %d", BBB.CurrentBehaviorID);
+		ImGui::End();*/
 	}
 
 	template<>
@@ -515,7 +580,7 @@ namespace Game {
 		CurrentState_ = &Boss_Kinoko::Idle;
 		FrameCountDown_ToNextState_ = (Lumina::Random::Generator()()) % 60 + 240;
 
-		SpeedByMove_Default_ = 0.1f;
+		SpeedByMove_Default_ = 0.5f;
 
 		MaxHP_ = 25000.0f;
 		Inv_MaxHP_ = 1.0f / MaxHP_;

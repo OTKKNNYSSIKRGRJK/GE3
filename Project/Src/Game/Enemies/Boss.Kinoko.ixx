@@ -27,6 +27,8 @@ namespace Game {
 
 		constexpr int32_t IsBeingKnockedBack() const noexcept { return IsBeingKnockedBack_; }
 
+		constexpr int32_t IsMoving() const noexcept { return IsMoving_; }
+
 		void Reset(Lumina::Vec3 const& initPos_);
 
 	public:
@@ -89,6 +91,7 @@ namespace Game {
 
 		State CurrentState_{ nullptr };
 		int32_t FrameCountDown_ToNextState_{};
+		int32_t IsMoving_{ 0 };
 
 	public:
 		float MaxHP_{};

@@ -303,14 +303,30 @@ namespace Lumina::CG3D {
 			Calculate(out_.Rotate, in_.Rotate, time_);
 			Calculate(out_.Translate, in_.Translate, time_);
 		}
+
+		void Blend(
+			TRANSFORM& current_,
+			TRANSFORM const& clip_
+		) {
+			current_.Rotate.x = current_.Rotate.x * 0.75f + clip_.Rotate.x * 0.25f;
+			current_.Rotate.y = current_.Rotate.y * 0.75f + clip_.Rotate.y * 0.25f;
+			current_.Rotate.z = current_.Rotate.z * 0.75f + clip_.Rotate.z * 0.25f;
+			current_.Rotate.w = current_.Rotate.w * 0.75f + clip_.Rotate.w * 0.25f;
+			
+			current_.Translate.x = current_.Translate.x * 0.75f + clip_.Translate.x * 0.25f;
+			current_.Translate.y = current_.Translate.y * 0.75f + clip_.Translate.y * 0.25f;
+			current_.Translate.z = current_.Translate.z * 0.75f + clip_.Translate.z * 0.25f;
+		}
 	}
 
 	void ApplyAnimation(Skeleton& skeleton_, MyAnimation const& anim_, float time_) {
+		TRANSFORM transform{};
 		for (auto& joint : skeleton_.ARR_Joint) {
 			auto it{ anim_.Nodes.find(joint.Name) };
 			if (it != anim_.Nodes.cend()) {
 				auto const& animNode_Root{ it->second };
-				Calculate(joint.Transform, animNode_Root, time_);
+				Calculate(transform, animNode_Root, time_);
+				Blend(joint.Transform, transform);
 			}
 		}
 	}

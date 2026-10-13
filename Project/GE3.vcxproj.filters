@@ -8,6 +8,9 @@
     <Filter Include="Assets">
       <UniqueIdentifier>{8d93fb73-beea-435d-b8fd-f6a8ccdb7512}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Assets\Title">
+      <UniqueIdentifier>{6f2b9d41-3c8e-4a57-9b1d-7e0c4f5a2b63}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Assets\Shaders">
       <UniqueIdentifier>{3592e8bf-5179-4438-9808-eb103e00a535}</UniqueIdentifier>
     </Filter>
@@ -383,6 +386,9 @@
     <ClCompile Include="Src\Test\BehaviorTree.ixx">
       <Filter>Src\Lumina\Test</Filter>
     </ClCompile>
+    <ClCompile Include="Src\Test\FirePillar\FirePillar.ixx">
+      <Filter>Src\Lumina\Test</Filter>
+    </ClCompile>
     <ClCompile Include="Src\Test\Editor\Lumina.EditorTest.ixx">
       <Filter>Src\Lumina\Test\Editor</Filter>
     </ClCompile>
@@ -407,10 +413,76 @@
     <ClCompile Include="Src\Test\Editor\Lumina.Editor.Layout.ixx">
       <Filter>Src\Lumina\Test\Editor</Filter>
     </ClCompile>
+    <ClCompile Include="Src\Game\Scene\Game.Scene.ixx">
+      <Filter>Src</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Game\Scene\Title\Game.Scene.Title.Impl.ixx">
+      <Filter>Src</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Game\Scene\Title\Game.Scene.Title.Initialize.cpp">
+      <Filter>Src</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Game\Scene\Title\Game.Scene.Title.Particles.cpp">
+      <Filter>Src</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Game\Scene\Title\Game.Scene.Title.ixx">
+      <Filter>Src</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Game\Scene\Title\Game.Scene.Title.Render.cpp">
+      <Filter>Src</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Game\Scene\Title\Game.Scene.Title.Settings.cpp">
+      <Filter>Src</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Game\Scene\Title\Game.Scene.Title.UI.cpp">
+      <Filter>Src</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Game\Scene\Title\Game.Scene.Title.Update.cpp">
+      <Filter>Src</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Test\FirePillar\FilePillar.cpp">
+      <Filter>Src\Lumina\Test</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Test\MagicCircle\MagicCircle.cpp">
+      <Filter>Src\Lumina\Test</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Test\MagicCircle\MagicCircle.ixx">
+      <Filter>Src\Lumina\Test</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Test\ShowcaseCharacter\ShowcaseCharacter.cpp">
+      <Filter>Src\Lumina\Test</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Test\ShowcaseCharacter\ShowcaseCharacter.ixx">
+      <Filter>Src\Lumina\Test</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include=".editorconfig" />
     <None Include=".gitignore" />
+    <None Include="Assets\Title\FirePillar.hlsl">
+      <Filter>Assets\Title</Filter>
+    </None>
+    <None Include="Assets\Title\TitleLabelGlow.PS.hlsl">
+      <Filter>Assets\Title</Filter>
+    </None>
+    <None Include="Assets\Title\FirePillar.json">
+      <Filter>Assets\Title</Filter>
+    </None>
+    <None Include="Assets\Title\TitleParticle.PS.hlsl">
+      <Filter>Assets\Title</Filter>
+    </None>
+    <None Include="Assets\Title\MagicCircle.hlsl">
+      <Filter>Assets\Title</Filter>
+    </None>
+    <None Include="Assets\Title\MagicCircle.json">
+      <Filter>Assets\Title</Filter>
+    </None>
+    <None Include="Assets\Title\ShowcaseCharacter.hlsl">
+      <Filter>Assets\Title</Filter>
+    </None>
+    <None Include="Assets\Title\ShowcaseCharacter.json">
+      <Filter>Assets\Title</Filter>
+    </None>
     <None Include="Assets\Shaders\Basic.hlsli">
       <Filter>Assets\Shaders</Filter>
     </None>
