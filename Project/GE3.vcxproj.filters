@@ -498,6 +498,9 @@
     <None Include="Assets\Title\TitlePost.json">
       <Filter>Assets\Title</Filter>
     </None>
+    <None Include="Assets\Title\TitleCrack.hlsli">
+      <Filter>Assets\Title</Filter>
+    </None>
     <None Include="Assets\Title\ShowcaseCharacter.hlsl">
       <Filter>Assets\Title</Filter>
     </None>

@@ -51,6 +51,9 @@ namespace Game::Scene::Impl {
 			float const t{ 1.0f - Saturate(x_) };
 			return 1.0f - t * t * t;
 		}
+		float SRGBToLinear(float c_) {
+			return (c_ <= 0.04045f) ? (c_ / 12.92f) : std::pow((c_ + 0.055f) / 1.055f, 2.4f);
+		}
 		float EaseInOutCubic(float x_) {
 			float const t{ Saturate(x_) };
 			return (t < 0.5f) ? (4.0f * t * t * t) : (1.0f - 4.0f * (1.0f - t) * (1.0f - t) * (1.0f - t));
@@ -337,7 +340,70 @@ namespace Game::Scene::Impl {
 			float const p{ Progress(t, tl.ChargeEnd, tl.SwingEnd) };
 			return std::lerp(curve_.Charge, curve_.Hit, p * p);
 		}
-		return std::lerp(curve_.Hit, curve_.Split, SmoothStep(Progress(t, tl.SwingEnd, tl.SplitEnd)));
+		if (t < tl.SplitEnd) {
+			return std::lerp(curve_.Hit, curve_.Split, SmoothStep(Progress(t, tl.SwingEnd, tl.SplitEnd)));
+		}
+		// フィナーレ：加速しながら Finale へ（フェードアウトと同じ間）
+		float const p{ std::pow(OutroFinaleProgress(), std::max(Outro_.Post.FinaleCurve, 0.01f)) };
+		return std::lerp(curve_.Split, curve_.Finale, p);
+	}
+
+	void Title::OutroEffectCenter(float& u_, float& v_) const {
+		// 先端が画面に無いときは画面中央
+		float const tipU{ IsTipOnScreen_ ? TipU_ : 0.5f };
+		float const tipV{ IsTipOnScreen_ ? TipV_ : 0.5f };
+		if (!IsOutroActive() || !Outro_.Crack.Enabled) {
+			u_ = tipU;
+			v_ = tipV;
+			return;
+		}
+
+		// 命中から CenterMove 秒で、先端 → 割れ目の点へ
+		auto const tl{ Sanitized(Outro_.Timeline) };
+		auto const& crack{ Outro_.Crack };
+		float const move{
+			SmoothStep(Progress(OutroTime_, tl.SwingEnd, tl.SwingEnd + std::max(crack.CenterMove, 0.0f)))
+		};
+		u_ = std::lerp(tipU, crack.PointU, move);
+		v_ = std::lerp(tipV, crack.PointV, move);
+	}
+
+	auto Title::IsOutroCrackActive() const -> bool {
+		if (!IsOutroActive() || !Outro_.Crack.Enabled) { return false; }
+		return OutroTime_ >= Sanitized(Outro_.Timeline).SwingEnd;
+	}
+
+	auto Title::OutroCrackLineReveal() const -> float {
+		if (!IsOutroCrackActive()) { return 0.0f; }
+		auto const tl{ Sanitized(Outro_.Timeline) };
+		return EaseOutCubic(
+			Progress(OutroTime_, tl.SwingEnd, tl.SwingEnd + std::max(Outro_.Crack.LineAppear, 0.0f))
+		);
+	}
+
+	auto Title::OutroCrackOpen() const -> float {
+		if (!IsOutroCrackActive()) { return 0.0f; }
+		auto const tl{ Sanitized(Outro_.Timeline) };
+		float const p{ Progress(OutroTime_, tl.ImpactEnd, tl.SplitEnd) };
+		return std::pow(p, std::max(Outro_.Crack.OpenCurve, 0.01f));
+	}
+
+	auto Title::OutroCrackRaysIntensity() const -> float {
+		if (!IsOutroCrackActive()) { return 0.0f; }
+		auto const tl{ Sanitized(Outro_.Timeline) };
+		auto const& crack{ Outro_.Crack };
+		return crack.RaysPeak *
+			SmoothStep(Progress(OutroTime_, tl.ImpactEnd, tl.ImpactEnd + std::max(crack.RaysRise, 0.0f)));
+	}
+
+	auto Title::OutroCrackRaysLength() const -> float {
+		auto const tl{ Sanitized(Outro_.Timeline) };
+		auto const& crack{ Outro_.Crack };
+		return std::lerp(
+			crack.RaysLengthStart,
+			crack.RaysLengthEnd,
+			SmoothStep(Progress(OutroTime_, tl.ImpactEnd, tl.SplitEnd))
+		);
 	}
 
 	auto Title::OutroFirePillarBoost() const -> float {
@@ -352,14 +418,23 @@ namespace Game::Scene::Impl {
 		return 1.0f - Progress(OutroTime_, 0.0f, Outro_.UI.FadeDuration);
 	}
 
-	auto Title::OutroWhiteAmount() const -> float {
+	auto Title::OutroFinaleProgress() const -> float {
 		if (!IsOutroActive()) { return 0.0f; }
+		auto const tl{ Sanitized(Outro_.Timeline) };
+		float const end{ std::max(tl.WhiteEnd - std::max(Outro_.Screen.FadeHold, 0.0f), tl.SplitEnd) };
+		return Progress(OutroTime_, tl.SplitEnd, end);
+	}
+
+	void Title::OutroOverlay(Lumina::Float3& colorLinear_, float& alpha_) const {
+		colorLinear_ = Lumina::Float3{ 1.0f, 1.0f, 1.0f };
+		alpha_ = 0.0f;
+		if (!IsOutroActive()) { return; }
+
 		auto const tl{ Sanitized(Outro_.Timeline) };
 		auto const& style{ Outro_.Screen };
 
-		// * 区間 5 への白への抜け
-		float const begin{ tl.SplitEnd - std::max(style.WhiteRampDuration, 0.0f) };
-		float const ramp{ SmoothStep(Progress(OutroTime_, begin, tl.SplitEnd)) };
+		// * フィナーレのフェードアウト（FadeColor へ）
+		float const fade{ std::pow(OutroFinaleProgress(), std::max(style.FadeCurve, 0.01f)) };
 
 		// * 命中の白フラッシュ（素早く立ち上がり、2 乗で減衰）
 		float flash{ 0.0f };
@@ -375,7 +450,19 @@ namespace Game::Scene::Impl {
 			}
 		}
 
-		return Saturate(std::max(ramp, flash));
+		// 濃い方を使い、色は濃さの比で白（フラッシュ）と FadeColor を混ぜる（普通は時間が重ならない）
+		alpha_ = Saturate(std::max(fade, flash));
+		float const fadeWeight{ (fade + flash > 1e-5f) ? (fade / (fade + flash)) : 0.0f };
+		Lumina::Float3 const fadeColor{
+			SRGBToLinear(style.FadeColor.x),
+			SRGBToLinear(style.FadeColor.y),
+			SRGBToLinear(style.FadeColor.z),
+		};
+		colorLinear_ = Lumina::Float3{
+			std::lerp(1.0f, fadeColor.x, fadeWeight),
+			std::lerp(1.0f, fadeColor.y, fadeWeight),
+			std::lerp(1.0f, fadeColor.z, fadeWeight),
+		};
 	}
 
 	auto Title::OutroRaysIntensity() const -> float {
@@ -545,7 +632,7 @@ namespace Game::Scene::Impl {
 		if (ImGui::CollapsingHeader("Post (Title canvas -> back buffer)")) {
 			ImGui::PushID("OutroPost");
 			auto& post{ Outro_.Post };
-			ImGui::TextDisabled("Each curve: Base (outside Outro / t = 0) -> end of 1 -> hit -> end of 4");
+			ImGui::TextDisabled("Each curve: Base (outside Outro / t = 0) -> end of 1 -> hit -> end of 4 -> end of finale");
 			auto const editCurve{
 				[this](char const* label_, OutroPostCurve& curve_, float max_, char const* format_) {
 					ImGui::PushID(label_);
@@ -555,20 +642,63 @@ namespace Game::Scene::Impl {
 					ImGui::SliderFloat("Charge", &curve_.Charge, 0.0f, max_, format_);
 					ImGui::SliderFloat("Hit", &curve_.Hit, 0.0f, max_, format_);
 					ImGui::SliderFloat("Split", &curve_.Split, 0.0f, max_, format_);
+					ImGui::SliderFloat("Finale", &curve_.Finale, 0.0f, max_, format_);
 					ImGui::PopID();
 				}
 			};
 			editCurve("ZoomBlur", post.ZoomBlur, 1.0f, "%.3f");
 			ImGui::SliderInt("ZoomTaps", &post.ZoomTaps, 1, 32);
-			editCurve("Chromatic", post.Chromatic, 0.05f, "%.4f");
+			ImGui::SliderFloat("FinaleCurve", &post.FinaleCurve, 0.1f, 6.0f);
+			editCurve("Chromatic", post.Chromatic, 0.15f, "%.4f");
 			editCurve("Bloom", post.Bloom, 6.0f, "%.3f");
 			ImGui::SliderInt("BloomTaps", &post.BloomTaps, 1, 32);
 			ImGui::SliderFloat("BloomRadiusPx", &post.BloomRadiusPx, 0.0f, 128.0f);
 			ImGui::SliderFloat("BloomThreshold", &post.BloomThreshold, 0.0f, 2.0f);
-			editCurve("Vignette (white)", post.Vignette, 1.0f, "%.3f");
-			ImGui::ColorEdit3("VignetteColor", &post.VignetteColor.x);
-			ImGui::SliderFloat("VignetteRadius", &post.VignetteRadius, 0.0f, 1.5f);
-			ImGui::SliderFloat("VignetteSoftness", &post.VignetteSoftness, 0.001f, 1.5f);
+			ImGui::PopID();
+		}
+
+		if (ImGui::CollapsingHeader("Crack (split the screen)")) {
+			ImGui::PushID("OutroCrack");
+			auto& crack{ Outro_.Crack };
+			ImGui::Checkbox("Enabled", &crack.Enabled);
+			ImGui::SameLine();
+			ImGui::Text(
+				"line %.2f  open %.2f  rays %.2f",
+				OutroCrackLineReveal(), OutroCrackOpen(), OutroCrackRaysIntensity()
+			);
+
+			ImGui::SeparatorText("Slash line (from hit)");
+			ImGui::BeginDisabled(!IsTipOnScreen_);
+			if (ImGui::Button("Use current weapon tip as Point")) {
+				crack.PointU = TipU_;
+				crack.PointV = TipV_;
+			}
+			ImGui::EndDisabled();
+			ImGui::SliderFloat("PointU", &crack.PointU, 0.0f, 1.0f, "%.3f");
+			ImGui::SliderFloat("PointV", &crack.PointV, 0.0f, 1.0f, "%.3f");
+			ImGui::SliderFloat("Angle (rad, CCW from right)", &crack.Angle, -3.1416f, 3.1416f);
+			ImGui::SliderFloat("LineAppear (s)", &crack.LineAppear, 0.0f, 0.5f, "%.3f");
+			ImGui::SliderFloat("LineWidth", &crack.LineWidth, 0.0f, 0.03f, "%.4f");
+			ImGui::SliderFloat("LineIntensity", &crack.LineIntensity, 0.0f, 10.0f);
+
+			ImGui::SeparatorText("Open (section 4)");
+			ImGui::SliderFloat("GapMax", &crack.GapMax, 0.0f, 0.6f, "%.3f");
+			ImGui::SliderFloat("OpenCurve", &crack.OpenCurve, 0.1f, 5.0f);
+			ImGui::SliderFloat("RotateMax (rad, + side only)", &crack.RotateMax, -0.3f, 0.3f, "%.3f");
+
+			ImGui::SeparatorText("Light");
+			ImGui::SliderFloat("LightIntensity", &crack.LightIntensity, 0.0f, 10.0f);
+			ImGui::ColorEdit3("CoreColor", &crack.CoreColor.x);
+			ImGui::ColorEdit3("EdgeColor", &crack.EdgeColor.x);
+			ImGui::SliderFloat("GlowWidth", &crack.GlowWidth, 0.0f, 0.2f, "%.3f");
+			ImGui::SliderFloat("GlowIntensity", &crack.GlowIntensity, 0.0f, 5.0f);
+			ImGui::SliderFloat("CenterMove (s)", &crack.CenterMove, 0.0f, 1.0f, "%.3f");
+
+			ImGui::SeparatorText("Rays from the crack (look = Rays settings)");
+			ImGui::SliderFloat("RaysPeak", &crack.RaysPeak, 0.0f, 4.0f);
+			ImGui::SliderFloat("RaysRise (s)", &crack.RaysRise, 0.0f, 1.0f, "%.3f");
+			ImGui::SliderFloat("RaysLengthStart", &crack.RaysLengthStart, 0.0f, 3.0f);
+			ImGui::SliderFloat("RaysLengthEnd", &crack.RaysLengthEnd, 0.0f, 4.0f);
 			ImGui::PopID();
 		}
 
@@ -658,8 +788,17 @@ namespace Game::Scene::Impl {
 		if (ImGui::CollapsingHeader("Screen")) {
 			ImGui::PushID("OutroScreen");
 			auto& screen{ Outro_.Screen };
-			ImGui::ProgressBar(OutroWhiteAmount(), ImVec2{ -1.0f, 0.0f }, "white");
-			ImGui::SliderFloat("WhiteRampDuration (before section 5)", &screen.WhiteRampDuration, 0.0f, 2.0f);
+			{
+				Lumina::Float3 color{};
+				float alpha{ 0.0f };
+				OutroOverlay(color, alpha);
+				ImGui::ProgressBar(alpha, ImVec2{ -1.0f, 0.0f }, "overlay");
+			}
+			ImGui::SeparatorText("Fade out (finale = section 5)");
+			ImGui::ColorEdit3("FadeColor", &screen.FadeColor.x);
+			ImGui::SliderFloat("FadeCurve", &screen.FadeCurve, 0.1f, 6.0f);
+			ImGui::SliderFloat("FadeHold (s, at the end)", &screen.FadeHold, 0.0f, 1.0f, "%.3f");
+			ImGui::ProgressBar(OutroFinaleProgress(), ImVec2{ -1.0f, 0.0f }, "finale");
 			ImGui::SeparatorText("Flash (at hit = start of section 3)");
 			ImGui::SliderFloat("FlashPeak", &screen.FlashPeak, 0.0f, 1.0f);
 			ImGui::SliderFloat("FlashAttack", &screen.FlashAttack, 0.0f, 0.3f, "%.3f");

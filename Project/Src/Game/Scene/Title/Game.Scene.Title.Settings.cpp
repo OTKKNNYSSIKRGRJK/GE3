@@ -521,7 +521,9 @@ namespace Game::Scene::Impl {
 
 		template<typename Ar, typename T> requires Is<T, OutroScreenStyle>
 		void Visit(Ar& ar_, T& v_) {
-			ar_("WhiteRampDuration", v_.WhiteRampDuration);
+			ar_("FadeColor", v_.FadeColor);
+			ar_("FadeCurve", v_.FadeCurve);
+			ar_("FadeHold", v_.FadeHold);
 			ar_("FlashPeak", v_.FlashPeak);
 			ar_("FlashAttack", v_.FlashAttack);
 			ar_("FlashDecay", v_.FlashDecay);
@@ -586,6 +588,7 @@ namespace Game::Scene::Impl {
 			ar_("Charge", v_.Charge);
 			ar_("Hit", v_.Hit);
 			ar_("Split", v_.Split);
+			ar_("Finale", v_.Finale);
 		}
 
 		template<typename Ar, typename T> requires Is<T, OutroPostStyle>
@@ -593,14 +596,35 @@ namespace Game::Scene::Impl {
 			ar_.Object("ZoomBlur", v_.ZoomBlur, [](auto& a_, auto& x_) { Visit(a_, x_); });
 			ar_.Object("Chromatic", v_.Chromatic, [](auto& a_, auto& x_) { Visit(a_, x_); });
 			ar_.Object("Bloom", v_.Bloom, [](auto& a_, auto& x_) { Visit(a_, x_); });
-			ar_.Object("Vignette", v_.Vignette, [](auto& a_, auto& x_) { Visit(a_, x_); });
+			ar_("FinaleCurve", v_.FinaleCurve);
 			ar_("ZoomTaps", v_.ZoomTaps);
 			ar_("BloomTaps", v_.BloomTaps);
 			ar_("BloomRadiusPx", v_.BloomRadiusPx);
 			ar_("BloomThreshold", v_.BloomThreshold);
-			ar_("VignetteColor", v_.VignetteColor);
-			ar_("VignetteRadius", v_.VignetteRadius);
-			ar_("VignetteSoftness", v_.VignetteSoftness);
+		}
+
+		template<typename Ar, typename T> requires Is<T, OutroCrackStyle>
+		void Visit(Ar& ar_, T& v_) {
+			ar_("Enabled", v_.Enabled);
+			ar_("PointU", v_.PointU);
+			ar_("PointV", v_.PointV);
+			ar_("Angle", v_.Angle);
+			ar_("LineAppear", v_.LineAppear);
+			ar_("LineWidth", v_.LineWidth);
+			ar_("LineIntensity", v_.LineIntensity);
+			ar_("GapMax", v_.GapMax);
+			ar_("OpenCurve", v_.OpenCurve);
+			ar_("RotateMax", v_.RotateMax);
+			ar_("GlowWidth", v_.GlowWidth);
+			ar_("GlowIntensity", v_.GlowIntensity);
+			ar_("LightIntensity", v_.LightIntensity);
+			ar_("CoreColor", v_.CoreColor);
+			ar_("EdgeColor", v_.EdgeColor);
+			ar_("CenterMove", v_.CenterMove);
+			ar_("RaysPeak", v_.RaysPeak);
+			ar_("RaysRise", v_.RaysRise);
+			ar_("RaysLengthStart", v_.RaysLengthStart);
+			ar_("RaysLengthEnd", v_.RaysLengthEnd);
 		}
 
 		template<typename Ar, typename T> requires Is<T, OutroSettings>
@@ -615,6 +639,7 @@ namespace Game::Scene::Impl {
 			ar_.Object("WeaponGlow", v_.WeaponGlow, [](auto& a_, auto& x_) { Visit(a_, x_); });
 			ar_.Object("Rays", v_.Rays, [](auto& a_, auto& x_) { Visit(a_, x_); });
 			ar_.Object("Post", v_.Post, [](auto& a_, auto& x_) { Visit(a_, x_); });
+			ar_.Object("Crack", v_.Crack, [](auto& a_, auto& x_) { Visit(a_, x_); });
 		}
 
 		template<typename Ar, typename T> requires Is<T, TitleGlowStyle>

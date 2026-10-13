@@ -19,7 +19,9 @@ import Lumina;
 //	Title 用 Canvas とポスト処理			//
 //////	//////	//////	//////	//////	//////
 // シーン（キャラ → 魔法陣 → 火柱 → パーティクル → 放射光線）を Title 用 Canvas に描き、
-// ポスト PS（Assets/Title/TitlePost.hlsl）でバックバッファへフルスクリーンで写す。メニュー UI はその後ろ（上）に描く。
+// ポスト PS（Assets/Title/TitlePost.hlsl）でバックバッファへフルスクリーンで写す。
+// その後、割れ目からの放射光線（Game.Scene.Title.Rays.cpp の枠 1）とメニュー UI をバックバッファに描く。
+// 割れ目（方式 β）はポスト PS の中（Assets/Title/TitleCrack.hlsli。差し替えるときはこのファイルを入れ替える）。
 //
 // Canvas はスワップチェインと同じ SRGB ＋ D24S8 なので、既存の Title 用 PSO はそのまま使える。
 // クリア色は黒で固定（Canvas の RT のクリア値と同じ。違う色でクリアするとデバッグレイヤーが警告する）。
@@ -43,20 +45,32 @@ namespace Game::Scene::Impl {
 			float BloomRadiusPx;
 			float BloomThreshold;
 
-			Lumina::Float3 VignetteColor;
-			float VignetteAmount;
-
-			float VignetteRadius;
-			float VignetteSoftness;
 			float BloomTaps;
 			float Aspect;
-
 			float ResolutionX;
 			float ResolutionY;
+
+			// 割れ目（TitleCrack.hlsli の CrackParams と同じ意味）
+			float CrackPointU;
+			float CrackPointV;
+			float CrackAngle;
+			float CrackGap;
+
+			float CrackRotate;
+			float CrackGlowWidth;
+			float CrackGlowIntensity;
+			float CrackLightIntensity;
+
+			Lumina::Float3 CrackCoreColor;
+			float CrackLineWidth;
+
+			Lumina::Float3 CrackEdgeColor;
+			float CrackLineIntensity;
+
+			float CrackLineReveal;
+			float CrackEnabled;
 			float Padding0;
 			float Padding1;
-
-			float Padding2[12];		// 80 バイト → 128 バイト
 		};
 		static_assert(sizeof(PostConstants) % 32U == 0U);
 
@@ -175,10 +189,14 @@ namespace Game::Scene::Impl {
 	// UpdateRays の後に呼ぶ（武器の先端のスクリーン位置を使う）
 	void Title::UpdatePost() {
 		auto const& style{ Outro_.Post };
+		auto const& crack{ Outro_.Crack };
 
-		// ズームブラーの中心：武器の先端（画面外・カメラの後ろなら画面中央）
-		float const centerU{ IsTipOnScreen_ ? TipU_ : 0.5f };
-		float const centerV{ IsTipOnScreen_ ? TipV_ : 0.5f };
+		// ズームブラーの中心：武器の先端 → 命中から割れ目へ（先端が画面に無いときは画面中央）
+		float centerU{ 0.5f };
+		float centerV{ 0.5f };
+		OutroEffectCenter(centerU, centerV);
+
+		float const open{ OutroCrackOpen() };
 
 		PostConstants const constants{
 			.CenterU{ centerU },
@@ -191,20 +209,31 @@ namespace Game::Scene::Impl {
 			.BloomRadiusPx{ std::max(style.BloomRadiusPx, 0.0f) },
 			.BloomThreshold{ std::max(style.BloomThreshold, 0.0f) },
 
-			.VignetteColor{ SRGBToLinear(style.VignetteColor) },
-			.VignetteAmount{ std::clamp(OutroPostValue(style.Vignette), 0.0f, 1.0f) },
-
-			.VignetteRadius{ style.VignetteRadius },
-			.VignetteSoftness{ std::max(style.VignetteSoftness, 0.001f) },
 			.BloomTaps{ static_cast<float>(std::clamp(style.BloomTaps, 1, 32)) },
 			.Aspect{ static_cast<float>(CanvasWidth) / static_cast<float>(CanvasHeight) },
-
 			.ResolutionX{ static_cast<float>(CanvasWidth) },
 			.ResolutionY{ static_cast<float>(CanvasHeight) },
+
+			.CrackPointU{ crack.PointU },
+			.CrackPointV{ crack.PointV },
+			.CrackAngle{ crack.Angle },
+			.CrackGap{ std::max(crack.GapMax, 0.0f) * open },
+
+			.CrackRotate{ crack.RotateMax * open },
+			.CrackGlowWidth{ std::max(crack.GlowWidth, 0.0f) },
+			.CrackGlowIntensity{ std::max(crack.GlowIntensity, 0.0f) },
+			.CrackLightIntensity{ std::max(crack.LightIntensity, 0.0f) },
+
+			.CrackCoreColor{ SRGBToLinear(crack.CoreColor) },
+			.CrackLineWidth{ std::max(crack.LineWidth, 0.0f) },
+
+			.CrackEdgeColor{ SRGBToLinear(crack.EdgeColor) },
+			.CrackLineIntensity{ std::max(crack.LineIntensity, 0.0f) },
+
+			.CrackLineReveal{ OutroCrackLineReveal() },
+			.CrackEnabled{ IsOutroCrackActive() ? 1.0f : 0.0f },
 			.Padding0{ 0.0f },
 			.Padding1{ 0.0f },
-
-			.Padding2{},
 		};
 		UB_Post_.Store(&constants, sizeof(PostConstants), 0LLU);
 	}

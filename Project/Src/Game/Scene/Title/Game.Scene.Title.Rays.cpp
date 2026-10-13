@@ -19,9 +19,10 @@ import Lumina;
 //	Title の放射光線（Outro 用）			//
 //////	//////	//////	//////	//////	//////
 // 画面上の 1 点から放射状に伸びる光線を、フルスクリーン三角形 1 枚・加算で描く（Assets/Title/TitleRays.hlsl）。
-// シーンのテクスチャは読まないので RT は要らない。中心は今は武器の先端のスクリーン位置。
+// シーンのテクスチャは読まないので RT は要らない。2 枠あり、どちらも同じ PSO で描く：
+//   枠 0（RaysSlot_Tip）  ：武器の先端から。Title 用 Canvas に描く（ポストのブルーム・ズームブラーが掛かる）
+//   枠 1（RaysSlot_Crack）：割れ目から（区間 4）。ポストの後、バックバッファに描く（割れ目でずれないように）
 // 強さ・長さは Outro のタイムラインから決める（OutroRaysIntensity / OutroRaysLength。Game.Scene.Title.Outro.cpp）。
-// 描く順番：パーティクルの後（Title 用 Canvas の中。ポストのブルーム・ズームブラーが掛かる）。
 
 namespace Game::Scene::Impl {
 	namespace {
@@ -51,6 +52,8 @@ namespace Game::Scene::Impl {
 			float Padding2[12];		// 80 バイト → 128 バイト
 		};
 		static_assert(sizeof(RaysConstants) % 32U == 0U);
+
+		constexpr uint64_t RaysSlotStride{ 256LLU };	// 枠ごとの CB の間隔（ルート CBV は 256 バイト境界）
 
 		float SRGBToLinear(float c_) {
 			return (c_ <= 0.04045f) ? (c_ / 12.92f) : std::pow((c_ + 0.055f) / 1.055f, 2.4f);
@@ -133,7 +136,7 @@ namespace Game::Scene::Impl {
 			);
 		}
 
-		UB_Rays_.Initialize(device, 256LLU, "Title Rays Constants");
+		UB_Rays_.Initialize(device, RaysSlotStride * NumRaysSlots, "Title Rays Constants");
 	}
 
 	//////	//////	//////	//////	//////	//////
@@ -142,7 +145,7 @@ namespace Game::Scene::Impl {
 
 	// Character の姿勢とカメラが決まった後に呼ぶ（武器の先端を画面へ投影する）
 	void Title::UpdateRays(Lumina::Mat4 const& viewProj_) {
-		IsRaysVisible_ = false;
+		for (auto& isVisible : IsRaysVisible_) { isVisible = false; }
 
 		// * 武器の先端のスクリーン位置（光線とズームブラーの中心。カメラの後ろにあるときは無効）
 		{
@@ -161,38 +164,53 @@ namespace Game::Scene::Impl {
 		}
 
 		auto const& style{ Outro_.Rays };
-		float const intensity{ OutroRaysIntensity() };
-		if (!style.Enabled || intensity <= 0.0f || !IsTipOnScreen_) { return; }
+		if (!style.Enabled) { return; }
 
-		float const centerU{ TipU_ };
-		float const centerV{ TipV_ };
+		// 見た目は共通（Rays の設定）。中心・強さ・長さ・模様の時間だけ枠ごとに変える
+		auto const store{
+			[this, &style](uint32_t slot_, float centerU_, float centerV_, float intensity_, float length_, float time_) {
+				RaysConstants const constants{
+					.CenterU{ centerU_ },
+					.CenterV{ centerV_ },
+					.Intensity{ intensity_ },
+					.Length{ length_ },
 
-		RaysConstants const constants{
-			.CenterU{ centerU },
-			.CenterV{ centerV },
-			.Intensity{ intensity },
-			.Length{ OutroRaysLength() },
+					.Color{ SRGBToLinear(style.Color) },
+					.Time{ time_ },
 
-			.Color{ SRGBToLinear(style.Color) },
-			.Time{ OutroTime_ },
+					.RayCount{ static_cast<float>(std::max(style.RayCount, 1)) },
+					.Sharpness{ std::max(style.Sharpness, 0.01f) },
+					.RotateSpeed{ style.RotateSpeed },
+					.FlickerSpeed{ std::max(style.FlickerSpeed, 0.0f) },
 
-			.RayCount{ static_cast<float>(std::max(style.RayCount, 1)) },
-			.Sharpness{ std::max(style.Sharpness, 0.01f) },
-			.RotateSpeed{ style.RotateSpeed },
-			.FlickerSpeed{ std::max(style.FlickerSpeed, 0.0f) },
+					.CoreColor{ SRGBToLinear(style.CoreColor) },
+					.CoreRadius{ std::max(style.CoreRadius, 0.0001f) },
 
-			.CoreColor{ SRGBToLinear(style.CoreColor) },
-			.CoreRadius{ std::max(style.CoreRadius, 0.0001f) },
+					.CoreIntensity{ std::max(style.CoreIntensity, 0.0f) },
+					.Aspect{ 1280.0f / 720.0f },
+					.Padding0{ 0.0f },
+					.Padding1{ 0.0f },
 
-			.CoreIntensity{ std::max(style.CoreIntensity, 0.0f) },
-			.Aspect{ 1280.0f / 720.0f },
-			.Padding0{ 0.0f },
-			.Padding1{ 0.0f },
-
-			.Padding2{},
+					.Padding2{},
+				};
+				UB_Rays_.Store(&constants, sizeof(RaysConstants), RaysSlotStride * slot_);
+				IsRaysVisible_[slot_] = true;
+			}
 		};
-		UB_Rays_.Store(&constants, sizeof(RaysConstants), 0LLU);
-		IsRaysVisible_ = true;
+
+		// * 枠 0：武器の先端から（命中から中心が割れ目へ移る）
+		if (float const intensity{ OutroRaysIntensity() }; intensity > 0.0f && IsTipOnScreen_) {
+			float centerU{ TipU_ };
+			float centerV{ TipV_ };
+			OutroEffectCenter(centerU, centerV);
+			store(RaysSlot_Tip, centerU, centerV, intensity, OutroRaysLength(), OutroTime_);
+		}
+
+		// * 枠 1：割れ目から（区間 4。模様は先端の光線と揃わないよう時間をずらす）
+		if (float const intensity{ OutroCrackRaysIntensity() }; intensity > 0.0f) {
+			auto const& crack{ Outro_.Crack };
+			store(RaysSlot_Crack, crack.PointU, crack.PointV, intensity, OutroCrackRaysLength(), OutroTime_ + 13.7f);
+		}
 	}
 
 	//////	//////	//////	//////	//////	//////
@@ -200,12 +218,12 @@ namespace Game::Scene::Impl {
 	//////	//////	//////	//////	//////	//////
 
 	// RT / DSV / Viewport / DescriptorHeap は呼び出し側で設定済みであること
-	void Title::RenderRays(Lumina::DX12::CommandList const& cmdList_) {
-		if (!IsRaysVisible_) { return; }
+	void Title::RenderRays(Lumina::DX12::CommandList const& cmdList_, uint32_t slot_) {
+		if (slot_ >= NumRaysSlots || !IsRaysVisible_[slot_]) { return; }
 
 		cmdList_->SetGraphicsRootSignature(RS_Rays_.Get());
 		cmdList_->SetPipelineState(PSO_Rays_.Get());
-		cmdList_->SetGraphicsRootConstantBufferView(0U, UB_Rays_->GetGPUVirtualAddress());
+		cmdList_->SetGraphicsRootConstantBufferView(0U, UB_Rays_->GetGPUVirtualAddress() + RaysSlotStride * slot_);
 		cmdList_->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 		cmdList_->DrawInstanced(3U, 1U, 0U, 0U);
 	}

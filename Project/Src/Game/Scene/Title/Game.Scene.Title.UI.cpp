@@ -434,10 +434,12 @@ namespace Game::Scene::Impl {
 			}
 		}
 
-		// 一番手前の全画面スプライト：Outro の白への抜けがあれば白、無ければ黒のフェード
-		float const white{ OutroWhiteAmount() };
-		if (white > 0.0f) {
-			UI_Fade_.RGBA({ 1.0f, 1.0f, 1.0f, Saturate(white) });
+		// 一番手前の全画面スプライト：Outro の白フラッシュ・フェードアウトがあればその色、無ければ黒のフェード
+		Lumina::Float3 overlayColor{};
+		float overlayAlpha{ 0.0f };
+		OutroOverlay(overlayColor, overlayAlpha);
+		if (overlayAlpha > 0.0f) {
+			UI_Fade_.RGBA({ overlayColor.x, overlayColor.y, overlayColor.z, overlayAlpha });
 		}
 		else {
 			UI_Fade_.RGBA({ 0.0f, 0.0f, 0.0f, Saturate(FadeAlpha_) });

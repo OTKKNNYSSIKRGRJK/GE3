@@ -312,6 +312,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <None Include="Assets\Title\TitleRays.json" />
     <None Include="Assets\Title\TitlePost.hlsl" />
     <None Include="Assets\Title\TitlePost.json" />
+    <None Include="Assets\Title\TitleCrack.hlsli" />
     <None Include="Assets\Title\ShowcaseCharacter.hlsl" />
     <None Include="Assets\Title\ShowcaseCharacter.json" />
     <None Include="Assets\Shaders\Basic.hlsli">

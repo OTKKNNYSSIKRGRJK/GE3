@@ -1,5 +1,6 @@
 module;
 
+#include<cstdint>
 #include<memory>
 #include<vector>
 #include<string>
@@ -297,10 +298,13 @@ namespace Game::Scene::Impl {
 		int FlareAtlas{ 4 };
 	};
 
-	// 白（メニューのフェード用スプライトを白で重ねる。割れ目の光は手順 4 以降）
-	// 命中の白フラッシュと、区間 5 への白への抜けの、大きい方を使う
+	// 画面に重ねる色（メニューのフェード用スプライトを一番手前に重ねる）
+	// 命中の白フラッシュと、区間 5（フィナーレ）のフェードアウトの、濃い方を使う
+	// フィナーレ：区間 4 の終わり → WhiteEnd − FadeHold で FadeColor へ。同じ間にズームブラー・色収差は Finale の値へ強まる
 	struct OutroScreenStyle {
-		float WhiteRampDuration{ 0.4f };	// 区間 4 の終わりまでの何秒で白にするか
+		Lumina::Float3 FadeColor{ 1.00f, 1.00f, 1.00f };	// フェードアウトの色（sRGB）
+		float FadeCurve{ 1.5f };			// フェードの進み方（1 = 一定、大きいほど終盤で一気に）
+		float FadeHold{ 0.1f };				// 最後に FadeColor のまま止めておく秒数
 		float FlashPeak{ 0.8f };			// 命中（区間 3 の頭）の白フラッシュの濃さ
 		float FlashAttack{ 0.02f };			// 命中からピークまでの秒数
 		float FlashDecay{ 0.2f };			// ピークから消えるまでの秒数
@@ -326,27 +330,52 @@ namespace Game::Scene::Impl {
 		float CoreIntensity{ 1.5f };
 	};
 
-	// ポストの効果 1 つ分の強さの流れ。各区間の終わりの値を補間する（区間 4 の終わり以降は Split のまま）
+	// ポストの効果 1 つ分の強さの流れ。各区間の終わりの値を補間する
 	struct OutroPostCurve {
 		float Base{ 0.0f };					// Outro 外と、Outro の頭（t = 0）
 		float Charge{ 0.0f };				// 区間 1 の終わり
 		float Hit{ 0.0f };					// 命中（区間 2 の終わり）
 		float Split{ 0.0f };				// 区間 4 の終わり
+		float Finale{ 0.0f };				// フィナーレの終わり（WhiteEnd − FadeHold。以降はこのまま）
 	};
 
-	// ポスト（ズームブラー・色収差・簡易ブルーム・白ビネット）。Title 用 Canvas → バックバッファ
+	// ポスト（ズームブラー・色収差・簡易ブルーム）。Title 用 Canvas → バックバッファ
 	struct OutroPostStyle {
-		OutroPostCurve ZoomBlur{ 0.0f, 0.02f, 0.10f, 0.25f };		// 中心へ向かってぼかす長さ（中心までの距離に対する割合）
-		OutroPostCurve Chromatic{ 0.0f, 0.002f, 0.010f, 0.020f };	// 画面端での RGB のずれ（UV）
-		OutroPostCurve Bloom{ 0.0f, 0.4f, 1.5f, 2.0f };			// ブルームの強さ
-		OutroPostCurve Vignette{ 0.0f, 0.1f, 0.5f, 0.9f };			// 白ビネットの濃さ（0..1）
+		OutroPostCurve ZoomBlur{ 0.0f, 0.02f, 0.10f, 0.25f, 0.6f };		// 中心へ向かってぼかす長さ（中心までの距離に対する割合）
+		OutroPostCurve Chromatic{ 0.0f, 0.002f, 0.010f, 0.020f, 0.06f };	// 中心から離れた所での RGB のずれ（UV）
+		OutroPostCurve Bloom{ 0.0f, 0.4f, 1.5f, 2.0f, 2.0f };			// ブルームの強さ
+		float FinaleCurve{ 2.0f };			// フィナーレでの強まり方（1 = 一定、大きいほど終盤で一気に）
 		int ZoomTaps{ 16 };					// ズームブラーのタップ数（1..32）
 		int BloomTaps{ 16 };				// ブルームのタップ数（1..32）
 		float BloomRadiusPx{ 32.0f };
 		float BloomThreshold{ 0.6f };		// これより明るい分（リニア）だけにじませる
-		Lumina::Float3 VignetteColor{ 1.0f, 1.0f, 1.0f };	// sRGB
-		float VignetteRadius{ 0.45f };		// 画面中心からの距離（画面の高さ = 1）。ここから色が付き始める
-		float VignetteSoftness{ 0.5f };
+	};
+
+	// 割れ目（方式 β：斬撃線で画面を 2 枚に割ってずらし、割れ目を白熱グラデーションで埋める。Assets/Title/TitleCrack.hlsli）
+	// 命中（区間 3 の頭）で斬撃線が走り、区間 4 で開く。ズームブラー・光線の中心も、命中から割れ目へ移る
+	struct OutroCrackStyle {
+		bool Enabled{ true };
+		float PointU{ 0.5f };				// 斬撃線が通る点（画面 UV、左上が 0,0）
+		float PointV{ 0.5f };
+		float Angle{ -0.35f };				// 斬撃線の向き（rad。画面の右向きから反時計回り）
+		float LineAppear{ 0.06f };			// 命中から、斬撃線が端から端まで走りきる秒数
+		float LineWidth{ 0.004f };			// 斬撃線の太さ（画面の高さ = 1）
+		float LineIntensity{ 3.0f };
+		float GapMax{ 0.12f };				// 区間 4 の終わりの開き（画面の高さ = 1）
+		float OpenCurve{ 1.5f };			// 開き方（1 = 一定、大きいほど後半で一気に開く）
+		float RotateMax{ 0.03f };			// 区間 4 の終わりに、片側の破片を回す角度（rad）
+		float GlowWidth{ 0.03f };			// 割れ目のふちから破片側へにじむ光の幅（画面の高さ = 1）
+		float GlowIntensity{ 1.2f };
+		float LightIntensity{ 3.0f };		// 割れ目の光の明るさ（1 を超えた分はブルームでにじむ）
+		Lumina::Float3 CoreColor{ 1.00f, 1.00f, 1.00f };	// 割れ目の中心（sRGB）
+		Lumina::Float3 EdgeColor{ 1.00f, 0.78f, 0.45f };	// 割れ目のふち（sRGB）
+		float CenterMove{ 0.15f };			// 命中から、ズームブラー・光線の中心が先端 → 割れ目へ移る秒数
+
+		// 割れ目からの放射光線（見た目は Rays の設定を使う。割れ目より手前、ポストの後に描く）
+		float RaysPeak{ 1.0f };
+		float RaysRise{ 0.2f };				// 区間 4 の頭から最大になるまでの秒数
+		float RaysLengthStart{ 0.3f };
+		float RaysLengthEnd{ 1.6f };		// 区間 4 の終わりの長さ
 	};
 
 	struct OutroSettings {
@@ -360,6 +389,7 @@ namespace Game::Scene::Impl {
 		OutroWeaponGlowStyle WeaponGlow{};
 		OutroRaysStyle Rays{};
 		OutroPostStyle Post{};
+		OutroCrackStyle Crack{};
 	};
 
 	export class Title {
@@ -579,12 +609,19 @@ namespace Game::Scene::Impl {
 		void ApplyOutroToMagicCircle(std::vector<Lumina::MagicCircle::Layer>& layers_) const;
 		auto OutroFirePillarBoost() const -> float;	// 0..1（Outro 外は 0）
 		auto OutroUIVisibility() const -> float;		// 1 = 表示 / 0 = 消えた（Outro 外は 1）
-		auto OutroWhiteAmount() const -> float;		// 0..1（Outro 外は 0）
+		auto OutroFinaleProgress() const -> float;	// フィナーレ（区間 4 の終わり → WhiteEnd − FadeHold）の進み具合 0..1
+		void OutroOverlay(Lumina::Float3& colorLinear_, float& alpha_) const;	// 一番手前に重ねる色（リニア）と濃さ。Outro 外は α = 0
 		auto OutroWeaponGlowLevel() const -> float;	// 0..1（Outro 外は 0）
 		auto OutroWeaponFlareStrength() const -> float;	// 0..1（Outro 外は 0）
 		auto OutroRaysIntensity() const -> float;		// Outro 外は 0
 		auto OutroRaysLength() const -> float;
 		auto OutroPostValue(OutroPostCurve const& curve_) const -> float;	// Outro 外は Base
+		void OutroEffectCenter(float& u_, float& v_) const;		// ズームブラー・光線の中心（先端 → 命中から割れ目へ）
+		auto IsOutroCrackActive() const -> bool;				// 命中以降（割れ目が有効）
+		auto OutroCrackLineReveal() const -> float;			// 0..1
+		auto OutroCrackOpen() const -> float;					// 開き具合 0..1（区間 4）
+		auto OutroCrackRaysIntensity() const -> float;
+		auto OutroCrackRaysLength() const -> float;
 		void EditOutro();					// ImGui（Release では何もしない）
 		bool IsOutroActive() const noexcept { return OutroState_ != OutroState::None; }
 
@@ -603,16 +640,22 @@ namespace Game::Scene::Impl {
 		//----	------	------	------	------	----//
 		// 放射光線（実装は Game.Scene.Title.Rays.cpp。スクリーン空間・加算。シーンのテクスチャは読まない）
 
+		// 枠 0：武器の先端から（Title 用 Canvas に描く。ポストが掛かる）
+		// 枠 1：割れ目から（ポストの後、バックバッファに描く。割れ目でずれないように）
+		static constexpr uint32_t RaysSlot_Tip{ 0U };
+		static constexpr uint32_t RaysSlot_Crack{ 1U };
+		static constexpr uint32_t NumRaysSlots{ 2U };
+
 		void InitializeRays(Lumina::DX12::Context const& dxContext_);
 		void UpdateRays(Lumina::Mat4 const& viewProj_);		// Character の姿勢とカメラが決まった後に呼ぶ
-		void RenderRays(Lumina::DX12::CommandList const& cmdList_);
+		void RenderRays(Lumina::DX12::CommandList const& cmdList_, uint32_t slot_);
 
 		Lumina::DX12::RootSignature RS_Rays_{};
 		Lumina::DX12::Shader VS_Rays_{};
 		Lumina::DX12::Shader PS_Rays_{};
 		Lumina::DX12::GraphicsPSO PSO_Rays_{};
-		Lumina::DX12::UploadBuffer UB_Rays_{};
-		bool IsRaysVisible_{ false };
+		Lumina::DX12::UploadBuffer UB_Rays_{};		// 枠ごとに 256 バイト
+		bool IsRaysVisible_[NumRaysSlots]{ false, false };
 
 		// 武器の先端のスクリーン位置（UpdateRays で毎フレーム更新。光線とズームブラーの中心）
 		float TipU_{ 0.5f };

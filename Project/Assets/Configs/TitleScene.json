@@ -1,12 +1,12 @@
 {
   "Camera": {
     "AutoOrbit": true,
-    "Distance": 15.375153,
-    "FovY": 0.771898,
+    "Distance": 17.71788,
+    "FovY": 0.791187,
     "OrbitSpeed": 0.78,
-    "Pitch": 0.121134,
-    "TargetY": 2.883064,
-    "Yaw": 0.068774
+    "Pitch": 0.347948,
+    "TargetY": 2.875868,
+    "Yaw": -1.357248
   },
   "CameraSway": {
     "Distance": {
@@ -591,6 +591,36 @@
       "ShakeFrequency": 24.0,
       "YawOffset": 2.718
     },
+    "Crack": {
+      "Angle": 2.976,
+      "CenterMove": 0.15,
+      "CoreColor": [
+        0.038821,
+        0.022347,
+        0.04902
+      ],
+      "EdgeColor": [
+        0.960784,
+        0.821376,
+        0.612265
+      ],
+      "Enabled": true,
+      "GapMax": 0.343,
+      "GlowIntensity": 1.2,
+      "GlowWidth": 0.094,
+      "LightIntensity": 0.495,
+      "LineAppear": 0.117,
+      "LineIntensity": 5.578,
+      "LineWidth": 0.0196,
+      "OpenCurve": 3.845,
+      "PointU": 0.310565,
+      "PointV": 0.362661,
+      "RaysLengthEnd": 1.6,
+      "RaysLengthStart": 0.3,
+      "RaysPeak": 0.541,
+      "RaysRise": 0.2,
+      "RotateMax": -0.039
+    },
     "FirePillar": {
       "HeightPeak": 1.6,
       "IntensityPeak": 2.5,
@@ -610,6 +640,7 @@
       "Bloom": {
         "Base": 0.0,
         "Charge": 0.4,
+        "Finale": 2.0,
         "Hit": 1.5,
         "Split": 2.0
       },
@@ -619,25 +650,15 @@
       "Chromatic": {
         "Base": 0.0059,
         "Charge": 0.0157,
+        "Finale": 0.15,
         "Hit": 0.0211,
         "Split": 0.0361
       },
-      "Vignette": {
-        "Base": 0.0,
-        "Charge": 0.1,
-        "Hit": 0.5,
-        "Split": 0.9
-      },
-      "VignetteColor": [
-        0.0,
-        0.0,
-        0.0
-      ],
-      "VignetteRadius": 0.45,
-      "VignetteSoftness": 0.5,
+      "FinaleCurve": 6.0,
       "ZoomBlur": {
         "Base": 0.0,
         "Charge": 0.02,
+        "Finale": 0.6,
         "Hit": 0.034,
         "Split": 0.102
       },
@@ -669,10 +690,16 @@
       "Sharpness": 6.0
     },
     "Screen": {
+      "FadeColor": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "FadeCurve": 1.265,
+      "FadeHold": 0.213,
       "FlashAttack": 0.02,
       "FlashDecay": 0.2,
-      "FlashPeak": 0.8,
-      "WhiteRampDuration": 0.4
+      "FlashPeak": 0.8
     },
     "Timeline": {
       "ChargeEnd": 1.3,
@@ -803,7 +830,7 @@
       "Value": 1.111
     }
   },
-  "TimeScale": 1.655053,
+  "TimeScale": 1.61098,
   "TimeScaleSway": {
     "Channel": {
       "Dwell": 0.52,
