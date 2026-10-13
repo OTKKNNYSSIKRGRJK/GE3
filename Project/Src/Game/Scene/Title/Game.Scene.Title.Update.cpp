@@ -339,6 +339,14 @@ namespace Game::Scene::Impl {
 					}
 					ImGui::EndCombo();
 				}
+				ImGui::TextDisabled("Take: %s", Character_.CurrentAnimationTake().c_str());
+				ImGui::TextDisabled(
+					"Clip time %.3f / %.3f s (x%.1f -> %.3f s real)",
+					Character_.CurrentAnimationTime(),
+					Character_.CurrentAnimationDuration(),
+					Character_.AnimationSpeed,
+					(Character_.AnimationSpeed > 0.0f) ? Character_.CurrentAnimationDuration() / Character_.AnimationSpeed : 0.0f
+				);
 				ImGui::SliderFloat("AnimationSpeed", &Character_.AnimationSpeed, 0.0f, 8.0f);
 				ImGui::DragFloat3("Position", &Character_.Position.x, 0.01f);
 				ImGui::SliderFloat("Yaw##Character", &Character_.Yaw, -3.1416f, 3.1416f);

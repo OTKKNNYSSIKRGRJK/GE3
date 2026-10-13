@@ -78,6 +78,7 @@ namespace Lumina::CG3D {
 				anim_IN_.mDuration /
 				anim_IN_.mTicksPerSecond
 			);
+			anim_OUT_.Name = anim_IN_.mName.data;
 			for (
 				auto const* nodeAnim_IN :
 				std::span{ anim_IN_.mChannels, anim_IN_.mNumChannels }

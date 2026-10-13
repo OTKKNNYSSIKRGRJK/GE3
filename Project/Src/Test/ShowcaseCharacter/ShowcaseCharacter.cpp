@@ -24,19 +24,31 @@ namespace Lumina {
 		}
 
 		// 起動時に読み込むアニメ（タイトル向けに待機・溜め系を中心に）
+		// glTF には複数のテイク（animations[]）が入っていて、先頭が目的のテイクとは限らない。
+		// 例: ReverseCharge.gltf の先頭 "Armature.004|mixamo.com|Layer0.001" は全キーが一定値（静止）で、
+		// 動きは "... Retarget" の方に入っている。なので使うテイクを名前で指定する。
+		// Take が見つからないときは先頭のテイクを使う（従来の挙動）
 		struct AnimationFile {
 			char const* Name;
 			char const* FileName;
+			char const* Take;
 		};
 		constexpr AnimationFile AnimationFiles[]{
-			{ "Idle", "Idle.gltf" },
-			{ "Idle_Drawn_H", "Idle_Drawn_H.gltf" },
-			{ "Idle_Drawn_Open_H", "Idle_Drawn_Open_H.gltf" },
-			{ "IdleHoldingUmbrella", "IdleHoldingUmbrella.gltf" },
-			{ "Guard", "guard.gltf" },
-			{ "ReverseCharge", "ReverseCharge.gltf" },
-			{ "Swinging", "Swinging.gltf" },
-			{ "Rotate_H", "Rotate_H.gltf" },
+			{ "Idle", "Idle.gltf", "ArmatureAction" },
+			{ "Idle_Drawn_H", "Idle_Drawn_H.gltf", "Armature.001|mixamo.com|Layer0 Retarget" },
+			{ "Idle_Drawn_Open_H", "Idle_Drawn_Open_H.gltf", "Armature.001|mixamo.com|Layer0 Retarget" },
+			{ "IdleHoldingUmbrella", "IdleHoldingUmbrella.gltf", "Action" },
+			{ "Guard", "guard.gltf", "Armature.001|mixamo.com|Layer0 Retarget" },	// 1 キーだけの静止ポーズ
+			{ "ReverseCharge", "ReverseCharge.gltf", "Armature.004|mixamo.com|Layer0.001 Retarget" },
+			// Swinging.gltf には動くテイクが 3 つある（うち "Armature.001|...|Layer0 Retarget" は Idle_Drawn_H とほぼ同じ）。
+			// 右腕（武器の手）が大きく動く方を "Swinging"、もう一方を "Swinging.B" として両方読む
+			{ "Swinging", "Swinging.gltf", "Armature.002|mixamo.com|Layer0 Retarget" },
+			{ "Swinging.B", "Swinging.gltf", "Armature.001|mixamo.com|Layer0.001 Retarget" },
+			{ "Rotate_H", "Rotate_H.gltf", "Action" },
+			// InGame で使っている攻撃（Outro の振り抜きの比較・代用候補）
+			{ "ATK1", "ATKY1_H2.gltf", "Armature.001|mixamo.com|Layer0 Retarget" },
+			{ "ATK2", "ATKY2_H2.gltf", "Armature.002|mixamo.com|Layer0 Retarget" },
+			{ "ATK3", "ATKY3_H3.gltf", "Armature.004|mixamo.com|Layer0.001 Retarget" },
 		};
 	}
 
@@ -82,10 +94,29 @@ namespace Lumina {
 			skinned.HasRightHand = (itr != skinned.Skeleton.IDX_Joint.end());
 			skinned.IDX_RightHand = skinned.HasRightHand ? itr->second : 0U;
 
+			// 同じファイルから複数のテイクを取ることがあるので、ファイル単位で読み込み結果を使い回す
+			std::map<std::string, std::vector<CG3D::MyAnimation>> loaded{};
 			for (auto const& file : AnimationFiles) {
-				auto animations{ CG3D::LoadAnimationFile(file.FileName, "Assets/Neki") };
+				auto itr_File{ loaded.find(file.FileName) };
+				if (itr_File == loaded.end()) {
+					itr_File = loaded.emplace(
+						file.FileName,
+						CG3D::LoadAnimationFile(file.FileName, "Assets/Neki")
+					).first;
+				}
+
+				auto const& animations{ itr_File->second };
 				if (animations.empty()) { continue; }
-				skinned.Animations.emplace(file.Name, std::move(animations[0]));
+
+				auto itr_Take{
+					std::ranges::find_if(
+						animations,
+						[&file](CG3D::MyAnimation const& anim_) { return anim_.Name == file.Take; }
+					)
+				};
+				if (itr_Take == animations.end()) { itr_Take = animations.begin(); }
+
+				skinned.Animations.emplace(file.Name, *itr_Take);
 				AnimationNames_.emplace_back(file.Name);
 			}
 		}
@@ -263,6 +294,15 @@ namespace Lumina {
 		CurrentAnimation_ = &(itr->second);
 		CurrentAnimationName_ = itr->first;
 		AnimationTime_ = 0.0f;
+	}
+
+	auto ShowcaseCharacter::CurrentAnimationTake() const noexcept -> std::string const& {
+		static std::string const empty{};
+		return (CurrentAnimation_ != nullptr) ? CurrentAnimation_->Name : empty;
+	}
+
+	auto ShowcaseCharacter::CurrentAnimationDuration() const noexcept -> float {
+		return (CurrentAnimation_ != nullptr) ? CurrentAnimation_->DurationInSeconds : 0.0f;
 	}
 
 	void ShowcaseCharacter::Advance(float deltaTime_) {

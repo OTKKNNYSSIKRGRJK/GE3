@@ -111,6 +111,11 @@ export namespace Lumina {
 
 		auto AnimationNames() const noexcept -> std::vector<std::string> const& { return AnimationNames_; }
 		auto CurrentAnimationName() const noexcept -> std::string const& { return CurrentAnimationName_; }
+		// 再生中クリップの glTF テイク名（確認用）
+		auto CurrentAnimationTake() const noexcept -> std::string const&;
+		// 再生中クリップの長さと再生位置（どちらもクリップ上の秒。AnimationSpeed は掛かっていない）
+		auto CurrentAnimationDuration() const noexcept -> float;
+		auto CurrentAnimationTime() const noexcept -> float { return AnimationTime_; }
 
 		// 武器の軸（メッシュの Y 方向）の根元・先端のワールド座標と、軸からの太さ（ワールド単位）。
 		// 武器が無い / 非表示 / 右手ボーンが無いときは false。Advance の後に呼ぶとそのフレームの姿勢になる

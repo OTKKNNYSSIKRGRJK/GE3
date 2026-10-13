@@ -54,6 +54,7 @@ namespace Lumina::CG3D {
 
 		std::map<std::string, Node> Nodes;
 		float DurationInSeconds;
+		std::string Name{};		// take name (aiAnimation::mName = glTF animations[].name)
 	};
 
 	export class Node {
