@@ -160,6 +160,19 @@ namespace Game::Scene::Impl {
 	}
 
 	void Title::FinishOutro() {
+		// * 演出を見せる用：次のシーンへ進まず、タイトルのイントロへ戻る
+		//   終わった瞬間の画面の色（フェードアウトの色）から、イントロのフェードインで明ける
+		if (Outro_.ReturnToTitle) {
+			Lumina::Float3 overlayColor{};
+			float overlayAlpha{ 0.0f };
+			OutroOverlay(overlayColor, overlayAlpha);
+
+			RewindOutro();
+			ResetMenu();
+			IntroFadeColor_ = overlayColor;
+			return;
+		}
+
 		// 次のシーンへ渡す。遷移シーンを作ったら、渡す先はここだけ変える
 		Game::Scene::Flag = 1;
 	}
@@ -518,7 +531,8 @@ namespace Game::Scene::Impl {
 		if (ImGui::Button("Rewind")) { RewindOutro(); }
 		ImGui::EndDisabled();
 		ImGui::SameLine();
-		ImGui::Checkbox("Switch scene at end (preview)", &OutroSwitchSceneInPreview_);
+		ImGui::Checkbox("Finish at end (preview)", &OutroSwitchSceneInPreview_);
+		ImGui::Checkbox("Return to title intro at end (demo, saved)", &Outro_.ReturnToTitle);
 		ImGui::SliderFloat("Playback rate (debug)", &OutroDebugRate_, 0.0f, 2.0f);
 
 		constexpr char const* stateNames[]{ "None", "Playing", "Finished" };

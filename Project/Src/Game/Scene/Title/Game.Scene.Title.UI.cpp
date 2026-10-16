@@ -227,6 +227,7 @@ namespace Game::Scene::Impl {
 		}
 		FadeAlpha_ = 1.0f;
 		FadeOutFrom_ = 0.0f;
+		IntroFadeColor_ = Lumina::Float3{ 0.0f, 0.0f, 0.0f };	// Outro から戻ったときは、呼び出し側でその色に置き換える
 		// 起動直後に押しっぱなしのキーで反応しないよう「押されていた」扱いから始める
 		PrevKeyUp_ = true;
 		PrevKeyDown_ = true;
@@ -308,6 +309,7 @@ namespace Game::Scene::Impl {
 				MenuPhase_ = MenuPhase::FadeOut;
 				MenuTimer_ = 0.0f;
 				FadeOutFrom_ = FadeAlpha_;
+				IntroFadeColor_ = Lumina::Float3{ 0.0f, 0.0f, 0.0f };	// 終了時の暗転は黒
 			}
 			break;
 
@@ -442,7 +444,7 @@ namespace Game::Scene::Impl {
 			UI_Fade_.RGBA({ overlayColor.x, overlayColor.y, overlayColor.z, overlayAlpha });
 		}
 		else {
-			UI_Fade_.RGBA({ 0.0f, 0.0f, 0.0f, Saturate(FadeAlpha_) });
+			UI_Fade_.RGBA({ IntroFadeColor_.x, IntroFadeColor_.y, IntroFadeColor_.z, Saturate(FadeAlpha_) });
 		}
 	}
 

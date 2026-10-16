@@ -629,6 +629,7 @@ namespace Game::Scene::Impl {
 
 		template<typename Ar, typename T> requires Is<T, OutroSettings>
 		void Visit(Ar& ar_, T& v_) {
+			ar_("ReturnToTitle", v_.ReturnToTitle);
 			ar_.Object("Timeline", v_.Timeline, [](auto& a_, auto& x_) { Visit(a_, x_); });
 			ar_.Object("Camera", v_.Camera, [](auto& a_, auto& x_) { Visit(a_, x_); });
 			ar_.Object("MagicCircle", v_.MagicCircle, [](auto& a_, auto& x_) { Visit(a_, x_); });

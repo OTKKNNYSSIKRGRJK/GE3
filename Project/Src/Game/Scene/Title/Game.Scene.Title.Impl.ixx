@@ -379,6 +379,8 @@ namespace Game::Scene::Impl {
 	};
 
 	struct OutroSettings {
+		// 最後まで再生したら、次のシーンへ進まずにタイトルのイントロ（フェードイン）へ戻る（演出を見せる用）
+		bool ReturnToTitle{ true };
 		OutroTimeline Timeline{};
 		OutroCameraStyle Camera{};
 		OutroMagicCircleStyle MagicCircle{};
@@ -571,6 +573,7 @@ namespace Game::Scene::Impl {
 		float MenuBlend_[NumMenuItems]{ 1.0f, 0.0f };	// 選択の度合い 0..1（見た目用に遅れて追従）
 		float FadeAlpha_{ 1.0f };						// 画面全体の黒の濃さ
 		float FadeOutFrom_{ 0.0f };
+		Lumina::Float3 IntroFadeColor_{ 0.0f, 0.0f, 0.0f };	// 黒のフェード（UI_Fade_）の色（リニア）。Outro から戻ったときだけ、その色から明ける
 		bool PrevKeyUp_{ false };
 		bool PrevKeyDown_{ false };
 		bool PrevKeyConfirm_{ false };
@@ -602,7 +605,7 @@ namespace Game::Scene::Impl {
 
 		void StartOutro(bool isPreview_);	// isPreview_ = ImGui から再生（最後に次のシーンへ渡さない）
 		void RewindOutro();					// タイトルの状態に戻す
-		void FinishOutro();					// 次のシーンへ渡す（遷移シーンを作ったらここだけ変える）
+		void FinishOutro();					// 次のシーンへ渡す（遷移シーンを作ったらここだけ変える）/ ReturnToTitle ならタイトルのイントロへ
 		auto AdvanceOutro() -> float;		// Outro の時計を進め、Outro 中のシーンの deltaTime を返す
 		void ApplyOutroCamera();
 		void ApplyOutroAnimation();
