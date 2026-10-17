@@ -74,6 +74,9 @@
     <Filter Include="Src\Lumina\Test\Editor">
       <UniqueIdentifier>{0c366062-b124-42a7-ac85-1e011bd88024}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Src\Lumina\Test\AnimEvent">
+      <UniqueIdentifier>{bd117222-41a9-4bc7-9d63-4f536763e912}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp" />
@@ -458,6 +461,42 @@
     <ClCompile Include="Src\Test\MagicCircle\MagicCircle.ixx">
       <Filter>Src\Lumina\Test</Filter>
     </ClCompile>
+    <ClCompile Include="Src\Test\AnimEvent\AnimEvent.ixx">
+      <Filter>Src\Lumina\Test\AnimEvent</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Test\AnimEvent\AnimEvent.Time.ixx">
+      <Filter>Src\Lumina\Test\AnimEvent</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Test\AnimEvent\AnimEvent.Time.cpp">
+      <Filter>Src\Lumina\Test\AnimEvent</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Test\AnimEvent\AnimEvent.Data.ixx">
+      <Filter>Src\Lumina\Test\AnimEvent</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Test\AnimEvent\AnimEvent.Bake.ixx">
+      <Filter>Src\Lumina\Test\AnimEvent</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Test\AnimEvent\AnimEvent.Bake.cpp">
+      <Filter>Src\Lumina\Test\AnimEvent</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Test\AnimEvent\AnimEvent.Player.ixx">
+      <Filter>Src\Lumina\Test\AnimEvent</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Test\AnimEvent\AnimEvent.Player.cpp">
+      <Filter>Src\Lumina\Test\AnimEvent</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Test\AnimEvent\AnimEvent.Adapter.ixx">
+      <Filter>Src\Lumina\Test\AnimEvent</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Test\AnimEvent\AnimEvent.Adapter.cpp">
+      <Filter>Src\Lumina\Test\AnimEvent</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Test\AnimEvent\AnimEvent.Tests.ixx">
+      <Filter>Src\Lumina\Test\AnimEvent</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Test\AnimEvent\AnimEvent.Tests.cpp">
+      <Filter>Src\Lumina\Test\AnimEvent</Filter>
+    </ClCompile>
     <ClCompile Include="Src\Test\ShowcaseCharacter\ShowcaseCharacter.cpp">
       <Filter>Src\Lumina\Test</Filter>
     </ClCompile>
@@ -485,6 +524,9 @@
     </None>
     <None Include="Assets\Title\MagicCircle.json">
       <Filter>Assets\Title</Filter>
+    </None>
+    <None Include="Assets\Neki\ATKY1_H2.notify.json">
+      <Filter>Assets</Filter>
     </None>
     <None Include="Assets\Title\TitleRays.hlsl">
       <Filter>Assets\Title</Filter>

@@ -162,7 +162,7 @@ namespace Game::Scene::Impl {
 	void Title::FinishOutro() {
 		// * 演出を見せる用：次のシーンへ進まず、タイトルのイントロへ戻る
 		//   終わった瞬間の画面の色（フェードアウトの色）から、イントロのフェードインで明ける
-		if (Outro_.ReturnToTitle) {
+		/*if (Outro_.ReturnToTitle) {
 			Lumina::Float3 overlayColor{};
 			float overlayAlpha{ 0.0f };
 			OutroOverlay(overlayColor, overlayAlpha);
@@ -171,7 +171,7 @@ namespace Game::Scene::Impl {
 			ResetMenu();
 			IntroFadeColor_ = overlayColor;
 			return;
-		}
+		}*/
 
 		// 次のシーンへ渡す。遷移シーンを作ったら、渡す先はここだけ変える
 		Game::Scene::Flag = 1;

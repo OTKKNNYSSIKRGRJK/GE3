@@ -287,6 +287,18 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="Src\Test\FirePillar\FirePillar.ixx" />
     <ClCompile Include="Src\Test\MagicCircle\MagicCircle.cpp" />
     <ClCompile Include="Src\Test\MagicCircle\MagicCircle.ixx" />
+    <ClCompile Include="Src\Test\AnimEvent\AnimEvent.ixx" />
+    <ClCompile Include="Src\Test\AnimEvent\AnimEvent.Time.ixx" />
+    <ClCompile Include="Src\Test\AnimEvent\AnimEvent.Time.cpp" />
+    <ClCompile Include="Src\Test\AnimEvent\AnimEvent.Data.ixx" />
+    <ClCompile Include="Src\Test\AnimEvent\AnimEvent.Bake.ixx" />
+    <ClCompile Include="Src\Test\AnimEvent\AnimEvent.Bake.cpp" />
+    <ClCompile Include="Src\Test\AnimEvent\AnimEvent.Player.ixx" />
+    <ClCompile Include="Src\Test\AnimEvent\AnimEvent.Player.cpp" />
+    <ClCompile Include="Src\Test\AnimEvent\AnimEvent.Adapter.ixx" />
+    <ClCompile Include="Src\Test\AnimEvent\AnimEvent.Adapter.cpp" />
+    <ClCompile Include="Src\Test\AnimEvent\AnimEvent.Tests.ixx" />
+    <ClCompile Include="Src\Test\AnimEvent\AnimEvent.Tests.cpp" />
     <ClCompile Include="Src\Test\ShowcaseCharacter\ShowcaseCharacter.cpp" />
     <ClCompile Include="Src\Test\ShowcaseCharacter\ShowcaseCharacter.ixx" />
     <ClCompile Include="Src\Test\Editor\Lumina.Editor.Layout.cpp" />
@@ -308,6 +320,7 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <None Include="Assets\Title\TitleParticle.PS.hlsl" />
     <None Include="Assets\Title\MagicCircle.hlsl" />
     <None Include="Assets\Title\MagicCircle.json" />
+    <None Include="Assets\Neki\ATKY1_H2.notify.json" />
     <None Include="Assets\Title\TitleRays.hlsl" />
     <None Include="Assets\Title\TitleRays.json" />
     <None Include="Assets\Title\TitlePost.hlsl" />
