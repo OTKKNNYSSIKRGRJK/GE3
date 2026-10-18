@@ -74,8 +74,14 @@
     <Filter Include="Src\Lumina\Test\Editor">
       <UniqueIdentifier>{0c366062-b124-42a7-ac85-1e011bd88024}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Src\Lumina\Test\AnimEventDemo">
+      <UniqueIdentifier>{99643d72-abab-4ef3-b181-a57fae7f6ed1}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Src\Lumina\Test\AnimEvent">
       <UniqueIdentifier>{bd117222-41a9-4bc7-9d63-4f536763e912}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Src\Lumina\Phys">
+      <UniqueIdentifier>{5f3c2a8e-7d41-4b9a-9e2c-6a1d0b4f8c37}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -497,6 +503,42 @@
     <ClCompile Include="Src\Test\AnimEvent\AnimEvent.Tests.cpp">
       <Filter>Src\Lumina\Test\AnimEvent</Filter>
     </ClCompile>
+    <ClCompile Include="Src\Test\AnimEventDemo\Game.AnimEventDemo.ixx">
+      <Filter>Src\Lumina\Test\AnimEventDemo</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Test\AnimEventDemo\Game.AnimEventDemo.cpp">
+      <Filter>Src\Lumina\Test\AnimEventDemo</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Test\AnimEventDemo\Game.AnimEventDemo.Editor.cpp">
+      <Filter>Src\Lumina\Test\AnimEventDemo</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\Phys\Phys.Shape.ixx">
+      <Filter>Src\Lumina\Phys</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\Phys\Phys.Intersect.ixx">
+      <Filter>Src\Lumina\Phys</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\Phys\Phys.Intersect.cpp">
+      <Filter>Src\Lumina\Phys</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\Phys\Phys.Collider.ixx">
+      <Filter>Src\Lumina\Phys</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\Phys\Phys.Collider.cpp">
+      <Filter>Src\Lumina\Phys</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\Phys\Phys.DebugDraw.ixx">
+      <Filter>Src\Lumina\Phys</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\Phys\Phys.DebugDraw.cpp">
+      <Filter>Src\Lumina\Phys</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Lumina\Phys\Phys.ixx">
+      <Filter>Src\Lumina\Phys</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Game\Game.CollisionLayer.ixx">
+      <Filter>Src\Game</Filter>
+    </ClCompile>
     <ClCompile Include="Src\Test\ShowcaseCharacter\ShowcaseCharacter.cpp">
       <Filter>Src\Lumina\Test</Filter>
     </ClCompile>
@@ -525,7 +567,19 @@
     <None Include="Assets\Title\MagicCircle.json">
       <Filter>Assets\Title</Filter>
     </None>
+    <None Include="Assets\Shaders\PhysDebugLine.hlsl">
+      <Filter>Assets\Shaders</Filter>
+    </None>
+    <None Include="Assets\Configs\PhysDebugLine.json">
+      <Filter>Assets</Filter>
+    </None>
     <None Include="Assets\Neki\ATKY1_H2.notify.json">
+      <Filter>Assets</Filter>
+    </None>
+    <None Include="Assets\Neki\ATKY2_H2.notify.json">
+      <Filter>Assets</Filter>
+    </None>
+    <None Include="Assets\Neki\ATKY3_H3.notify.json">
       <Filter>Assets</Filter>
     </None>
     <None Include="Assets\Title\TitleRays.hlsl">

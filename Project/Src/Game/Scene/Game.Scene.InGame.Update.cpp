@@ -1,10 +1,19 @@
 module Game.Scene.InGame;
 
 import <string>;
+import <optional>;
+import <variant>;
 
 import : Impl;
 
 import Lumina;
+
+import Game.CollisionLayer;
+import Game.AnimEventDemo;
+
+#if defined(_DEBUG)
+import Lumina.Utils.ImGui;
+#endif
 
 namespace Game::Scene::Impl {
 	namespace {
@@ -178,6 +187,83 @@ namespace Game::Scene::Impl {
 			World_Hands[1];
 	}
 
+	struct Tag_UpdateColliders {};
+
+	// コライダの World を親行列から更新する（描画と同じ行列を使う）
+	template<>
+	void InGame::Update(
+		Tag_UpdateColliders&&
+	) {
+		// 右手ボーンの行列をこのフレームの値にしておく（後で同じ Tag_HoldWeapon を呼んでも結果は同じ）
+		Update(Tag_HoldWeapon{});
+
+		Lumina::Mat4 const playerMeshWorld{
+			Lumina::Mat4::SRT(
+				Player_->ModelScale() * 2.0f,
+				Player_->ModelRotate() + Lumina::Vec3{ 0.0f, 1.57f, 0.0f },
+				Player_->ModelTranslate()
+			)
+		};
+		Player_->BodyCollider().UpdateWorld(playerMeshWorld);
+
+		// 武器 = 武器メッシュの SRT × 右手ボーン（Render.cpp の weaponWorld と同じ）
+		Lumina::Mat4 const weaponWorld{
+			Lumina::Mat4::SRT({ 0.125f, 0.5f, 0.125f }, { -std::numbers::pi_v<float> * 0.5f, 0.0f, 0.0f }, { 0.0f, 0.0f, 0.0f }) *
+			World_Hands[1]
+		};
+		// 新方式: Hitbox の窓が開いている間だけ有効（窓の状態は、ボーン行列と同じ前フレーム終わりの時刻のもの）
+		// 旧方式: 攻撃中ずっと有効
+		Player_->WeaponCollider().Enabled = PlayerAnimEvents_.UseAnimEvent ? PlayerAnimEvents_.IsHitboxOpen() : (playerATKFlag != 0);
+		Player_->WeaponCollider().UpdateWorld(weaponWorld);
+
+		Lumina::Mat4 const bossMeshWorld{
+			Lumina::Mat4::SRT(
+				Boss_Kinoko_->ModelScale() * 2.0f,
+				Boss_Kinoko_->ModelRotate() + Lumina::Vec3{ 0.0f, 1.57f, 0.0f },
+				Boss_Kinoko_->ModelTranslate()
+			)
+		};
+		Boss_Kinoko_->BodyCollider().UpdateWorld(bossMeshWorld);
+	}
+
+#if defined(_DEBUG)
+	struct Tag_CollisionDebugUI {};
+
+	template<>
+	void InGame::Update(
+		Tag_CollisionDebugUI&&
+	) {
+		auto const editOBB{
+			[](char const* label_, Lumina::Phys::Collider& collider_) {
+				auto* const obb{ std::get_if<Lumina::Phys::OBB>(&collider_.Local) };
+				if (!obb) { return; }
+				ImGui::PushID(label_);
+				ImGui::SeparatorText(label_);
+				ImGui::Text("ID %u / %s", collider_.ID(), collider_.Enabled ? "Enabled" : "Disabled");
+				ImGui::DragFloat3("Center", &obb->Center.x, 0.01f);
+				ImGui::DragFloat3("HalfExtent", &obb->HalfExtent.x, 0.01f, 0.0f, 100.0f);
+				ImGui::PopID();
+			}
+		};
+
+		ImGui::Begin("Collision");
+		ImGui::Checkbox("Show Colliders", &ShowColliders_);
+		ImGui::Checkbox("Show Bounds", &CollisionDebug_.ShowBounds);
+		ImGui::Checkbox("Show Contacts", &CollisionDebug_.ShowContacts);
+		ImGui::Text(
+			"Colliders %u / Broadphase %u / Contacts %u",
+			static_cast<uint32_t>(CollisionWorld_.Colliders().size()),
+			CollisionWorld_.NumBroadphasePairs(),
+			static_cast<uint32_t>(CollisionWorld_.Contacts().size())
+		);
+		// 形状はメッシュ空間の値（Player / Boss の Initialize で入れている値を上書きする）
+		editOBB("Player Body", Player_->BodyCollider());
+		editOBB("Player Weapon", Player_->WeaponCollider());
+		editOBB("Boss Body", Boss_Kinoko_->BodyCollider());
+		ImGui::End();
+	}
+#endif
+
 	template<>
 	void InGame::Update(
 		Lumina::DX12::Context const& dxContext_,
@@ -265,22 +351,51 @@ namespace Game::Scene::Impl {
 
 		// Collision btw. Player and Boss
 
+		Update(Tag_UpdateColliders{});
+		CollisionWorld_.Detect();
+#if defined(_DEBUG)
+		Update(Tag_CollisionDebugUI{});
+		PlayerAnimEvents_.DrawEditor();
+#endif
+
+		std::optional<Lumina::Phys::Hit> weaponHit{};
+		std::optional<Lumina::Phys::Hit> bodyHit{};
+		for (auto const& pair : CollisionWorld_.Contacts()) {
+			if (auto const hit{ pair.Match(CollisionLayer::PlayerWeapon, CollisionLayer::BossBody) }) {
+				weaponHit = hit;
+			}
+			if (auto const hit{ pair.Match(CollisionLayer::PlayerBody, CollisionLayer::BossBody) }) {
+				bodyHit = hit;
+			}
+		}
+
 		Lumina::Vec3 const dPos{ Player_->WorldPosition() - Boss_Kinoko_->WorldPosition() };
-		Lumina::Vec2 const dPos_XZ{ dPos.x, dPos.z };
-		if (playerATKFlag != 0 && !Boss_Kinoko_->IsBeingKnockedBack()) {
-			Lumina::Vec3 const weaponPos{ WorldPos_Weapon_.x, WorldPos_Weapon_.y, WorldPos_Weapon_.z };
-			Lumina::Vec3 const dWeaponPos{ weaponPos - Boss_Kinoko_->WorldPosition() };
-			Lumina::Vec2 const dWeaponPos_XZ{ dWeaponPos.x, dWeaponPos.z };
-			if (Lumina::Vec2::Dot(dWeaponPos_XZ, dWeaponPos_XZ) <= 9.0f && dPos.y < 10.0f) {
-				Lumina::Vec3 const contactPoint = weaponPos;
+		// 旧方式の「攻撃が当たりうる」条件。体当たりの分岐はどちらの方式でもこれで決める（体当たりの挙動は変えないため）
+		bool const legacyWeaponGate{ playerATKFlag != 0 && !Boss_Kinoko_->IsBeingKnockedBack() };
+		if (PlayerAnimEvents_.UseAnimEvent) {
+			// 新方式: コライダは Hitbox の窓の間だけ有効。同じ窓では同じ相手に 1 回だけ当たる（ノックバック中でも当たる）。
+			// ダメージとノックバックはサイドカーの値
+			if (weaponHit) {
+				if (auto const hitbox{ PlayerAnimEvents_.TryHit(Boss_Kinoko_->BodyCollider().ID()) }) {
+					Lumina::Vec3 const contactPoint{ weaponHit->Info.Point };
+					Boss_Kinoko_->KnockedBack(hitbox->Knockback, { -dPos.x, -dPos.z });
+					Boss_Kinoko_->HP_ -= hitbox->Damage;
+					emitKnockEffectParticles(contactPoint, 195.0f);
+					hitBoss = 1.0f;
+				}
+			}
+		}
+		else if (legacyWeaponGate) {
+			if (weaponHit) {
+				Lumina::Vec3 const contactPoint{ weaponHit->Info.Point };
 				Boss_Kinoko_->KnockedBack(5.0f * playerATKFlag, { -dPos.x, -dPos.z });
 				Boss_Kinoko_->HP_ -= 100.0f * playerATKFlag;
 				emitKnockEffectParticles(contactPoint, 195.0f);
 				hitBoss = 1.0f;
 			}
 		}
-		else if (Lumina::Vec2::Dot(dPos_XZ, dPos_XZ) <= 9.0f && dPos.y < 10.0f) {
-			Lumina::Vec3 const contactPoint = Player_->WorldPosition() + dPos * 0.25f;
+		if (!legacyWeaponGate && bodyHit) {
+			Lumina::Vec3 const contactPoint{ bodyHit->Info.Point };
 			/*if (Player_->IsDashing() && !Boss_Kinoko_->IsBeingKnockedBack()) {
 				Boss_Kinoko_->KnockedBack(15.0f, { -dPos.x, -dPos.z });
 				Boss_Kinoko_->HP_ -= 100.0f;
@@ -938,25 +1053,20 @@ namespace Game::Scene::Impl {
 		}
 
 		if (currentAnim_) {
-			animTimer_ += 1.0f / 60.0f * 4.0f;
+			// 時刻はアニメーションイベントのプレイヤーが持つ（4 倍速・ループは折り返し・非ループは終端で止まる、は今までと同じ）。
+			// クリップ名が変わったら最初から再生する。プレビュー中はエディタで選んだクリップのポーズになる
+			PlayerAnimEvents_.Update(currentAnimName_, IsAnimationLoop_, 1.0f / 60.0f);
+			auto const pose{ PlayerAnimEvents_.CurrentPose() };
+			animTimer_ = pose.Time;		// 参考用（もう時刻の計算には使っていない）
 
-			if (IsAnimationLoop_) {
-				// ループする場合は fmod で 0 ～ Duration に収める
-				animTimer_ = std::fmod(animTimer_, currentAnim_->DurationInSeconds);
+			if (pose.Clip) {
+				Lumina::CG3D::Update(
+					PlayerSkinnedInstance_->SkinCluster_,
+					PlayerSkinnedInstance_->Skeleton_,
+					*pose.Clip,
+					pose.Time
+				);
 			}
-			else {
-				// ループしない場合は Duration で止める（これなら > 判定でOK）
-				if (animTimer_ > currentAnim_->DurationInSeconds) {
-					animTimer_ = currentAnim_->DurationInSeconds;
-				}
-			}
-
-			Lumina::CG3D::Update(
-				PlayerSkinnedInstance_->SkinCluster_,
-				PlayerSkinnedInstance_->Skeleton_,
-				*currentAnim_,
-				animTimer_
-			);
 		}
 
 		if (Boss_Kinoko_->IsMoving()) {

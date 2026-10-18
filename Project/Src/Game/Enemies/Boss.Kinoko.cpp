@@ -7,6 +7,7 @@ import BehaviorTree;
 import Lumina.Utils.Color;
 
 import Game.Player;
+import Game.CollisionLayer;
 
 import ParticleSystem;
 
@@ -585,6 +586,12 @@ namespace Game {
 		MaxHP_ = 25000.0f;
 		Inv_MaxHP_ = 1.0f / MaxHP_;
 		HP_ = MaxHP_;
+
+		// コライダ: プレイヤーと同じ Neki のメッシュ空間（ModelScale の 1.5 倍は親行列側で効く）
+		BodyCollider_.Local = Lumina::Phys::OBB::FromCenterHalf({ 0.0f, 1.33f, -0.05f }, { 0.4f, 1.51f, 0.27f });
+		BodyCollider_.Layer = CollisionLayer::BossBody;
+		BodyCollider_.Mask = CollisionLayer::PlayerBody | CollisionLayer::PlayerWeapon;
+		BodyCollider_.Owner = this;
 	}
 
 	void Boss_Kinoko::KnockedBack(float power_, Lumina::Vec2 const& dir_) {

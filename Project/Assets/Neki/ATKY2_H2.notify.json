@@ -1,0 +1,19 @@
+{
+  "_note": "Hitbox のフレームは、右手（刃側）の速さが最大になる区間からの推定（2026-10-17）。ゲームで見て直すこと",
+  "version": 1,
+  "clip": "ATK2",
+  "take": "Armature.002|mixamo.com|Layer0 Retarget",
+  "frameRate": 30,
+  "instants": [],
+  "windows": [
+    {
+      "type": "Hitbox",
+      "begin": 23,
+      "end": 32,
+      "slot": "RightBlade",
+      "damage": 200,
+      "knockback": 10
+    }
+  ],
+  "curves": []
+}

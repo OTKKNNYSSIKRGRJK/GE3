@@ -468,6 +468,12 @@ namespace Game::Scene::Impl {
 			GlobalTable_SRV_ImageTexture_.GPUHandle(0U),
 			LocalHeap_OrthoProj_.CPUHandle(0U)
 		);
+#if defined(_DEBUG)
+		if (ShowColliders_) {
+			CollisionDebug_.Draw(CollisionWorld_);
+			CollisionDebug_.Render(cmdList_, PlayerCamera_->VP);
+		}
+#endif
 		UIPass_.End();
 
 		SpriteRenderer_->End();

@@ -6,6 +6,7 @@ import BehaviorTree;
 import Lumina.DX12;
 
 import Lumina.Math;
+import Lumina.Phys.Collider;
 
 namespace Game {
 	struct BoingBoingAnimationArgument {
@@ -97,6 +98,13 @@ namespace Game {
 		float MaxHP_{};
 		float Inv_MaxHP_{};
 		float HP_{};
+
+	public:
+		// コライダ（形状はメッシュ空間で持つ。World の更新は親行列を知っている InGame が行う）
+		Lumina::Phys::Collider& BodyCollider() noexcept { return BodyCollider_; }
+		Lumina::Phys::Collider const& BodyCollider() const noexcept { return BodyCollider_; }
+	private:
+		Lumina::Phys::Collider BodyCollider_{};
 
 	public:
 		auto BuildBT(void* bossParticleSystem_) -> void;

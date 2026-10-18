@@ -3,6 +3,7 @@ export module Game.Player;
 import Lumina.DX12;
 
 import Lumina.Math;
+import Lumina.Phys.Collider;
 
 namespace Game {
 	struct FloatingAnimationArgument {
@@ -80,6 +81,19 @@ namespace Game {
 		Lumina::Vec2 KnockBackDir_{};
 		int32_t IsBeingKnockedBack_{};
 		int32_t IsReturningToCenter_{};
+
+	public:
+		// コライダ（形状はメッシュ空間で持つ。World の更新は親行列を知っている InGame が行う）
+		Lumina::Phys::Collider& BodyCollider() noexcept { return BodyCollider_; }
+		Lumina::Phys::Collider const& BodyCollider() const noexcept { return BodyCollider_; }
+		Lumina::Phys::Collider& WeaponCollider() noexcept { return WeaponCollider_; }
+		Lumina::Phys::Collider const& WeaponCollider() const noexcept { return WeaponCollider_; }
+
+	private:
+		void InitializeColliders();
+
+		Lumina::Phys::Collider BodyCollider_{};
+		Lumina::Phys::Collider WeaponCollider_{};
 
 	public:
 		float MaxHP_;

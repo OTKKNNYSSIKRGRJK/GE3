@@ -1,18 +1,53 @@
 {
-  "_note": "サンプル。フレーム番号は仮の値なので、実際のモーションを見て直すこと。30fps で 67 フレーム（2.2333 秒）のテイク向け",
+  "_note": "Hitbox のフレームは、右手（刃側）の速さが最大になる区間からの推定（2026-10-17）。ゲームで見て直すこと。Hitbox 以外（Swing / Trail / SuperArmor / TurnRate）はまだ使っていない仮の値",
   "version": 1,
   "clip": "ATK1",
   "take": "Armature.001|mixamo.com|Layer0 Retarget",
   "frameRate": 30,
   "instants": [
-    { "type": "Swing", "frame": 17 }
+    {
+      "type": "Swing",
+      "frame": 32
+    }
   ],
   "windows": [
-    { "type": "SuperArmor", "begin": 5, "end": 30 },
-    { "type": "Hitbox", "begin": 18, "end": 24, "slot": "RightBlade", "damage": 100 },
-    { "type": "Trail", "begin": 16, "end": 26, "minWeight": 0.5 }
+    {
+      "type": "SuperArmor",
+      "begin": 20,
+      "end": 42
+    },
+    {
+      "type": "Hitbox",
+      "begin": 32,
+      "end": 42,
+      "slot": "RightBlade",
+      "damage": 100,
+      "knockback": 5
+    },
+    {
+      "type": "Trail",
+      "begin": 31,
+      "end": 43,
+      "minWeight": 0.5
+    }
   ],
   "curves": [
-    { "name": "TurnRate", "keys": [[0, 1.0], [12, 1.0], [16, 0.0]] }
+    {
+      "name": "TurnRate",
+      "keys": [
+        [
+          0,
+          1.0
+        ],
+        [
+          26,
+          1.0
+        ],
+        [
+          32,
+          0.0
+        ]
+      ]
+    }
   ]
 }

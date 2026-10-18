@@ -4,6 +4,8 @@ import Lumina.WinApp.RawInput;
 
 import Lumina.Math;
 
+import Game.CollisionLayer;
+
 //import Lumina.Utils.ImGui;
 
 namespace {
@@ -218,6 +220,23 @@ namespace Game {
 		MaxHP_ = 150.0f;
 		Inv_MaxHP_ = 1.0f / MaxHP_;
 		HP_ = MaxHP_;
+
+		InitializeColliders();
+	}
+
+	void Player::InitializeColliders() {
+		// 体: Neki のメッシュ空間（バインドポーズで y -0.18〜2.84、z -0.31〜0.22。x は腕を除いた胴の幅）
+		BodyCollider_.Local = Lumina::Phys::OBB::FromCenterHalf({ 0.0f, 1.33f, -0.05f }, { 0.4f, 1.51f, 0.27f });
+		BodyCollider_.Layer = CollisionLayer::PlayerBody;
+		BodyCollider_.Mask = CollisionLayer::BossBody | CollisionLayer::BossAttack;
+		BodyCollider_.Owner = this;
+
+		// 武器: Kinoko.obj のメッシュ空間（x -3.96〜3.90、y 0〜5.70、z -3.99〜3.91）。攻撃中だけ有効にする
+		WeaponCollider_.Local = Lumina::Phys::OBB::FromCenterHalf({ 0.0f, 2.85f, 0.0f }, { 3.95f, 2.85f, 3.95f });
+		WeaponCollider_.Layer = CollisionLayer::PlayerWeapon;
+		WeaponCollider_.Mask = CollisionLayer::BossBody;
+		WeaponCollider_.Owner = this;
+		WeaponCollider_.Enabled = false;
 	}
 
 	void Player::KnockedBack(float power_, Lumina::Vec2 const& dir_) {

@@ -25,6 +25,10 @@ import Lumina.Skybox;
 import Lumina.SimpleFX2;
 import Lumina.SimpleFX3;
 
+import Lumina.Phys;
+
+import Game.AnimEventDemo;
+
 namespace Game::Scene::Impl {
 	struct SkinnedModel {
 		Lumina::CG3D::Collection Collection_;
@@ -223,6 +227,10 @@ namespace Game::Scene::Impl {
 
 		int playerATKFlag = 0;
 
+		// プレイヤーのアニメの時刻とアニメーションイベント（当たり判定のタイミングのテスト）。
+		// animTimer_ の代わりにこれが時刻を持つ。Debug では ImGui「AnimEvent Hitbox」で調整する
+		Game::AnimEventDemo::PlayerAnimEvents PlayerAnimEvents_{};
+
 		//----	Skybox							----//
 		//----	------	------	------	------	----//
 
@@ -230,5 +238,12 @@ namespace Game::Scene::Impl {
 
 		std::unique_ptr<Lumina::SimpleFX2> SimpleFX2_;
 		std::unique_ptr<Lumina::SimpleFX3> SimpleFX3_;
+
+		//----	Collision						----//
+		//----	------	------	------	------	----//
+
+		Lumina::Phys::CollisionWorld CollisionWorld_{};
+		Lumina::Phys::DebugRenderer CollisionDebug_{};
+		bool ShowColliders_{ true };
 	};
 }

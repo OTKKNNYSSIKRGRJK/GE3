@@ -19,6 +19,8 @@ import Lumina.Utils.Data.Mesh;
 
 import : Impl;
 
+import Game.AnimEventDemo;
+
 import Lumina.CG3D;
 import Lumina.CG3D.Animation;
 
@@ -97,6 +99,16 @@ namespace Game::Scene::Impl {
 		{
 			Boss_Kinoko_.reset(new Boss_Kinoko{});
 			Boss_Kinoko_->Initialize(Lumina::Vec3{ -10.0f, 0.0f, 0.0f });
+		}
+
+		// Collision
+		{
+			CollisionWorld_.Add(Player_->BodyCollider());
+			CollisionWorld_.Add(Player_->WeaponCollider());
+			CollisionWorld_.Add(Boss_Kinoko_->BodyCollider());
+
+			// UI パス（バックバッファ SRGB・深度なし）に重ねて描く
+			CollisionDebug_.Initialize(dxContext_, DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, DXGI_FORMAT_UNKNOWN);
 		}
 
 		// ImageTextures
@@ -764,6 +776,18 @@ namespace Game::Scene::Impl {
 			animDatabase_["ATK1"] = animation_atk1[0];
 			animDatabase_["ATK2"] = animation_atk2[0];
 			animDatabase_["ATK3"] = animation_atk3[0];
+
+			// アニメーションイベントのサイドカー（無いファイルは、エディタの Create で作れる）
+			{
+				Game::AnimEventDemo::ClipBinding const bindings[]{
+					{ "Idle", "Assets/Neki/Idle.notify.json" },
+					{ "Run", "Assets/Neki/Cool_Run.notify.json" },
+					{ "ATK1", "Assets/Neki/ATKY1_H2.notify.json" },
+					{ "ATK2", "Assets/Neki/ATKY2_H2.notify.json" },
+					{ "ATK3", "Assets/Neki/ATKY3_H3.notify.json" },
+				};
+				PlayerAnimEvents_.Initialize(animDatabase_, bindings, 4.0f);
+			}
 			PlayAnimation(currentAnim_, currentAnimName_, animTimer_, IsAnimationLoop_, "Idle", true);
 			PlayAnimation(currentAnim_Boss_, currentAnimName_Boss_, animTimer_Boss_, IsAnimationLoop_Boss_, "Idle", true);
 			animTimer_ = 0.0f;

@@ -1,0 +1,19 @@
+{
+  "_note": "Hitbox のフレームは、右手（刃側）の速さが最大になる区間からの推定（2026-10-17）。ゲームで見て直すこと。10〜18F にも速い動き（1 振り目？）があるが、窓は最後の振りだけにしている",
+  "version": 1,
+  "clip": "ATK3",
+  "take": "Armature.004|mixamo.com|Layer0.001 Retarget",
+  "frameRate": 30,
+  "instants": [],
+  "windows": [
+    {
+      "type": "Hitbox",
+      "begin": 62,
+      "end": 74,
+      "slot": "RightBlade",
+      "damage": 300,
+      "knockback": 15
+    }
+  ],
+  "curves": []
+}
