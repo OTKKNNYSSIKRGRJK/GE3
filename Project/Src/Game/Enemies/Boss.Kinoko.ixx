@@ -110,5 +110,13 @@ namespace Game {
 		auto BuildBT(void* bossParticleSystem_) -> void;
 	private:
 		std::unique_ptr<Lumina::Behavior::Composite> BTRoot_;
+
+	public:
+		// デバッグ用のスイッチ（ヒット判定の確認用）。UI は InGame の「Collision」ウィンドウ（Debug のみ）。既定はどちらも off
+		struct DebugSwitches {
+			bool FreezeAI{ false };		// BT と Idle / Move の遷移を止めて、その場に立たせる。ノックバックによる移動は止めない
+			bool NoKnockBack{ false };	// KnockedBack(power, dir) を無視する（HP は呼び出し側で減らすので、ダメージは入る）
+		};
+		DebugSwitches Debug{};
 	};
 }

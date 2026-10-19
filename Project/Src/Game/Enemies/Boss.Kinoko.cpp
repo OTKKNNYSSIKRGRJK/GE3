@@ -484,10 +484,23 @@ namespace Game {
 		RelPos_SelfToPlayer_.y = 0.0f;
 		Angle_ = std::atan2(RelPos_SelfToPlayer_.z, RelPos_SelfToPlayer_.x);
 
-		if (CurrentState_ != nullptr) {
+		// FreezeAI 中は、ノックバックと中央への戻り（座標が壊れたときの救済）だけを動かす
+		State const stateKnockedBack{ &Boss_Kinoko::KnockedBack };
+		State const stateReturnToCenter{ &Boss_Kinoko::ReturnToCenter };
+		bool const runState{
+			!Debug.FreezeAI ||
+			CurrentState_ == stateKnockedBack ||
+			CurrentState_ == stateReturnToCenter
+		};
+		if (CurrentState_ != nullptr && runState) {
 			(this->*CurrentState_)();
 		}
-		--FrameCountDown_ToNextState_;
+		if (Debug.FreezeAI) {
+			IsMoving_ = 0;		// Move の途中で止めたとき、走りのアニメのままにならないように
+		}
+		else {
+			--FrameCountDown_ToNextState_;
+		}
 
 		if (!std::isfinite(Position_.x) || !std::isfinite(Position_.z)) {
 			Position_.x = player_.WorldPosition().x;
@@ -536,10 +549,13 @@ namespace Game {
 		BBB.bossForward = { RelPos_SelfToPlayer_.x, RelPos_SelfToPlayer_.y, RelPos_SelfToPlayer_.z };
 		BBB.distanceToTarget = RelPos_SelfToPlayer_.Norm();
 		BBB.deltaTime = dt;
-		BBB.waveLineCooldown -= dt;
-		BBB.circularCooldown -= dt;
+		// FreezeAI 中は BT を回さない（クールダウンも進めない。スキルの途中なら、解除したときにそこから続く）
+		if (!Debug.FreezeAI) {
+			BBB.waveLineCooldown -= dt;
+			BBB.circularCooldown -= dt;
 
-		BTRoot_->Tick(BBB);
+			BTRoot_->Tick(BBB);
+		}
 
 		/*ImGui::Begin("BossBT");
 		ImGui::Text("IsIdling = %d", BBB.isIdling);
@@ -595,6 +611,8 @@ namespace Game {
 	}
 
 	void Boss_Kinoko::KnockedBack(float power_, Lumina::Vec2 const& dir_) {
+		if (Debug.NoKnockBack) { return; }
+
 		SpeedByKnockBack_ = power_ * 0.1f;
 		KnockBackDir_ = dir_.Unit();
 

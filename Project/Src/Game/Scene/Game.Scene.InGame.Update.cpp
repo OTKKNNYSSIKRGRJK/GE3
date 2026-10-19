@@ -260,6 +260,11 @@ namespace Game::Scene::Impl {
 		editOBB("Player Body", Player_->BodyCollider());
 		editOBB("Player Weapon", Player_->WeaponCollider());
 		editOBB("Boss Body", Boss_Kinoko_->BodyCollider());
+
+		// ボスのデバッグ用スイッチ（ヒット判定の確認用）
+		ImGui::SeparatorText("Boss Debug");
+		ImGui::Checkbox("Freeze AI (BT / Idle-Move)", &Boss_Kinoko_->Debug.FreezeAI);
+		ImGui::Checkbox("No knockback", &Boss_Kinoko_->Debug.NoKnockBack);
 		ImGui::End();
 	}
 #endif
