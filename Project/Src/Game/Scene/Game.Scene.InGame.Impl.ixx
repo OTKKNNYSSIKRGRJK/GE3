@@ -28,6 +28,9 @@ import Lumina.SimpleFX3;
 import Lumina.Phys;
 
 import Game.AnimEventDemo;
+import Game.AnimEventVfx;
+
+import Lumina.VsBanner;
 
 namespace Game::Scene::Impl {
 	struct SkinnedModel {
@@ -230,6 +233,12 @@ namespace Game::Scene::Impl {
 		// プレイヤーのアニメの時刻とアニメーションイベント（当たり判定のタイミングのテスト）。
 		// animTimer_ の代わりにこれが時刻を持つ。Debug では ImGui「AnimEvent Hitbox」で調整する
 		Game::AnimEventDemo::PlayerAnimEvents PlayerAnimEvents_{};
+
+		// VfxLoop の窓からエフェクトを出す（今は ATK3 の刃先の放射光線だけ）。Debug では ImGui「AnimEvent VFX」で調整する
+		Game::AnimEventVfx::VfxPresenter AnimEventVfx_{};
+
+		// バトル開始の合図（VS バナー）。STARTUP で再生し、終わったら IN_BATTLE へ。Debug では ImGui「VS Banner」で調整する
+		Lumina::VsBanner::Presenter VsBanner_{};
 
 		//----	Skybox							----//
 		//----	------	------	------	------	----//

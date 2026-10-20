@@ -302,6 +302,12 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="Src\Test\AnimEventDemo\Game.AnimEventDemo.ixx" />
     <ClCompile Include="Src\Test\AnimEventDemo\Game.AnimEventDemo.cpp" />
     <ClCompile Include="Src\Test\AnimEventDemo\Game.AnimEventDemo.Editor.cpp" />
+    <ClCompile Include="Src\Test\AnimEventDemo\Game.AnimEventVfx.ixx" />
+    <ClCompile Include="Src\Test\AnimEventDemo\Game.AnimEventVfx.cpp" />
+    <ClCompile Include="Src\Test\RadialRays\RadialRays.ixx" />
+    <ClCompile Include="Src\Test\RadialRays\RadialRays.cpp" />
+    <ClCompile Include="Src\Test\VsBanner\VsBanner.ixx" />
+    <ClCompile Include="Src\Test\VsBanner\VsBanner.cpp" />
     <ClCompile Include="Src\Lumina\Phys\Phys.Shape.ixx" />
     <ClCompile Include="Src\Lumina\Phys\Phys.Intersect.ixx" />
     <ClCompile Include="Src\Lumina\Phys\Phys.Intersect.cpp" />
@@ -339,6 +345,10 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <None Include="Assets\Neki\ATKY3_H3.notify.json" />
     <None Include="Assets\Title\TitleRays.hlsl" />
     <None Include="Assets\Title\TitleRays.json" />
+    <None Include="Assets\Effects\RadialRays.hlsl" />
+    <None Include="Assets\Effects\RadialRays.json" />
+    <None Include="Assets\Effects\VsBanner.hlsl" />
+    <None Include="Assets\Effects\VsBanner.json" />
     <None Include="Assets\Title\TitlePost.hlsl" />
     <None Include="Assets\Title\TitlePost.json" />
     <None Include="Assets\Title\TitleCrack.hlsli" />

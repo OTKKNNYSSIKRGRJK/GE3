@@ -3,6 +3,7 @@ module Game.Scene.InGame;
 import : Impl;
 
 import Lumina;
+import Lumina.VsBanner;
 
 namespace Game::Scene::Impl {
 	template<>
@@ -14,17 +15,22 @@ namespace Game::Scene::Impl {
 		bool canMove = 0;
 		Player_->Update(input_, canMove);
 
-		float const t = 1.0f - static_cast<float>(NextPhaseCountDown_) / 90.0f;
+		// バトル開始の VS バナーを頭から再生し、終わったら IN_BATTLE へ（以前は 90 フレーム固定の待ち）
+		if (VsBanner_.CurrentState() == Lumina::VsBanner::Presenter::State::Idle) {
+			VsBanner_.Play();
+		}
+		VsBanner_.Update(1.0f / 60.0f);
+
+		// HP バーはバナーの再生全体に合わせて伸ばす
+		float const t = VsBanner_.Progress();
 		float const easedT = (t * t * t * (t * (t * 6.0f - 15.0f) + 10.0f));
 		UI_PlayerHPBar_.Scale_.x = MaxWidth_UI_PlayerHPBar_ * easedT;
 		UI_BossHPBar_.Scale_.x = MaxWidth_UI_BossHPBar_ * easedT;
 
-		if (NextPhaseCountDown_ < 0) {
+		if (VsBanner_.IsFinished()) {
+			VsBanner_.Reset();
 			CurrentPhase_ = PHASE_IN_BATTLE;
 			NextPhaseCountDown_ = 90;
-		}
-		else {
-			--NextPhaseCountDown_;
 		}
 	}
 	template<>

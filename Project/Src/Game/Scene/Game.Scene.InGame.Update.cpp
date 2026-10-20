@@ -361,6 +361,12 @@ namespace Game::Scene::Impl {
 #if defined(_DEBUG)
 		Update(Tag_CollisionDebugUI{});
 		PlayerAnimEvents_.DrawEditor();
+		AnimEventVfx_.DrawEditor();
+		if (VsBanner_.DrawEditor()) {
+			// Replay: STARTUP に戻して頭から（プレイヤーとボスの位置・HP はそのまま）
+			VsBanner_.Reset();
+			CurrentPhase_ = PHASE_STARTUP;
+		}
 #endif
 
 		std::optional<Lumina::Phys::Hit> weaponHit{};

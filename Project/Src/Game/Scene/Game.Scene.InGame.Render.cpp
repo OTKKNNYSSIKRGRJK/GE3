@@ -121,6 +121,9 @@ namespace Game::Scene::Impl {
 			Lumina::Mat4::SRT({ 0.125f, 0.5f, 0.125f }, { -std::numbers::pi_v<float> * 0.5f, 0.0f, 0.0f }, { 0.0f, 0.0f, 0.0f }) *
 			weaponWorld;
 
+		// VfxLoop の窓のエフェクト。ソケット（刃先）は武器メッシュと同じ行列で変換する（刃と光がずれないように）
+		AnimEventVfx_.Prepare(PlayerAnimEvents_.VfxTracks(), weaponWorld, PlayerCamera_->VP);
+
 		MeshManager_->Begin(cmdList_);
 		MeshManager_->BatchBegin();
 		/*MeshManager_->Batch(
@@ -362,6 +365,9 @@ namespace Game::Scene::Impl {
 				GlobalTable_SRV_ImageTexture_,
 				GlobalTable_SRV_CanvasTexture_
 			);
+
+			// 刃先の放射光線（加算・スクリーン空間）。この後のポストでヒット時のゆがみが掛かる
+			AnimEventVfx_.Render(cmdList_);
 		}
 		MergePass_.End();
 
@@ -420,6 +426,12 @@ namespace Game::Scene::Impl {
 
 		cmdList_->ResourceBarrier(1U, barriers_PostPostProcessingPass);
 
+		// VS バナーの中身（キャラの寄り）を専用の RT に描く（バナーが見えている間だけ）。
+		// RT・ビューポート・シザーを切り替えるので、UIPass の前に呼んでビューポートとシザーを画面全体に戻す
+		VsBanner_.RenderPortraits(cmdList_);
+		cmdList_->RSSetViewports(1U, &Canvas_PostProcessing_.Viewport(0U));
+		cmdList_->RSSetScissorRects(1U, &Canvas_PostProcessing_.ScissorRect(0U));
+
 		PrimitiveManager2_->Begin(cmdList_);
 		PrimitiveManager2_->BatchTriangle(
 			{ { -1.0f, 1.0f, 0.0f, 1.0f }, { 1.0f, 1.0f, 1.0f, 1.0f }, { 0.0f, 0.0f }, 5U },
@@ -468,6 +480,8 @@ namespace Game::Scene::Impl {
 			GlobalTable_SRV_ImageTexture_.GPUHandle(0U),
 			LocalHeap_OrthoProj_.CPUHandle(0U)
 		);
+		// バトル開始の VS バナー（プリマルチプライド α）。HP バーより手前
+		VsBanner_.Render(cmdList_);
 #if defined(_DEBUG)
 		if (ShowColliders_) {
 			CollisionDebug_.Draw(CollisionWorld_);

@@ -48,6 +48,7 @@ namespace Game::AnimEventDemo {
 		constexpr ImU32 ColText{ 0xFFC8C8C8U };
 		constexpr ImU32 ColHitbox{ 0xFF4848E0U };
 		constexpr ImU32 ColWindow{ 0xFFA87840U };
+		constexpr ImU32 ColVfx{ 0xFF30B8E8U };
 		constexpr ImU32 ColInstant{ 0xFF40D0F0U };
 		constexpr ImU32 ColCursor{ 0xFFFFFFFFU };
 
@@ -271,7 +272,7 @@ namespace Game::AnimEventDemo {
 			if (e > b) {
 				float const x0{ xOfFrame(b) };
 				float const x1{ xOfFrame(e) };
-				dl->AddRectFilled(ImVec2{ x0, y + 2.0f }, ImVec2{ x1, y + RowHeight - 2.0f }, (type == "Hitbox") ? ColHitbox : ColWindow);
+				dl->AddRectFilled(ImVec2{ x0, y + 2.0f }, ImVec2{ x1, y + RowHeight - 2.0f }, (type == "Hitbox") ? ColHitbox : (type == "VfxLoop") ? ColVfx : ColWindow);
 			}
 			std::string const label{ std::format("{} [{}, {})", type, b, e) };
 			dl->AddText(ImVec2{ xOfFrame(std::max(b, 0)) + 3.0f, y + 2.0f }, ColText, label.c_str());
@@ -386,6 +387,14 @@ namespace Game::AnimEventDemo {
 						ImGui::SetNextItemWidth(60.0f);
 						if (ImGui::DragFloat("kb", &knockback, 0.1f, 0.0f, 100.0f, "%.1f")) { w["knockback"] = knockback; changed = true; }
 					}
+					else if (type == "VfxLoop") {
+						// エフェクト名とソケット名は表示だけ（今は TipRays / WeaponTip しか無いので、変えるときは JSON を直接書く）
+						float scale{ FloatOr(w, "scale", 1.0f) };
+						ImGui::Text("%s @ %s", StringOr(w, "effect", "?").c_str(), StringOr(w, "socket", "WeaponTip").c_str());
+						ImGui::SameLine();
+						ImGui::SetNextItemWidth(60.0f);
+						if (ImGui::DragFloat("scale", &scale, 0.01f, 0.0f, 10.0f, "%.2f")) { w["scale"] = scale; changed = true; }
+					}
 
 					ImGui::TableNextColumn();
 					if (ImGui::SmallButton("x")) { removeAt = idx; }
@@ -406,6 +415,18 @@ namespace Game::AnimEventDemo {
 				w["slot"] = std::string{ "RightBlade" };
 				w["damage"] = 100.0f;
 				w["knockback"] = 5.0f;
+				windows->push_back(std::move(w));
+				changed = true;
+			}
+			ImGui::SameLine();
+			if (ImGui::Button("+ VfxLoop (TipRays) at cursor")) {
+				JSON w = JSON::object();
+				w["type"] = std::string{ "VfxLoop" };
+				w["begin"] = currentFrame_;
+				w["end"] = std::min(currentFrame_ + 12, std::max(lastFrame, currentFrame_ + 1));
+				w["effect"] = std::string{ "TipRays" };
+				w["socket"] = std::string{ "WeaponTip" };
+				w["scale"] = 1.0f;
 				windows->push_back(std::move(w));
 				changed = true;
 			}

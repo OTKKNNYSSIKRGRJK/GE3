@@ -1,0 +1,14 @@
+{
+  "RS": {
+    "Parameters": [
+      {
+        "ShaderVisibility": "All",
+        "ParameterType": "CBV",
+        "ShaderRegister": 0,
+        "RegisterSpace": 0
+      }
+    ],
+
+    "StaticSamplers": []
+  }
+}

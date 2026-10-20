@@ -13,6 +13,14 @@
       "slot": "RightBlade",
       "damage": 300,
       "knockback": 15
+    },
+    {
+      "type": "VfxLoop",
+      "begin": 54,
+      "end": 78,
+      "effect": "TipRays",
+      "socket": "WeaponTip",
+      "scale": 1.0
     }
   ],
   "curves": []

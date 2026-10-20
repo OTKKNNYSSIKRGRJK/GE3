@@ -77,6 +77,16 @@ namespace Game::AnimEventDemo {
 					Adapter::ReadNumber(e_, "damage", p_.Damage) &&
 					Adapter::ReadNumber(e_, "knockback", p_.Knockback);
 			});
+		// 演出の窓。"effect" は必須（無いと読み込みエラー）、"socket" の省略時は WeaponTip
+		Registry_.Register<VfxPayload>(AE::EventCategory::Presentation, 0.5f,
+			[](Adapter::JSON const& e_, VfxPayload& p_) {
+				p_.Socket = AE::TypeIdOf("WeaponTip");
+				return
+					e_.contains("effect") &&
+					Adapter::ReadNameId(e_, "effect", p_.Effect) &&
+					Adapter::ReadNameId(e_, "socket", p_.Socket) &&
+					Adapter::ReadNumber(e_, "scale", p_.Scale);
+			});
 		Registry_.RegisterTag("SuperArmor", AE::EventCategory::Gameplay, 0.0f);
 		Registry_.RegisterTag("Swing", AE::EventCategory::Presentation, 0.5f);
 		Registry_.RegisterTag("Trail", AE::EventCategory::Presentation, 0.5f);
@@ -153,7 +163,10 @@ namespace Game::AnimEventDemo {
 			if (auto const t{ Player_.Time(PreviewId_) }) { PreviewTime_ = *t; }
 		}
 
-		// 4. イベントを反映する（副作用はエッジ、状態は IsOpen で問い合わせ）
+		// 4. VfxLoop のトラックの年齢を進める（このステップで開くものは、次の HandleEvents で 0 から始まる）
+		AgeVfxTracks(dt_);
+
+		// 5. イベントを反映する（副作用はエッジ、状態は IsOpen で問い合わせ）
 		HandleEvents();
 	}
 
@@ -174,6 +187,8 @@ namespace Game::AnimEventDemo {
 
 	void PlayerAnimEvents::HandleEvents() {
 		for (AE::AnimEvent const& e : Events_) {
+			if (AE::Is<VfxPayload>(e)) { HandleVfx(e); }
+
 			if (AE::Is<HitboxPayload>(e)) {
 				if (e.Edge == AE::EventEdge::Begin) {
 					// 窓が開くたびにヒット済みの相手を空にする（同じ窓IDでも、開き直したら別の 1 振り）
@@ -196,6 +211,78 @@ namespace Game::AnimEventDemo {
 					e.ClipTime, e.ClipTime * fps));
 			}
 		}
+		FinishVfxReloads();
+	}
+
+	//====	======	======	======	======	====//
+	//	VfxLoop の窓のトラック					//
+	//====	======	======	======	======	====//
+
+	void PlayerAnimEvents::HandleVfx(AE::AnimEvent const& e_) {
+		if (e_.Edge == AE::EventEdge::Begin) {
+			VfxPayload const payload{ AE::PayloadAs<VfxPayload>(e_) };
+			if (Mode_ == Mode::Live) {
+				// 焼き直し（Rebind）で閉じたばかりの同じエフェクトがあれば引き継ぐ。年齢を保つので、立ち上がりからやり直さない
+				auto const itr{ std::ranges::find_if(VfxTracks_, [&](VfxTrack const& t_) {
+					return t_.PendingReload && t_.Source == e_.Source &&
+						t_.Payload.Effect == payload.Effect && t_.Payload.Socket == payload.Socket;
+				}) };
+				if (itr != VfxTracks_.end()) {
+					itr->Window = e_.WindowIndex;
+					itr->Payload = payload;
+					itr->PendingReload = false;
+					return;
+				}
+			}
+			VfxTracks_.push_back({
+				.Payload = payload,
+				.OpenAge = 0.0f,
+				.ClosedAge = -1.0f,
+				.Reason = AE::EndReason::None,
+				.Preview = (Mode_ == Mode::Preview),
+				.Serial = NextVfxSerial_++,
+				.Source = e_.Source,
+				.Window = e_.WindowIndex,
+				.PendingReload = false,
+			});
+			return;
+		}
+
+		if (e_.Edge != AE::EventEdge::End) { return; }
+		auto const itr{ std::ranges::find_if(VfxTracks_, [&](VfxTrack const& t_) {
+			return t_.ClosedAge < 0.0f && !t_.PendingReload && t_.Source == e_.Source && t_.Window == e_.WindowIndex;
+		}) };
+		if (itr == VfxTracks_.end()) { return; }
+
+		// プレビューでは窓の開閉をそのまま見せる（閉じたら即座に消す）。ライブ⇔プレビューの切り替えで閉じたものも同じ
+		if (itr->Preview || Mode_ == Mode::Preview) {
+			VfxTracks_.erase(itr);
+			return;
+		}
+		if (e_.Reason == AE::EndReason::Reloaded) {
+			itr->PendingReload = true;		// 同じ Step の Begin で開き直されるかもしれない（FinishVfxReloads で決着をつける）
+			return;
+		}
+		itr->ClosedAge = 0.0f;
+		itr->Reason = e_.Reason;
+	}
+
+	// Reloaded で閉じたまま開き直されなかった窓（編集で消した・範囲から外れた）は、途中で切られたものとして消し始める
+	void PlayerAnimEvents::FinishVfxReloads() {
+		for (VfxTrack& t : VfxTracks_) {
+			if (!t.PendingReload) { continue; }
+			t.PendingReload = false;
+			t.ClosedAge = 0.0f;
+			t.Reason = AE::EndReason::Interrupted;
+		}
+	}
+
+	void PlayerAnimEvents::AgeVfxTracks(float dt_) {
+		for (VfxTrack& t : VfxTracks_) {
+			if (t.ClosedAge < 0.0f) { t.OpenAge += dt_; }
+			else { t.ClosedAge += dt_; }
+		}
+		std::erase_if(VfxTracks_, [](VfxTrack const& t_) { return t_.ClosedAge > VfxLinger; });
 	}
 
 	//====	======	======	======	======	====//

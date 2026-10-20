@@ -16,6 +16,14 @@
 //   ポーズと窓の状態が同じ時刻 t_N を指すので、窓の中のポーズはどれも 1 回ずつ判定される（判定は描画から 1 フレーム遅れる）
 //
 // サイドカー JSON の形は Lumina.AnimEvent.Adapter の冒頭を参照。Hitbox のキー: "slot"（名前）, "damage", "knockback"
+//
+// 演出の窓（VfxLoop、2026-10-19 追加）
+// - 窓の開閉を「トラック」として持つだけ（開いてからの秒・閉じてからの秒・閉じた理由）。見た目（エンベロープ・位置・描画）はエフェクト側
+//   （Game.AnimEventVfx）が VfxTracks() を読んで決める。タイミング（いつ）と見た目（どう出すか）を分けるため
+// - Reloaded で閉じた窓が同じ Step で開き直されたら、同じトラックとして引き継ぐ（編集のたびに立ち上がりからやり直さないように）
+// - プレビュー中は窓の開閉をそのまま見せる（Preview = true。閉じたら即座に消す）。スクラブのたびに再生し直すので、
+//   エンベロープを掛けると、止めた時刻の光り方を確認できなくなるため
+// - VfxLoop のキー: "effect"（名前、必須）, "socket"（名前、省略時 "WeaponTip"）, "scale"（省略時 1）
 
 export module Game.AnimEventDemo;
 
@@ -54,6 +62,30 @@ export namespace Game::AnimEventDemo {
 		float Knockback{ 0.0f };		// "knockback"（Boss_Kinoko::KnockedBack の power）
 	};
 
+	// 演出の窓のペイロード。窓が開いている間エフェクトを出す。
+	// 見た目の値（色・長さ・立ち上がり秒など）はエフェクト側の定義に持たせ、サイドカーには「どれを・どこに」だけを書く
+	struct VfxPayload {
+		static constexpr std::string_view TypeName{ "VfxLoop" };
+		std::uint32_t Effect{ 0U };		// "effect": "TipRays" → TypeIdOf
+		std::uint32_t Socket{ 0U };		// "socket": "WeaponTip" → TypeIdOf
+		float Scale{ 1.0f };			// "scale"：強さの倍率
+	};
+
+	// VfxLoop の窓 1 つ分（開いているもの、または閉じてから VfxLinger 秒以内のもの）
+	struct VfxTrack {
+		VfxPayload Payload{};
+		float OpenAge{ 0.0f };			// 窓が開いてからの秒（実時間。閉じたら止まる）
+		float ClosedAge{ -1.0f };		// 閉じてからの秒。開いている間は負
+		Lumina::AnimEvent::EndReason Reason{ Lumina::AnimEvent::EndReason::None };	// 閉じた理由（Completed / Interrupted）
+		bool Preview{ false };			// プレビュー中に開いたもの（エンベロープを掛けず、開いている間は最大で見せる）
+		std::uint32_t Serial{ 0U };		// 開いた順の通し番号（模様のずらしなどに使う）
+
+		// 以下は PlayerAnimEvents の内部用
+		Lumina::AnimEvent::InstanceId Source{ Lumina::AnimEvent::InvalidInstance };
+		std::uint16_t Window{ 0U };
+		bool PendingReload{ false };	// Reloaded で閉じた直後（同じ Step の Begin で引き継がれなければ Interrupted 扱いで閉じる）
+	};
+
 	// クリップ名（animDatabase_ のキー）とサイドカーのパス
 	struct ClipBinding {
 		std::string Name{};
@@ -86,6 +118,12 @@ export namespace Game::AnimEventDemo {
 		// 武器が targetId_ に触れたときに呼ぶ。今開いている窓でまだ当たっていなければ、その窓のペイロードを返す。
 		// 同じ窓の間に 2 回目以降は nullopt。プレビュー中はダメージを入れないので常に nullopt
 		auto TryHit(std::uint32_t targetId_) -> std::optional<HitboxPayload>;
+
+		// VfxLoop の窓（開いているもの＋閉じてから消えるまでのもの）。Update の後に読む
+		auto VfxTracks() const -> std::span<VfxTrack const> { return VfxTracks_; }
+
+		// 閉じてからこの秒数を過ぎたトラックは捨てる（エフェクトの消える時間はこれより短くすること）
+		static constexpr float VfxLinger{ 2.0f };
 
 		// エディタ（ImGui）。Release では何もしない。編集の反映は次の Update の頭で行う
 		void DrawEditor();
@@ -129,6 +167,8 @@ export namespace Game::AnimEventDemo {
 		std::vector<Lumina::AnimEvent::AnimEvent> Events_{};
 		std::vector<std::unique_ptr<ClipSlot>> Slots_{};		// ClipSlot のアドレスは動かさない
 		std::vector<OpenHitbox> OpenHitboxes_{};
+		std::vector<VfxTrack> VfxTracks_{};
+		std::uint32_t NextVfxSerial_{ 0U };
 		float Rate_{ 1.0f };
 		std::uint64_t StepCount_{ 0U };
 
@@ -163,6 +203,9 @@ export namespace Game::AnimEventDemo {
 		void CreateSidecar(ClipSlot& slot_);
 		void Rebuild(ClipSlot& slot_);
 		void HandleEvents();
+		void HandleVfx(Lumina::AnimEvent::AnimEvent const& e_);
+		void AgeVfxTracks(float dt_);
+		void FinishVfxReloads();
 		void PushLog(std::string text_);
 		auto SlotOf(Lumina::AnimEvent::InstanceId id_) const -> ClipSlot const*;
 		auto ClipNameOf(Lumina::AnimEvent::InstanceId id_) const -> std::string_view;
