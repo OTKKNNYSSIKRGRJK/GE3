@@ -6,6 +6,9 @@ import <array>;
 import <cmath>;
 import <cstdint>;
 import <fstream>;
+import <memory>;
+import <optional>;
+import <random>;
 import <string>;
 import <vector>;
 
@@ -203,6 +206,8 @@ namespace Lumina::VsBanner {
 		Layout const& layout_,
 		Look const& look_,
 		std::array<Content, 2> const& contents_,
+		ShapeInput const& shape_,
+		Decoration const& decoration_,
 		Float2 screenSize_
 	) {
 		if (!pose_.Visible) { return; }
@@ -213,6 +218,15 @@ namespace Lumina::VsBanner {
 		float const opacity{ Saturate(look_.Opacity) };
 
 		std::array<Banner const*, NumSlots> const banners{ &pose_.Boss, &pose_.Player };
+
+		// 背景とグロー
+		BackgroundArt const fallbackArt{ .Enabled{ false } };
+		GlowSettings const fallbackGlow{ .Enabled{ false } };
+		BackgroundArt const& art{ (decoration_.Background != nullptr) ? *decoration_.Background : fallbackArt };
+		GlowSettings const& glow{ (decoration_.Glow != nullptr) ? *decoration_.Glow : fallbackGlow };
+		float glowWidth{ glow.Enabled ? std::max(glow.Width, 0.0f) : 0.0f };
+		if (decoration_.RangePx > 0.0f) { glowWidth = std::min(glowWidth, decoration_.RangePx * 0.95f); }	// SDF が張り付く所でグローが一定にならないように
+		std::array<CosinePalette const*, NumSlots> const palettes{ &art.Boss, &art.Player };
 		std::array<Float3, NumSlots> const colors{ SRGBToLinear(look_.ColorBoss), SRGBToLinear(look_.ColorPlayer) };
 
 		for (uint32_t idx{ 0U }; idx < NumSlots; ++idx) {
@@ -232,14 +246,29 @@ namespace Lumina::VsBanner {
 				.HasContent{ hasContent ? 1.0f : 0.0f },
 				.DebugView{ static_cast<float>(look_.DebugView) },
 				.CornerRadius{ cornerRadius },
-				.Margin{ 2.0f },						// アンチエイリアスのにじみ分だけクアッドを広げる（px）
+				.Margin{ 2.0f + glowWidth },			// アンチエイリアスのにじみ分 ＋ グローの幅だけクアッドを広げる（px）
 				.ContentOffset{ -b.HoldCenter.x, -b.HoldCenter.y },
 				.ContentSize{ content.Size },
 				.ContentOpacity{ Saturate(look_.ContentOpacity) },
 				.ContentFeather{ std::max(look_.ContentFeather, 0.0f) },
-				.Padding1{ 0.0f },
-				.Padding2{ 0.0f },
-				.Padding3{},
+				.HasShape{ shape_.Enabled ? 1.0f : 0.0f },
+				.ShapeRange{ std::max(shape_.Range, 1.0e-3f) },
+				.ShapeTexels{ std::max(shape_.Texels.x, 1.0f), std::max(shape_.Texels.y, 1.0f) },
+				.ShapeUseOpacity{ shape_.UseOpacity ? 1.0f : 0.0f },
+				.EdgeUseOpacity{ shape_.EdgeUsesOpacity ? 1.0f : 0.0f },
+				.PaletteBias{ palettes[idx]->Bias },
+				.ArtTime{ decoration_.Time },
+				.PaletteAmplitude{ palettes[idx]->Amplitude },
+				.ArtScale{ std::max(art.Scale, 1.0f) },
+				.PaletteFrequency{ palettes[idx]->Frequency },
+				.ArtEnabled{ art.Enabled ? 1.0f : 0.0f },
+				.PalettePhase{ palettes[idx]->Phase },
+				.GlowWidth{ glowWidth },
+				.GlowColor{ SRGBToLinear(glow.Color) },
+				.GlowIntensity{ std::max(glow.Intensity, 0.0f) },
+				.ArtOrigin{ art.Origin },
+				.GlowFalloff{ std::max(glow.Falloff, 0.01f) },
+				.ArtOutputIsGamma{ art.OutputIsGamma ? 1.0f : 0.0f },
 			};
 			UB_Constants_.Store(&constants, sizeof(ShaderConstants), ConstantsStride * idx);
 		}
@@ -253,6 +282,7 @@ namespace Lumina::VsBanner {
 		for (uint32_t idx{ 0U }; idx < NumSlots; ++idx) {
 			cmdList_->SetGraphicsRootConstantBufferView(0U, cbBase + ConstantsStride * idx);
 			cmdList_->SetGraphicsRootDescriptorTable(1U, contents_[idx].SRV);
+			cmdList_->SetGraphicsRootDescriptorTable(2U, shape_.SRV);
 			cmdList_->DrawInstanced(6U, 1U, 0U, 0U);
 		}
 	}
@@ -263,11 +293,14 @@ namespace Lumina::VsBanner {
 
 	void Presenter::Initialize(
 		DX12::Context const& dxContext_,
+		AssetManager& assetMngr_,
 		DXGI_FORMAT rtvFormat_,
 		DXGI_FORMAT dsvFormat_,
 		Float2 screenSize_
 	) {
 		ScreenSize_ = screenSize_;
+		Context_ = &dxContext_;
+		ShapeSRV_ = dxContext_.GlobalDescriptorHeap().Allocate(1U);
 		Renderer_.Initialize(dxContext_, rtvFormat_, dsvFormat_);
 
 		// 中身: キャラ 2 体と、それぞれの Canvas（SRGB ＋ D24S8。ShowcaseCharacter の既定のフォーマット）
@@ -305,13 +338,86 @@ namespace Lumina::VsBanner {
 			DX12::SRV<void>::Create(device, PortraitSRVs_.CPUHandle(idx), canvas.RenderTexture(0U));
 		}
 
-		Load();		// ファイルが無ければ初期値のまま
+		// 背景のパーティクル（本編・Title と同じ ParticleSystem。RS は "Common RS"、VS は BasicParticle.VS、PS は Title の深度比較なし版）
+		{
+			auto config{ Utils::LoadFromFile<nlohmann::json>("Assets/Configs/ParticleSystem.json") };
+			RS_Particle_.Initialize(device, DX12::LoadRootSignatureSetup(config.at("Common RS")), "VsBanner Particle RS");
+		}
+		dxContext_.Compile(VS_Particle_, L"Assets/Shaders/BasicParticle.VS.hlsl", L"vs_6_6", L"main", "VsBanner.Particle.VS");
+		dxContext_.Compile(PS_Particle_, L"Assets/Title/TitleParticle.PS.hlsl", L"ps_6_6", L"main", "VsBanner.Particle.PS");
+		{
+			// 加算（色は SrcAlpha, One。α はそのまま = キャラのいない所は α = 0 のまま。バナー側はプリマルチプライドで合成する）・深度なし
+			DX12::BlendState blendState{};
+			blendState.RenderTarget[0] = {
+				.BlendEnable{ true },
+				.LogicOpEnable{ false },
+				.SrcBlend{ D3D12_BLEND_SRC_ALPHA },
+				.DestBlend{ D3D12_BLEND_ONE },
+				.BlendOp{ D3D12_BLEND_OP_ADD },
+				.SrcBlendAlpha{ D3D12_BLEND_ZERO },
+				.DestBlendAlpha{ D3D12_BLEND_ONE },
+				.BlendOpAlpha{ D3D12_BLEND_OP_ADD },
+				.LogicOp{ D3D12_LOGIC_OP_NOOP },
+				.RenderTargetWriteMask{ D3D12_COLOR_WRITE_ENABLE_ALL },
+			};
+			DX12::GraphicsPSO::InputLayout inputLayout{};
+			inputLayout.Append("POSITION", 0U, DXGI_FORMAT_R32G32B32A32_FLOAT);
+			inputLayout.Append("TEXCOORD", 0U, DXGI_FORMAT_R32G32_FLOAT);
+			PSO_Particle_.Initialize(
+				device,
+				RS_Particle_,
+				VS_Particle_,
+				PS_Particle_,
+				blendState,
+				DX12::RasterizerState{
+					.FillMode{ D3D12_FILL_MODE_SOLID },
+					.CullMode{ D3D12_CULL_MODE_NONE },
+				},
+				DX12::DepthStencilState{
+					.DepthEnable{ false },
+					.StencilEnable{ false },
+				},
+				inputLayout,
+				D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
+				{ DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, },
+				DXGI_FORMAT_D24_UNORM_S8_UINT,
+				"VsBanner Particle PSO"
+			);
+		}
+		{
+			// Particles.png（InGame・Title とは別名で読み込む）。RS の Textures は 32 枠・Textures2 は 8 枠なので、32 枠確保して両方に渡す
+			std::vector<uint32_t> texIDs{};
+			assetMngr_.Graphics().LoadImageTextures(texIDs, { { "VsBanner.Particles", "Assets/Img/Particles.png" } });
+			GlobalTable_ParticleTextures_ = dxContext_.GlobalDescriptorHeap().Allocate(32U);
+			device->CopyDescriptorsSimple(
+				1U,
+				GlobalTable_ParticleTextures_.CPUHandle(0U),
+				assetMngr_.Graphics().CPUHandle(texIDs.at(0U)),
+				D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV
+			);
+		}
+		LocalHeap_Particle_.Initialize(device, D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 4U, false);
+		for (uint32_t side{ 0U }; side < 2U; ++side) {
+			UB_ParticleViewToWorld_[side].Initialize(device, 256LLU, "VsBanner Particle ViewToWorld");
+			UB_ParticleVP_[side].Initialize(device, 256LLU, "VsBanner Particle VP");
+			DX12::CBV::Create(device, LocalHeap_Particle_.CPUHandle(side * 2U + 0U), UB_ParticleViewToWorld_[side]);
+			DX12::CBV::Create(device, LocalHeap_Particle_.CPUHandle(side * 2U + 1U), UB_ParticleVP_[side]);
+			for (auto& system : ParticleSystems_[side]) {
+				system = std::make_unique<ParticleSystem<BannerParticle>>();
+				system->Initialize(dxContext_, MaxParticlesPerGroup);
+			}
+		}
+
+		// ファイルが無ければ初期値のまま。読めたときは Load の中で形も作る
+		if (!Load()) { LoadShape(); }
 		AdvancePortraits(0.0f);
+		ResetParticles();
 	}
 
 	void Presenter::Play() {
 		State_ = State::Playing;
 		Time_ = 0.0f;
+		ResetParticles();		// 毎回撒き直す（年齢もばらすので、最初から流れている状態で入ってくる）
 	}
 
 	void Presenter::Reset() {
@@ -319,9 +425,14 @@ namespace Lumina::VsBanner {
 		Time_ = 0.0f;
 	}
 
-	void Presenter::Update(float dt_) {
+	void Presenter::Update(DX12::CommandList const& cmdList_, float dt_) {
+		ApplyShapeAspect();
 		// 中身のアニメは、見えている間（再生中・プレビュー中）だけ進める
-		if (Preview_ || State_ == State::Playing) { AdvancePortraits(std::max(dt_, 0.0f)); }
+		if (Preview_ || State_ == State::Playing) {
+			ArtTime_ += std::max(dt_, 0.0f) * Config.Background.Speed;
+			AdvancePortraits(std::max(dt_, 0.0f));
+			UpdateParticles(cmdList_, std::max(dt_, 0.0f));
+		}
 
 		if (State_ != State::Playing || Preview_) { return; }
 		Time_ += std::max(dt_, 0.0f);
@@ -352,21 +463,42 @@ namespace Lumina::VsBanner {
 	}
 
 	void Presenter::RenderPortraits(DX12::CommandList const& cmdList_) {
+		ApplyShapeAspect();
 		if (!IsVisibleNow()) { return; }
 
-		// 帯が止まったときの中心（時刻によらない）。キャラの画面上の位置 = HoldCenter ＋ ContentOffset（B は −ContentOffset）
-		Pose const pose{ Evaluate(Config, 0.0f, ScreenSize_) };
+		// HoldCenter（帯が止まったときの中心）は時刻によらない。キャラの画面上の位置 = HoldCenter ＋ ContentOffset（B は −ContentOffset）
+		Pose const pose{ Evaluate(Config, Preview_ ? PreviewTime_ : Time_, ScreenSize_) };
 		std::array<Float2, 2> const characterOnScreen{
 			Float2{ pose.Boss.HoldCenter.x + Config.Placement.ContentOffset.x, pose.Boss.HoldCenter.y + Config.Placement.ContentOffset.y },
 			Float2{ pose.Player.HoldCenter.x - Config.Placement.ContentOffset.x, pose.Player.HoldCenter.y - Config.Placement.ContentOffset.y },
 		};
 		float const rtWidth{ static_cast<float>(PortraitWidth_) };
 		float const rtHeight{ static_cast<float>(PortraitHeight_) };
+		bool const drawParticles{ Config.Particles.Enabled };
+
+		// パーティクル（カメラと描画データは Update で用意済み）
+		auto const renderParticles{
+			[&](uint32_t side_, bool front_) {
+				auto const& groups{ Config.Particles.Groups };
+				for (std::size_t g{ 0U }; g < groups.size() && g < MaxParticleGroups; ++g) {
+					if (!groups[g].Enabled || groups[g].Front != front_ || ParticleCounts_[side_][g] <= 0) { continue; }
+					ParticleSystems_[side_][g]->Render(
+						cmdList_,
+						RS_Particle_,
+						PSO_Particle_,
+						LocalHeap_Particle_.CPUHandle(side_ * 2U + 0U),	// GlobalData（ViewToWorld）
+						LocalHeap_Particle_.CPUHandle(side_ * 2U + 1U),	// VP
+						GlobalTable_ParticleTextures_,
+						GlobalTable_ParticleTextures_					// Textures2 は PS で使わない
+					);
+				}
+			}
+		};
 
 		std::array<Portrait const*, 2> const portraits{ &Config.Boss, &Config.Player };
 		for (uint32_t idx{ 0U }; idx < 2U; ++idx) {
 			Portrait const& p{ *portraits[idx] };
-			if (!p.Enabled) { continue; }
+			if (!p.Enabled && !drawParticles) { continue; }
 
 			DX12::Canvas& canvas{ PortraitCanvases_[idx] };
 
@@ -397,40 +529,49 @@ namespace Lumina::VsBanner {
 			cmdList_->ClearRenderTargetView(rtv, clearColor, 0U, nullptr);
 			cmdList_->ClearDepthStencilView(dsv, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0U, 0U, nullptr);
 
-			// スタジオ: キャラは原点。カメラは注視点のまわりを回る（Title の BuildCamera と同じ置き方）
-			ShowcaseCharacter& c{ Characters_[idx] };
-			c.Position = { 0.0f, 0.0f, 0.0f };
-			c.Yaw = p.Yaw;
-			c.ShowWeapon = p.ShowWeapon;
-			c.BodyMaterial.BaseColor = p.BodyColor;
+			// 1. 奥・中の層（キャラの後ろ）
+			if (drawParticles) { renderParticles(idx, false); }
 
-			Vec3 const target{ 0.0f, p.TargetY, 0.0f };
-			Vec3 const eye{
-				target.x + std::sin(p.CameraYaw) * std::cos(p.CameraPitch) * p.CameraDistance,
-				target.y + std::sin(p.CameraPitch) * p.CameraDistance,
-				target.z - std::cos(p.CameraYaw) * std::cos(p.CameraPitch) * p.CameraDistance,
-			};
-			Mat4 const view{ LookAt(eye, target, Vec3{ 0.0f, 1.0f, 0.0f }) };
+			// 2. キャラ
+			if (p.Enabled) {
+				// スタジオ: キャラは原点。カメラは注視点のまわりを回る（Title の BuildCamera と同じ置き方）
+				ShowcaseCharacter& c{ Characters_[idx] };
+				c.Position = { 0.0f, 0.0f, 0.0f };
+				c.Yaw = p.Yaw;
+				c.ShowWeapon = p.ShowWeapon;
+				c.BodyMaterial.BaseColor = p.BodyColor;
 
-			// FovY は画面の高さ（720 px）に対する画角。RT はそれより高いので、同じ px あたりの大きさになるよう広げる
-			float const tanHalf{ std::tan(std::clamp(p.FovY, 0.05f, 3.0f) * 0.5f) * (rtHeight / FovReferenceHeight) };
-			Mat4 const proj{ Mat4::PerspectiveFOV(2.0f * std::atan(tanHalf), rtWidth / rtHeight, 0.1f, 200.0f) };
+				Vec3 const target{ 0.0f, p.TargetY, 0.0f };
+				Vec3 const eye{
+					target.x + std::sin(p.CameraYaw) * std::cos(p.CameraPitch) * p.CameraDistance,
+					target.y + std::sin(p.CameraPitch) * p.CameraDistance,
+					target.z - std::cos(p.CameraYaw) * std::cos(p.CameraPitch) * p.CameraDistance,
+				};
+				Mat4 const view{ LookAt(eye, target, Vec3{ 0.0f, 1.0f, 0.0f }) };
 
-			// レンズシフト: 注視点が RT の中心から characterOnScreen[idx] px ずれた所に写るよう、クリップ座標の x, y に w × シフトを足す
-			// （行ベクトルなので 4 行目の x, y 列に入れる。画角・遠近感は変わらない）
-			float const shiftX{ characterOnScreen[idx].x * 2.0f / rtWidth };
-			float const shiftY{ characterOnScreen[idx].y * 2.0f / rtHeight };
-			Mat4 const lensShift{
-				1.0f, 0.0f, 0.0f, 0.0f,
-				0.0f, 1.0f, 0.0f, 0.0f,
-				0.0f, 0.0f, 1.0f, 0.0f,
-				shiftX, shiftY, 0.0f, 1.0f,
-			};
-			Mat4 const viewProj{ view * proj * lensShift };
+				// FovY は画面の高さ（720 px）に対する画角。RT はそれより高いので、同じ px あたりの大きさになるよう広げる
+				float const tanHalf{ std::tan(std::clamp(p.FovY, 0.05f, 3.0f) * 0.5f) * (rtHeight / FovReferenceHeight) };
+				Mat4 const proj{ Mat4::PerspectiveFOV(2.0f * std::atan(tanHalf), rtWidth / rtHeight, 0.1f, 200.0f) };
 
-			ShowcaseLighting lighting{ p.Lighting };
-			lighting.FireBase = { 0.0f, 0.0f, 0.0f };		// 照り返しの軸はキャラの足元
-			c.Render(cmdList_, viewProj, eye, lighting);
+				// レンズシフト: 注視点が RT の中心から characterOnScreen[idx] px ずれた所に写るよう、クリップ座標の x, y に w × シフトを足す
+				// （行ベクトルなので 4 行目の x, y 列に入れる。画角・遠近感は変わらない）
+				float const shiftX{ characterOnScreen[idx].x * 2.0f / rtWidth };
+				float const shiftY{ characterOnScreen[idx].y * 2.0f / rtHeight };
+				Mat4 const lensShift{
+					1.0f, 0.0f, 0.0f, 0.0f,
+					0.0f, 1.0f, 0.0f, 0.0f,
+					0.0f, 0.0f, 1.0f, 0.0f,
+					shiftX, shiftY, 0.0f, 1.0f,
+				};
+				Mat4 const viewProj{ view * proj * lensShift };
+
+				ShowcaseLighting lighting{ p.Lighting };
+				lighting.FireBase = { 0.0f, 0.0f, 0.0f };		// 照り返しの軸はキャラの足元
+				c.Render(cmdList_, viewProj, eye, lighting);
+			}
+
+			// 3. 手前の層（キャラの前）
+			if (drawParticles) { renderParticles(idx, true); }
 
 			D3D12_RESOURCE_BARRIER const toSRV{
 				DX12::Barrier::Transition(
@@ -443,7 +584,222 @@ namespace Lumina::VsBanner {
 		}
 	}
 
+	//====	======	======	======	======	====//
+	//	背景のパーティクル						//
+	//====	======	======	======	======	====//
+	// パーティクル用カメラ: +Z を向く透視カメラ。ワールドの x = 帯の向き、y = 帯の法線、z = カメラからの距離。
+	//   帯の傾き（B は 180° 足した向き）は射影の後に画面上で回す（RT のピクセルの比率で回すので歪まない）。
+	//   焦点距離 f（px）= 360 / tan(FovY / 2)。距離 z の粒は 1 単位 = f / z px に写る。
+	// 視差: 帯の定位置からのずれを d（px、帯の向き）として、カメラを x に −d·P·ParallaxDepth / f 動かし、
+	//   射影の後に画面を帯の向きへ −d·P px ずらす（レンズシフト）。RT は帯と一緒に動くので、画面上の動きは
+	//   d·(1 − P + P·ParallaxDepth / z)。P = 1 なら ParallaxDepth の粒は帯と一緒、遠い粒ほど遅れ、近い粒は帯より速い。
+	// 粒は「帯の通る範囲」（RT 上で帯の向きに ±（RT の対角線の半分 ＋ 余白）、法線の向きに Offset ±（太さの半分 ＋ 余白））を
+	//   カメラ基準で周期的に折り返す。帯は RT と一緒に動くので、RT 上の帯の位置は時刻によらない。
+	//   範囲は距離 z に比例して広げるので、画面上の密度は距離によらない
+
+	namespace {
+		constexpr float ParticleMarginPx{ 48.0f };
+
+		struct ParticleUpdateContext {
+			float DeltaTime;
+			float Pan;					// カメラの x（ワールド）
+			float Focal;				// 焦点距離（px）
+			float HalfX;				// 折り返しの範囲（RT 上の px、帯の向き）
+			float CenterY;				// 帯の中心線（RT 上の px、法線の向き）
+			float HalfY;
+			Float3 Color;				// リニア（グループの色。毎フレーム反映する）
+			uint32_t Atlas;
+			ParticleGroup const* Group;
+			std::mt19937* Rng;
+		};
+
+		auto Wrap(float v_, float h_) -> float {
+			return (h_ > 0.0f) ? (v_ - 2.0f * h_ * std::floor((v_ + h_) / (2.0f * h_))) : 0.0f;
+		}
+
+		void RespawnParticle(BannerParticle& p_, ParticleUpdateContext const& ctx_, bool randomAge_) {
+			ParticleGroup const& g{ *ctx_.Group };
+			std::uniform_real_distribution<float> unit{ 0.0f, 1.0f };
+			auto const range{ [&](float a_, float b_) { return a_ + (b_ - a_) * unit(*ctx_.Rng); } };
+
+			float const z{ std::max(range(g.DepthMin, g.DepthMax), 0.05f) };
+			float const toWorld{ z / ctx_.Focal };		// RT 上の 1 px = この距離でのワールドの長さ
+			p_.Translate = {
+				ctx_.Pan + range(-1.0f, 1.0f) * ctx_.HalfX * toWorld,
+				(ctx_.CenterY + range(-1.0f, 1.0f) * ctx_.HalfY) * toWorld,
+				z,
+			};
+			p_.Velocity = { range(g.SpeedMin, g.SpeedMax), range(-g.CrossSpeed, g.CrossSpeed), 0.0f };
+			p_.BaseSize = std::max(range(g.SizeMin, g.SizeMax), 0.001f);
+			p_.Scale = { p_.BaseSize, p_.BaseSize, 1.0f };
+			p_.Rotate = { 0.0f, 0.0f, range(0.0f, 6.2831853f) };
+			p_.Spin = range(-1.0f, 1.0f) * g.Spin;
+			p_.MaxLife = std::max(range(g.LifeMin, g.LifeMax), 0.05f);
+			p_.Life = randomAge_ ? (p_.MaxLife * range(0.05f, 1.0f)) : p_.MaxLife;
+			p_.BaseAlpha = std::max(g.Alpha, 0.0f);
+			p_.RenderData.RGBA = { ctx_.Color.x, ctx_.Color.y, ctx_.Color.z, 0.0f };
+			p_.RenderData.DiffuseID = 0U;
+			p_.RenderData.DiffuseAtlasID = ctx_.Atlas;
+		}
+
+		// ParticleSystem に関数ポインタで渡す。寿命が来た粒はその場で生まれ直させる（数を一定に保つ）
+		bool UpdateBannerParticle(BannerParticle& p_, void const* context_) {
+			auto const& ctx{ *static_cast<ParticleUpdateContext const*>(context_) };
+			ParticleGroup const& g{ *ctx.Group };
+			float const dt{ ctx.DeltaTime };
+
+			p_.Life -= dt;
+			if (p_.Life <= 0.0f) { RespawnParticle(p_, ctx, false); }
+
+			p_.Translate.x += p_.Velocity.x * dt;
+			p_.Translate.y += p_.Velocity.y * dt;
+
+			// 形: 速さに応じて流れる向きへ伸ばす（ローカルの y 軸を速度の向きに合わせる。Title の Embers と同じ）
+			float const speed{ std::sqrt(p_.Velocity.x * p_.Velocity.x + p_.Velocity.y * p_.Velocity.y) };
+			if (g.Stretch > 0.0f && speed > 1.0e-4f) {
+				p_.Rotate.z = std::atan2(-p_.Velocity.x, p_.Velocity.y);
+				p_.Scale = { p_.BaseSize, p_.BaseSize + speed * g.Stretch, 1.0f };
+			}
+			else {
+				p_.Rotate.z += p_.Spin * dt;
+				p_.Scale = { p_.BaseSize, p_.BaseSize, 1.0f };
+			}
+
+			// カメラ基準で折り返す（範囲は距離に比例。粒の大きさの分だけ余分に取って、範囲の端で消えて見えないように）
+			float const z{ std::max(p_.Translate.z, 0.05f) };
+			float const toWorld{ z / ctx.Focal };
+			float const pad{ 0.5f * std::max(p_.Scale.x, p_.Scale.y) };
+			float const centerY{ ctx.CenterY * toWorld };
+			p_.Translate.x = ctx.Pan + Wrap(p_.Translate.x - ctx.Pan, ctx.HalfX * toWorld + pad);
+			p_.Translate.y = centerY + Wrap(p_.Translate.y - centerY, ctx.HalfY * toWorld + pad);
+
+			// フェード（始め 0.25 秒・終わり 0.35 秒）。色とセルはグループの設定を毎フレーム反映する
+			float const age{ p_.MaxLife - p_.Life };
+			float const fade{ std::clamp(std::min(age / 0.25f, p_.Life / 0.35f), 0.0f, 1.0f) };
+			p_.RenderData.RGBA = { ctx.Color.x, ctx.Color.y, ctx.Color.z, std::max(g.Alpha, 0.0f) * fade };
+			p_.RenderData.DiffuseAtlasID = ctx.Atlas;
+			return true;
+		}
+	}
+
+	auto Presenter::MakeParticleCamera(Banner const& banner_, Mat4& viewProj_, Mat4& viewToWorld_) const -> ParticleCamera {
+		float const rtWidth{ static_cast<float>(std::max(PortraitWidth_, 1U)) };
+		float const rtHeight{ static_cast<float>(std::max(PortraitHeight_, 1U)) };
+		BackgroundParticles const& bp{ Config.Particles };
+
+		float const focal{ (FovReferenceHeight * 0.5f) / std::tan(std::clamp(bp.FovY, 0.05f, 3.0f) * 0.5f) };
+		float const displacement{
+			(banner_.Center.x - banner_.HoldCenter.x) * banner_.Axis.x + (banner_.Center.y - banner_.HoldCenter.y) * banner_.Axis.y
+		};
+		float const shiftPx{ -displacement * std::clamp(bp.Parallax, 0.0f, 1.0f) };
+		float const pan{ shiftPx * std::max(bp.ParallaxDepth, 0.01f) / focal };
+
+		// 射影（行ベクトル）: x' = c·x − s·y、y' = s·x + c·y を px（× f / z）にしてから NDC へ。
+		// 3 行目（z の行）に w = z とレンズシフトを入れる。深度は使わない（PSO で深度テストなし）が、0..1 に収めておく
+		float const c{ banner_.Axis.x };
+		float const s{ banner_.Axis.y };
+		float const kx{ 2.0f * focal / rtWidth };
+		float const ky{ 2.0f * focal / rtHeight };
+		float const shiftX{ shiftPx * c * 2.0f / rtWidth };
+		float const shiftY{ shiftPx * s * 2.0f / rtHeight };
+		constexpr float nearZ{ 0.1f };
+		constexpr float farZ{ 1000.0f };
+		float const a{ farZ / (farZ - nearZ) };
+		float const b{ -nearZ * farZ / (farZ - nearZ) };
+
+		Mat4 const view{
+			1.0f, 0.0f, 0.0f, 0.0f,
+			0.0f, 1.0f, 0.0f, 0.0f,
+			0.0f, 0.0f, 1.0f, 0.0f,
+			-pan, 0.0f, 0.0f, 1.0f,
+		};
+		Mat4 const proj{
+			c * kx, s * ky, 0.0f, 0.0f,
+			-s * kx, c * ky, 0.0f, 0.0f,
+			shiftX, shiftY, a, 1.0f,
+			0.0f, 0.0f, b, 0.0f,
+		};
+		viewProj_ = view * proj;
+		viewToWorld_ = Mat4{
+			1.0f, 0.0f, 0.0f, 0.0f,
+			0.0f, 1.0f, 0.0f, 0.0f,
+			0.0f, 0.0f, 1.0f, 0.0f,
+			pan, 0.0f, 0.0f, 1.0f,
+		};
+		return { .Pan{ pan }, .Focal{ focal } };
+	}
+
+	void Presenter::ResetParticles() {
+		ParticlesNeedReset_ = true;
+	}
+
+	void Presenter::UpdateParticles(DX12::CommandList const& cmdList_, float dt_) {
+		if (ParticlesNeedReset_) {
+			for (auto& side : ParticleSystems_) {
+				for (auto& system : side) { system->Clear(); }
+			}
+			for (auto& side : ParticleCounts_) { side.fill(0); }
+			ParticlesNeedReset_ = false;
+		}
+
+		Pose const pose{ Evaluate(Config, Preview_ ? PreviewTime_ : Time_, ScreenSize_) };
+		std::array<Banner const*, 2> const banners{ &pose.Boss, &pose.Player };
+		auto const& groups{ Config.Particles.Groups };
+
+		float const rtWidth{ static_cast<float>(PortraitWidth_) };
+		float const rtHeight{ static_cast<float>(PortraitHeight_) };
+		float const halfX{ 0.5f * std::sqrt(rtWidth * rtWidth + rtHeight * rtHeight) + ParticleMarginPx };
+		float const halfY{ 0.5f * std::max(Config.Placement.Thickness, 0.0f) + ParticleMarginPx };
+
+		for (uint32_t side{ 0U }; side < 2U; ++side) {
+			Mat4 viewProj{};
+			Mat4 viewToWorld{};
+			ParticleCamera const camera{ MakeParticleCamera(*banners[side], viewProj, viewToWorld) };
+			UB_ParticleVP_[side].Store(&viewProj, sizeof(Mat4), 0LLU);
+			UB_ParticleViewToWorld_[side].Store(&viewToWorld, sizeof(Mat4), 0LLU);
+
+			for (uint32_t g{ 0U }; g < MaxParticleGroups; ++g) {
+				auto& system{ *ParticleSystems_[side][g] };
+				int& count{ ParticleCounts_[side][g] };
+
+				if (g >= groups.size()) {
+					if (count != 0) { system.Clear(); count = 0; }
+					continue;
+				}
+				ParticleGroup const& group{ groups[g] };
+				ParticleUpdateContext const ctx{
+					.DeltaTime{ dt_ },
+					.Pan{ camera.Pan },
+					.Focal{ camera.Focal },
+					.HalfX{ halfX },
+					.CenterY{ Config.Placement.Offset },	// B も同じ値（B のワールドの y は B の法線の向き）
+					.HalfY{ halfY },
+					.Color{ SRGBToLinear(group.Color) },
+					.Atlas{ static_cast<uint32_t>(std::clamp(group.Atlas, 0, 7)) },
+					.Group{ &group },
+					.Rng{ &Random_ },
+				};
+
+				// 数が変わったら撒き直す（年齢をばらして、最初から流れている状態にする）
+				int const target{ std::clamp(group.Count, 0, static_cast<int>(MaxParticlesPerGroup)) };
+				if (count != target) {
+					system.Clear();
+					for (int i{ 0 }; i < target; ++i) {
+						BannerParticle p{};
+						RespawnParticle(p, ctx, true);
+						system.Emit(std::move(p));
+					}
+					count = target;
+				}
+				if (count > 0 && group.Enabled) {
+					system.Update(cmdList_, viewToWorld, UpdateBannerParticle, &ctx);
+				}
+			}
+		}
+	}
+
 	void Presenter::Render(DX12::CommandList const& cmdList_) {
+		ApplyShapeAspect();
 		float time{ Time_ };
 		if (Preview_) { time = PreviewTime_; }
 		else if (State_ != State::Playing) { return; }
@@ -451,10 +807,91 @@ namespace Lumina::VsBanner {
 		Pose const pose{ Evaluate(Config, time, ScreenSize_) };
 		Float2 const size{ static_cast<float>(PortraitWidth_), static_cast<float>(PortraitHeight_) };
 		std::array<Content, 2> const contents{
-			Content{ .SRV{ PortraitSRVs_.GPUHandle(0U) }, .Size{ size }, .Enabled{ Config.Boss.Enabled } },
-			Content{ .SRV{ PortraitSRVs_.GPUHandle(1U) }, .Size{ size }, .Enabled{ Config.Player.Enabled } },
+			Content{ .SRV{ PortraitSRVs_.GPUHandle(0U) }, .Size{ size }, .Enabled{ Config.Boss.Enabled || Config.Particles.Enabled } },
+			Content{ .SRV{ PortraitSRVs_.GPUHandle(1U) }, .Size{ size }, .Enabled{ Config.Player.Enabled || Config.Particles.Enabled } },
 		};
-		Renderer_.Render(cmdList_, pose, Config.Placement, Config.Appearance, contents, ScreenSize_);
+		ShapeInput const shape{
+			.SRV{ ShapeSRV_.GPUHandle(0U) },
+			.Texels{ ShapeTexels_ },
+			.Range{ ShapeBakedRange_ },
+			.Enabled{ HasShape_ },
+			.UseOpacity{ Config.Shape.UseOpacity },
+			.EdgeUsesOpacity{ Config.Shape.EdgeUsesOpacity },
+		};
+		Decoration const decoration{
+			.Background{ &Config.Background },
+			.Glow{ &Config.Glow },
+			.Time{ ArtTime_ },
+			// SDF の距離の範囲（px）: Range テクセル × 1 テクセルの px（帯の長さ / テクスチャの幅）
+			.RangePx{ HasShape_ ? (ShapeBakedRange_ * std::max(Config.Placement.Length, 0.0f) / std::max(ShapeTexels_.x, 1.0f)) : 0.0f },
+		};
+		Renderer_.Render(cmdList_, pose, Config.Placement, Config.Appearance, contents, shape, decoration, ScreenSize_);
+	}
+
+	//====	======	======	======	======	====//
+	//	バナーの形（画像 → SDF）				//
+	//====	======	======	======	======	====//
+
+	void Presenter::LoadShape() {
+		if (Context_ == nullptr) { return; }
+		auto const& device{ Context_->Device() };
+		ShapeSettings const& cfg{ Config.Shape };
+
+		HasShape_ = false;
+		ShapeAspect_ = 0.0f;
+
+		std::string error{};
+		std::optional<SDF::Baked> baked{};
+		if (!cfg.Image.empty()) {
+			SDF::BakeOptions const options{
+				.Width{ static_cast<uint32_t>(std::clamp(cfg.Resolution, 16, 8192)) },
+				.Height{ 0U },
+				.Range{ std::max(cfg.Range, 0.5f) },
+			};
+			SDF::ImageOptions const image{
+				.Source{ SDF::Channel::Alpha },
+				.Threshold{ std::clamp(cfg.Threshold, 0.001f, 0.999f) },
+				.Invert{ false },
+			};
+			baked = SDF::BakeFromImage(cfg.Image, image, options, error);
+		}
+
+		std::unique_ptr<DX12::DefaultTexture2D> texture{};
+		if (baked) {
+			// R = 距離、G = 元の α（濃さ）
+			std::vector<uint8_t> const texels{ SDF::EncodeUNorm8x2(baked->Distance, baked->Range, baked->Coverage) };
+			texture = SDF::CreateTexture(
+				*Context_, SDF::TexelFormat::R8G8, baked->Distance.Width, baked->Distance.Height, texels, "VsBanner.Shape.SDF"
+			);
+			if (!texture) { error = "SDF のテクスチャを作れませんでした"; }
+		}
+
+		if (texture) {
+			ShapeTexture_ = std::move(texture);
+			ShapeTexels_ = { static_cast<float>(baked->Distance.Width), static_cast<float>(baked->Distance.Height) };
+			ShapeBakedRange_ = baked->Range;
+			ShapeAspect_ = static_cast<float>(baked->SourceHeight) / static_cast<float>(std::max(baked->SourceWidth, 1U));
+			HasShape_ = true;
+			ShapeStatus_ =
+				"Loaded: " + std::to_string(baked->SourceWidth) + "x" + std::to_string(baked->SourceHeight) +
+				" -> SDF " + std::to_string(baked->Distance.Width) + "x" + std::to_string(baked->Distance.Height);
+		}
+		else {
+			// テーブルは毎回設定するので、使わないときも有効な SRV を置いておく（1×1、値は使われない）
+			uint8_t const outside[2]{ 0U, 255U };
+			ShapeTexture_ = SDF::CreateTexture(*Context_, SDF::TexelFormat::R8G8, 1U, 1U, outside, "VsBanner.Shape.Fallback");
+			ShapeTexels_ = { 1.0f, 1.0f };
+			ShapeBakedRange_ = 1.0f;
+			ShapeStatus_ = cfg.Image.empty() ? std::string{ "No image (rounded rectangle)." } : ("Failed: " + error);
+		}
+		DX12::SRV<void>::Create(device, ShapeSRV_.CPUHandle(0U), *ShapeTexture_);
+		ApplyShapeAspect();
+	}
+
+	void Presenter::ApplyShapeAspect() {
+		if (HasShape_ && Config.Shape.LockAspect && ShapeAspect_ > 0.0f) {
+			Config.Placement.Thickness = std::max(Config.Placement.Length, 0.0f) * ShapeAspect_;
+		}
 	}
 
 	//====	======	======	======	======	====//
@@ -559,6 +996,65 @@ namespace Lumina::VsBanner {
 			};
 		}
 
+		void ReadGroup(JSON const& j_, ParticleGroup& g_) {
+			Read(j_, "Name", g_.Name);
+			Read(j_, "Enabled", g_.Enabled);
+			Read(j_, "Front", g_.Front);
+			Read(j_, "Count", g_.Count);
+			Read(j_, "DepthMin", g_.DepthMin);
+			Read(j_, "DepthMax", g_.DepthMax);
+			Read(j_, "SizeMin", g_.SizeMin);
+			Read(j_, "SizeMax", g_.SizeMax);
+			Read(j_, "SpeedMin", g_.SpeedMin);
+			Read(j_, "SpeedMax", g_.SpeedMax);
+			Read(j_, "CrossSpeed", g_.CrossSpeed);
+			Read(j_, "Stretch", g_.Stretch);
+			Read(j_, "Spin", g_.Spin);
+			Read(j_, "Atlas", g_.Atlas);
+			Read(j_, "Color", g_.Color);
+			Read(j_, "Alpha", g_.Alpha);
+			Read(j_, "LifeMin", g_.LifeMin);
+			Read(j_, "LifeMax", g_.LifeMax);
+		}
+
+		auto WriteGroup(ParticleGroup const& g_) -> JSON {
+			return JSON{
+				{ "Name", g_.Name },
+				{ "Enabled", g_.Enabled },
+				{ "Front", g_.Front },
+				{ "Count", g_.Count },
+				{ "DepthMin", g_.DepthMin },
+				{ "DepthMax", g_.DepthMax },
+				{ "SizeMin", g_.SizeMin },
+				{ "SizeMax", g_.SizeMax },
+				{ "SpeedMin", g_.SpeedMin },
+				{ "SpeedMax", g_.SpeedMax },
+				{ "CrossSpeed", g_.CrossSpeed },
+				{ "Stretch", g_.Stretch },
+				{ "Spin", g_.Spin },
+				{ "Atlas", g_.Atlas },
+				{ "Color", ToJSON(g_.Color) },
+				{ "Alpha", g_.Alpha },
+				{ "LifeMin", g_.LifeMin },
+				{ "LifeMax", g_.LifeMax },
+			};
+		}
+
+		void ReadPalette(JSON const& j_, CosinePalette& p_) {
+			Read(j_, "Bias", p_.Bias);
+			Read(j_, "Amplitude", p_.Amplitude);
+			Read(j_, "Frequency", p_.Frequency);
+			Read(j_, "Phase", p_.Phase);
+		}
+		auto WritePalette(CosinePalette const& p_) -> JSON {
+			return JSON{
+				{ "Bias", ToJSON(p_.Bias) },
+				{ "Amplitude", ToJSON(p_.Amplitude) },
+				{ "Frequency", ToJSON(p_.Frequency) },
+				{ "Phase", ToJSON(p_.Phase) },
+			};
+		}
+
 		auto Section(JSON const& root_, char const* key_) -> JSON const* {
 			auto const itr{ root_.find(key_) };
 			return (itr != root_.end() && itr->is_object()) ? &*itr : nullptr;
@@ -606,6 +1102,52 @@ namespace Lumina::VsBanner {
 			if (JSON const* b{ Section(*j, "Boss") }) { ReadPortrait(*b, Config.Boss); }
 			if (JSON const* p{ Section(*j, "Player") }) { ReadPortrait(*p, Config.Player); }
 		}
+		if (JSON const* j{ Section(root, "Particles") }) {
+			Read(*j, "Enabled", Config.Particles.Enabled);
+			Read(*j, "FovY", Config.Particles.FovY);
+			Read(*j, "Parallax", Config.Particles.Parallax);
+			Read(*j, "ParallaxDepth", Config.Particles.ParallaxDepth);
+			// グループはキーがあれば丸ごと置き換える（各要素は初期値の ParticleGroup に上書き）
+			auto const itr{ j->find("Groups") };
+			if (itr != j->end() && itr->is_array()) {
+				std::vector<ParticleGroup> groups{};
+				for (JSON const& e : *itr) {
+					if (!e.is_object()) { continue; }
+					ReadGroup(e, groups.emplace_back());
+				}
+				if (groups.size() > MaxParticleGroups) { groups.resize(MaxParticleGroups); }
+				Config.Particles.Groups = std::move(groups);
+			}
+		}
+		if (JSON const* j{ Section(root, "Shape") }) {
+			Read(*j, "Image", Config.Shape.Image);
+			Read(*j, "LockAspect", Config.Shape.LockAspect);
+			Read(*j, "Resolution", Config.Shape.Resolution);
+			Read(*j, "Range", Config.Shape.Range);
+			Read(*j, "Threshold", Config.Shape.Threshold);
+			Read(*j, "UseOpacity", Config.Shape.UseOpacity);
+			Read(*j, "EdgeUsesOpacity", Config.Shape.EdgeUsesOpacity);
+		}
+		if (JSON const* j{ Section(root, "Background") }) {
+			BackgroundArt& b{ Config.Background };
+			Read(*j, "Enabled", b.Enabled);
+			Read(*j, "Speed", b.Speed);
+			Read(*j, "Scale", b.Scale);
+			Read(*j, "Origin", b.Origin);
+			Read(*j, "OutputIsGamma", b.OutputIsGamma);
+			if (JSON const* q{ Section(*j, "Boss") }) { ReadPalette(*q, b.Boss); }
+			if (JSON const* q{ Section(*j, "Player") }) { ReadPalette(*q, b.Player); }
+		}
+		if (JSON const* j{ Section(root, "Glow") }) {
+			GlowSettings& g{ Config.Glow };
+			Read(*j, "Enabled", g.Enabled);
+			Read(*j, "Color", g.Color);
+			Read(*j, "Intensity", g.Intensity);
+			Read(*j, "Width", g.Width);
+			Read(*j, "Falloff", g.Falloff);
+		}
+		ResetParticles();
+		LoadShape();
 		Status_ = "Loaded.";
 		return true;
 	}
@@ -643,6 +1185,40 @@ namespace Lumina::VsBanner {
 			{ "Opacity", k.Opacity },
 			{ "ContentOpacity", k.ContentOpacity },
 			{ "ContentFeather", k.ContentFeather },
+		};
+		JSON groups = JSON::array();
+		for (ParticleGroup const& g : Config.Particles.Groups) { groups.push_back(WriteGroup(g)); }
+		root["Particles"] = JSON{
+			{ "Enabled", Config.Particles.Enabled },
+			{ "FovY", Config.Particles.FovY },
+			{ "Parallax", Config.Particles.Parallax },
+			{ "ParallaxDepth", Config.Particles.ParallaxDepth },
+			{ "Groups", groups },
+		};
+		root["Shape"] = JSON{
+			{ "Image", Config.Shape.Image },
+			{ "LockAspect", Config.Shape.LockAspect },
+			{ "Resolution", Config.Shape.Resolution },
+			{ "Range", Config.Shape.Range },
+			{ "Threshold", Config.Shape.Threshold },
+			{ "UseOpacity", Config.Shape.UseOpacity },
+			{ "EdgeUsesOpacity", Config.Shape.EdgeUsesOpacity },
+		};
+		root["Background"] = JSON{
+			{ "Enabled", Config.Background.Enabled },
+			{ "Speed", Config.Background.Speed },
+			{ "Scale", Config.Background.Scale },
+			{ "Origin", ToJSON(Config.Background.Origin) },
+			{ "OutputIsGamma", Config.Background.OutputIsGamma },
+			{ "Boss", WritePalette(Config.Background.Boss) },
+			{ "Player", WritePalette(Config.Background.Player) },
+		};
+		root["Glow"] = JSON{
+			{ "Enabled", Config.Glow.Enabled },
+			{ "Color", ToJSON(Config.Glow.Color) },
+			{ "Intensity", Config.Glow.Intensity },
+			{ "Width", Config.Glow.Width },
+			{ "Falloff", Config.Glow.Falloff },
 		};
 		root["Portraits"] = JSON{
 			{ "Boss", WritePortrait(Config.Boss) },
@@ -722,6 +1298,9 @@ namespace Lumina::VsBanner {
 		ImGui::DragFloat("Content feather", &k.ContentFeather, 0.5f, 0.0f, static_cast<float>(PortraitMargin), "%.0f px");
 		ImGui::Combo("Debug view", &k.DebugView, "Normal\0Content UV\0Distance\0");
 
+		DrawShapeEditor();
+		DrawDecorationEditor();
+		DrawParticleEditor();
 		DrawPortraitEditor("Portrait: Boss", Config.Boss, 0U);
 		DrawPortraitEditor("Portrait: Player", Config.Player, 1U);
 		if (ImGui::Button("Player = mirror of Boss (camera / yaw)")) {
@@ -738,6 +1317,145 @@ namespace Lumina::VsBanner {
 		ImGui::End();
 #endif
 		return replay;
+	}
+
+	void Presenter::DrawShapeEditor() {
+#if defined(_DEBUG)
+		if (!ImGui::CollapsingHeader("Shape (image -> SDF)")) { return; }
+		ImGui::PushID("Shape");
+
+		ShapeSettings& cfg{ Config.Shape };
+		char path[260]{};
+		cfg.Image.copy(path, sizeof(path) - 1U);
+		if (ImGui::InputText("Image (empty = rounded rect)", path, sizeof(path))) { cfg.Image = path; }
+		ImGui::Checkbox("Lock thickness to image aspect", &cfg.LockAspect);
+		ImGui::SliderInt("SDF width (texels)", &cfg.Resolution, 64, 4096);
+		ImGui::DragFloat("SDF range (texels)", &cfg.Range, 0.1f, 0.5f, 64.0f, "%.1f");
+		ImGui::SliderFloat("Outline threshold (alpha)", &cfg.Threshold, 0.001f, 0.999f, "%.3f");
+		if (ImGui::Button("Reload shape")) { LoadShape(); }
+		ImGui::SameLine();
+		ImGui::TextDisabled("(Image / width / range / threshold apply on reload)");
+		ImGui::Checkbox("Use image alpha as opacity", &cfg.UseOpacity);
+		ImGui::SameLine();
+		ImGui::Checkbox("Fade outline with opacity", &cfg.EdgeUsesOpacity);
+		ImGui::TextUnformatted(ShapeStatus_.c_str());
+		if (HasShape_) {
+			float const texelPx{ std::max(Config.Placement.Length, 0.0f) / std::max(ShapeTexels_.x, 1.0f) };
+			ImGui::TextDisabled(
+				"1 texel = %.2f px, distance range = %.1f px. Right edge of the image leads; top = banner normal.",
+				texelPx, ShapeBakedRange_ * texelPx
+			);
+			if (cfg.LockAspect) { ImGui::TextDisabled("Thickness follows Length x %.4f.", ShapeAspect_); }
+		}
+		ImGui::TextDisabled("Debug view > Distance shows the contours.");
+
+		ImGui::PopID();
+#endif
+	}
+
+	void Presenter::DrawDecorationEditor() {
+#if defined(_DEBUG)
+		if (ImGui::CollapsingHeader("Glow (outside the shape)")) {
+			ImGui::PushID("Glow");
+			GlowSettings& g{ Config.Glow };
+			ImGui::Checkbox("Enabled", &g.Enabled);
+			ImGui::ColorEdit3("Color (sRGB)", &g.Color.x);
+			ImGui::DragFloat("Intensity", &g.Intensity, 0.01f, 0.0f, 10.0f, "%.2f");
+			ImGui::DragFloat("Width (px)", &g.Width, 0.1f, 0.0f, 200.0f, "%.1f");
+			ImGui::DragFloat("Falloff", &g.Falloff, 0.01f, 0.01f, 8.0f, "%.2f");
+			if (HasShape_) {
+				float const rangePx{ ShapeBakedRange_ * std::max(Config.Placement.Length, 0.0f) / std::max(ShapeTexels_.x, 1.0f) };
+				if (g.Width > rangePx * 0.95f) {
+					ImGui::TextColored(ImVec4{ 1.0f, 0.6f, 0.3f, 1.0f }, "Clamped to %.1f px (SDF range). Raise Shape > SDF range and reload.", rangePx * 0.95f);
+				}
+			}
+			ImGui::PopID();
+		}
+		if (ImGui::CollapsingHeader("Background (shader art)")) {
+			ImGui::PushID("Background");
+			BackgroundArt& b{ Config.Background };
+			ImGui::Checkbox("Enabled (off = flat color)", &b.Enabled);
+			ImGui::DragFloat("Speed", &b.Speed, 0.01f, -10.0f, 10.0f, "%.2f");
+			ImGui::DragFloat("Scale (px per unit)", &b.Scale, 0.5f, 1.0f, 8192.0f, "%.1f");
+			ImGui::DragFloat2("Center offset (px)", &b.Origin.x, 1.0f, -4096.0f, 4096.0f, "%.0f");
+			ImGui::Checkbox("Output is gamma (saturate + to linear)", &b.OutputIsGamma);
+			ImGui::Text("Time %.2f", ArtTime_);
+			ImGui::SameLine();
+			if (ImGui::SmallButton("Reset time")) { ArtTime_ = 0.0f; }
+			auto const editPalette{
+				[](char const* label_, CosinePalette& p_) {
+					ImGui::PushID(label_);
+					ImGui::SeparatorText(label_);
+					ImGui::DragFloat3("Bias", &p_.Bias.x, 0.005f, -2.0f, 2.0f, "%.3f");
+					ImGui::DragFloat3("Amplitude", &p_.Amplitude.x, 0.005f, -2.0f, 2.0f, "%.3f");
+					ImGui::DragFloat3("Frequency", &p_.Frequency.x, 0.005f, -8.0f, 8.0f, "%.3f");
+					ImGui::DragFloat3("Phase", &p_.Phase.x, 0.005f, -2.0f, 2.0f, "%.3f");
+					ImGui::PopID();
+				}
+			};
+			editPalette("Palette: Boss", b.Boss);
+			editPalette("Palette: Player", b.Player);
+			ImGui::TextDisabled("color(t) = Bias + Amplitude * cos(2pi * (Frequency * t + Phase))");
+			ImGui::PopID();
+		}
+#endif
+	}
+
+	void Presenter::DrawParticleEditor() {
+#if defined(_DEBUG)
+		if (!ImGui::CollapsingHeader("Background particles")) { return; }
+		ImGui::PushID("Particles");
+
+		BackgroundParticles& bp{ Config.Particles };
+		ImGui::Checkbox("Enabled", &bp.Enabled);
+		ImGui::SameLine();
+		if (ImGui::Button("Respawn")) { ResetParticles(); }
+		ImGui::SliderAngle("Camera FovY (720 px)", &bp.FovY, 5.0f, 150.0f);
+		ImGui::SliderFloat("Parallax", &bp.Parallax, 0.0f, 1.0f, "%.2f");
+		ImGui::DragFloat("Parallax depth", &bp.ParallaxDepth, 0.1f, 0.01f, 1000.0f, "%.2f");
+		ImGui::TextDisabled("Particles at 'Parallax depth' move with the banner; farther ones lag behind.");
+		ImGui::TextDisabled("Size / color / atlas changes apply as particles respawn (or press Respawn).");
+
+		int removeAt{ -1 };
+		for (std::size_t g{ 0U }; g < bp.Groups.size(); ++g) {
+			ParticleGroup& group{ bp.Groups[g] };
+			ImGui::PushID(static_cast<int>(g));
+			bool const open{ ImGui::TreeNode("##group", "%s%s", group.Name.c_str(), group.Front ? "  (front)" : "") };
+			if (open) {
+				ImGui::Checkbox("Enabled", &group.Enabled);
+				ImGui::SameLine();
+				ImGui::Checkbox("In front of character", &group.Front);
+				ImGui::SliderInt("Count (per banner)", &group.Count, 0, static_cast<int>(MaxParticlesPerGroup));
+				ImGui::DragFloatRange2("Depth", &group.DepthMin, &group.DepthMax, 0.1f, 0.1f, 1000.0f, "%.1f");
+				ImGui::DragFloatRange2("Size", &group.SizeMin, &group.SizeMax, 0.01f, 0.001f, 100.0f, "%.2f");
+				ImGui::DragFloatRange2("Speed (/s)", &group.SpeedMin, &group.SpeedMax, 0.05f, -500.0f, 500.0f, "%.2f");
+				ImGui::DragFloat("Cross speed (/s)", &group.CrossSpeed, 0.01f, 0.0f, 100.0f, "%.2f");
+				ImGui::DragFloat("Stretch (s)", &group.Stretch, 0.001f, 0.0f, 2.0f, "%.3f");
+				ImGui::DragFloat("Spin (rad/s)", &group.Spin, 0.01f, 0.0f, 50.0f, "%.2f");
+				ImGui::SliderInt("Atlas", &group.Atlas, 0, 7);
+				ImGui::SameLine();
+				ImGui::TextDisabled("(0 dot 1 streak 2 star 3 soft star 4 4pt 5 small 4pt 6 smoke 7 circle)");
+				ImGui::ColorEdit3("Color (sRGB)", &group.Color.x);
+				ImGui::DragFloat("Alpha", &group.Alpha, 0.01f, 0.0f, 10.0f, "%.2f");
+				ImGui::DragFloatRange2("Life (s)", &group.LifeMin, &group.LifeMax, 0.01f, 0.05f, 20.0f, "%.2f");
+				if (ImGui::Button("Remove this layer")) { removeAt = static_cast<int>(g); }
+				ImGui::TreePop();
+			}
+			ImGui::PopID();
+		}
+		if (removeAt >= 0) {
+			bp.Groups.erase(bp.Groups.begin() + removeAt);
+			ResetParticles();
+		}
+		if (bp.Groups.size() < MaxParticleGroups) {
+			if (ImGui::Button("Add layer")) { bp.Groups.emplace_back(); }
+		}
+		else {
+			ImGui::TextDisabled("Max %u layers.", MaxParticleGroups);
+		}
+
+		ImGui::PopID();
+#endif
 	}
 
 	void Presenter::DrawPortraitEditor(

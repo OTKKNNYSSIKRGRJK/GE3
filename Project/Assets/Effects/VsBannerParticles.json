@@ -1,0 +1,20 @@
+{
+  "RS": {
+    "Parameters": [
+      {
+        "ShaderVisibility": "Vertex",
+        "ParameterType": "CBV",
+        "ShaderRegister": 0,
+        "RegisterSpace": 0
+      },
+      {
+        "ShaderVisibility": "Vertex",
+        "ParameterType": "SRV",
+        "ShaderRegister": 0,
+        "RegisterSpace": 0
+      }
+    ],
+
+    "StaticSamplers": []
+  }
+}

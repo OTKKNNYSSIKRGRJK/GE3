@@ -11,6 +11,11 @@
         "ShaderVisibility": "Pixel",
         "ParameterType": "DescriptorTable",
         "TableName": "Content"
+      },
+      {
+        "ShaderVisibility": "Pixel",
+        "ParameterType": "DescriptorTable",
+        "TableName": "Shape"
       }
     ],
 
@@ -19,6 +24,16 @@
         "RangeType": "SRV",
         "NumDescriptors": 1,
         "BaseShaderRegister": 0,
+        "RegisterSpace": 0,
+        "OffsetInDescriptorsFromTableStart": -1
+      }
+    ],
+
+    "Shape": [
+      {
+        "RangeType": "SRV",
+        "NumDescriptors": 1,
+        "BaseShaderRegister": 1,
         "RegisterSpace": 0,
         "OffsetInDescriptorsFromTableStart": -1
       }

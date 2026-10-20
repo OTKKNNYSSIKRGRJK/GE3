@@ -19,7 +19,7 @@ namespace Game::Scene::Impl {
 		if (VsBanner_.CurrentState() == Lumina::VsBanner::Presenter::State::Idle) {
 			VsBanner_.Play();
 		}
-		VsBanner_.Update(1.0f / 60.0f);
+		VsBanner_.Update(cmdList_, 1.0f / 60.0f);	// パーティクルの描画データを写すコマンドも積む（パスの外なので OK）
 
 		// HP バーはバナーの再生全体に合わせて伸ばす
 		float const t = VsBanner_.Progress();

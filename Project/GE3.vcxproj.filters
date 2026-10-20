@@ -80,6 +80,9 @@
     <Filter Include="Src\Lumina\Test\RadialRays">
       <UniqueIdentifier>{4c7e2a19-8d35-4b6f-a0e2-5f19c3d87b42}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Src\Lumina\Test\SDF">
+      <UniqueIdentifier>{5745dade-49ff-46a8-ae76-0504c49a04ff}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Src\Lumina\Test\VsBanner">
       <UniqueIdentifier>{07dfc456-ae09-4303-98d3-513bc98b1f11}</UniqueIdentifier>
     </Filter>
@@ -538,6 +541,24 @@
     </ClCompile>
     <ClCompile Include="Src\Test\VsBanner\VsBanner.cpp">
       <Filter>Src\Lumina\Test\VsBanner</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Test\SDF\SDF.ixx">
+      <Filter>Src\Lumina\Test\SDF</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Test\SDF\SDF.cpp">
+      <Filter>Src\Lumina\Test\SDF</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Test\SDF\SDF.Tests.ixx">
+      <Filter>Src\Lumina\Test\SDF</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Test\SDF\SDF.Tests.cpp">
+      <Filter>Src\Lumina\Test\SDF</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Test\SDF\SDF.Adapter.ixx">
+      <Filter>Src\Lumina\Test\SDF</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Test\SDF\SDF.Adapter.cpp">
+      <Filter>Src\Lumina\Test\SDF</Filter>
     </ClCompile>
     <ClCompile Include="Src\Lumina\Phys\Phys.Shape.ixx">
       <Filter>Src\Lumina\Phys</Filter>

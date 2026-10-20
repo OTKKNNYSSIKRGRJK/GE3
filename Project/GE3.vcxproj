@@ -308,6 +308,12 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="Src\Test\RadialRays\RadialRays.cpp" />
     <ClCompile Include="Src\Test\VsBanner\VsBanner.ixx" />
     <ClCompile Include="Src\Test\VsBanner\VsBanner.cpp" />
+    <ClCompile Include="Src\Test\SDF\SDF.ixx" />
+    <ClCompile Include="Src\Test\SDF\SDF.cpp" />
+    <ClCompile Include="Src\Test\SDF\SDF.Tests.ixx" />
+    <ClCompile Include="Src\Test\SDF\SDF.Tests.cpp" />
+    <ClCompile Include="Src\Test\SDF\SDF.Adapter.ixx" />
+    <ClCompile Include="Src\Test\SDF\SDF.Adapter.cpp" />
     <ClCompile Include="Src\Lumina\Phys\Phys.Shape.ixx" />
     <ClCompile Include="Src\Lumina\Phys\Phys.Intersect.ixx" />
     <ClCompile Include="Src\Lumina\Phys\Phys.Intersect.cpp" />
