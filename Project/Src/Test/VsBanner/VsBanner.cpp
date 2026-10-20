@@ -75,6 +75,29 @@ namespace Lumina::VsBanner {
 			+ std::max(timing_.HoldTime, 0.0f) + std::max(timing_.OutTime, 0.0f);
 	}
 
+	auto ScheduleLetter(Settings const& settings_, uint32_t index_) -> LetterSchedule {
+		Timing const& timing{ settings_.Time };
+		LetterSettings const& cfg{ settings_.Letters };
+		float const settle{ std::max(timing.Delay, 0.0f) + std::max(timing.InTime, 0.0f) };	// バナーが止まる時刻
+		float const bannerOut{ settle + std::max(timing.HoldTime, 0.0f) };						// バナーが抜け始める時刻
+		float const stagger{ (index_ == 0U) ? 0.0f : cfg.Stagger };
+
+		LetterSchedule s{};
+		s.InBegin = settle + cfg.InDelay + stagger;
+		s.Land = s.InBegin + std::max(cfg.InTime, 0.0f);
+		s.OutBegin = std::max(bannerOut - cfg.OutLead + stagger, s.Land);	// 着く前には抜け始めない
+		s.OutEnd = s.OutBegin + std::max(cfg.OutTime, 0.0f);
+		return s;
+	}
+
+	auto TotalTime(Settings const& settings_) -> float {
+		float total{ TotalTime(settings_.Time) };
+		if (settings_.Letters.Enabled) {
+			for (uint32_t idx{ 0U }; idx < 2U; ++idx) { total = std::max(total, ScheduleLetter(settings_, idx).OutEnd); }
+		}
+		return total;
+	}
+
 	auto Evaluate(Settings const& settings_, float time_, Float2 screenSize_) -> Pose {
 		Layout const& layout{ settings_.Placement };
 		Timing const& timing{ settings_.Time };
@@ -134,6 +157,69 @@ namespace Lumina::VsBanner {
 		// 終わりの判定は Presenter と同じ TotalTime で行う（区間ごとの足し算とは丸めが違い、最後の 1 コマだけ食い違うことがあるため）
 		pose.Visible = (t > 0.0f) && (time_ < TotalTime(timing)) && (halfLength > 0.0f) && (halfThickness > 0.0f);
 		return pose;
+	}
+
+	namespace {
+		// center_ から dir_（単位ベクトル）へ動かして、半分の大きさ halfSize_ の長方形（回さない）が画面の外に出きる距離。
+		// 長方形を dir_ へ射影した範囲は「中心の射影 ± (hx·|dx| + hy·|dy|)」、画面は ±(W/2·|dx| + H/2·|dy|)
+		auto DistanceToLeaveScreen(Float2 center_, Float2 halfSize_, Float2 dir_, Float2 screenSize_, float margin_) -> float {
+			float const screenProj{ screenSize_.x * 0.5f * std::abs(dir_.x) + screenSize_.y * 0.5f * std::abs(dir_.y) };
+			float const rectProj{ halfSize_.x * std::abs(dir_.x) + halfSize_.y * std::abs(dir_.y) };
+			float const centerProj{ center_.x * dir_.x + center_.y * dir_.y };
+			return std::max(screenProj + rectProj + margin_ - centerProj, 0.0f);
+		}
+	}
+
+	auto EvaluateLetters(
+		Settings const& settings_, float time_, Float2 screenSize_,
+		std::array<Float2, 2> const& halfSizes_, float margin_
+	) -> std::array<LetterPiece, 2> {
+		LetterSettings const& cfg{ settings_.Letters };
+		std::array<LetterPiece, 2> pieces{};
+		if (!cfg.Enabled) { return pieces; }
+
+		float const enterAngle{ cfg.EnterFromDeg * (Pi / 180.0f) };
+		float const exitAngle{ cfg.ExitToDeg * (Pi / 180.0f) };
+		for (uint32_t idx{ 0U }; idx < 2U; ++idx) {
+			// S は V を画面中心まわりに 180° 回した位置・向き（文字そのものは回さない）
+			float const sign{ (idx == 0U) ? 1.0f : -1.0f };
+			Float2 const hold{ cfg.HoldOffset.x * sign, cfg.HoldOffset.y * sign };
+			Float2 const enterDir{ std::cos(enterAngle) * sign, std::sin(enterAngle) * sign };	// 止まる位置から見た「来る方」
+			Float2 const exitDir{ std::cos(exitAngle) * sign, std::sin(exitAngle) * sign };
+			Float2 const half{ std::max(halfSizes_[idx].x, 0.0f), std::max(halfSizes_[idx].y, 0.0f) };
+
+			float const enterDist{ DistanceToLeaveScreen(hold, half, enterDir, screenSize_, margin_) };
+			float const exitDist{ DistanceToLeaveScreen(hold, half, exitDir, screenSize_, margin_) };
+			Float2 const from{ hold.x + enterDir.x * enterDist, hold.y + enterDir.y * enterDist };
+			Float2 const to{ hold.x + exitDir.x * exitDist, hold.y + exitDir.y * exitDist };
+
+			LetterSchedule const s{ ScheduleLetter(settings_, idx) };
+			LetterPiece& piece{ pieces[idx] };
+			piece.HalfSize = half;
+			piece.Visible = (time_ > s.InBegin) && (time_ < s.OutEnd) && (half.x > 0.0f) && (half.y > 0.0f);
+
+			if (time_ < s.Land) {
+				// 入り（ease-out-back。行き過ぎは止まる位置を越えて来た方の反対側へ出る）
+				float const inTime{ s.Land - s.InBegin };
+				float const k{ (inTime > 0.0f) ? EaseOutBack(Saturate((time_ - s.InBegin) / inTime), cfg.Overshoot) : 1.0f };
+				piece.Center = { Lerp(from.x, hold.x, k), Lerp(from.y, hold.y, k) };
+			}
+			else if (time_ < s.OutBegin) {
+				piece.Center = hold;
+			}
+			else {
+				float const outTime{ s.OutEnd - s.OutBegin };
+				float const k{ (outTime > 0.0f) ? EaseInCubic(Saturate((time_ - s.OutBegin) / outTime)) : 1.0f };
+				piece.Center = { Lerp(hold.x, to.x, k), Lerp(hold.y, to.y, k) };
+			}
+
+			// 着地の光: 着いた瞬間に最大、(1 − 経過 / FlashTime)^2 で消える
+			if (cfg.FlashTime > 0.0f && time_ >= s.Land && time_ < s.Land + cfg.FlashTime) {
+				float const r{ 1.0f - (time_ - s.Land) / cfg.FlashTime };
+				piece.Flash = std::max(cfg.FlashIntensity, 0.0f) * r * r;
+			}
+		}
+		return pieces;
 	}
 
 	//====	======	======	======	======	====//
@@ -217,7 +303,7 @@ namespace Lumina::VsBanner {
 		float const cornerRadius{ std::clamp(layout_.CornerRadius, 0.0f, std::min(pose_.Boss.HalfSize.x, pose_.Boss.HalfSize.y)) };
 		float const opacity{ Saturate(look_.Opacity) };
 
-		std::array<Banner const*, NumSlots> const banners{ &pose_.Boss, &pose_.Player };
+		std::array<Banner const*, NumBannerSlots> const banners{ &pose_.Boss, &pose_.Player };
 
 		// 背景とグロー
 		BackgroundArt const fallbackArt{ .Enabled{ false } };
@@ -226,10 +312,10 @@ namespace Lumina::VsBanner {
 		GlowSettings const& glow{ (decoration_.Glow != nullptr) ? *decoration_.Glow : fallbackGlow };
 		float glowWidth{ glow.Enabled ? std::max(glow.Width, 0.0f) : 0.0f };
 		if (decoration_.RangePx > 0.0f) { glowWidth = std::min(glowWidth, decoration_.RangePx * 0.95f); }	// SDF が張り付く所でグローが一定にならないように
-		std::array<CosinePalette const*, NumSlots> const palettes{ &art.Boss, &art.Player };
-		std::array<Float3, NumSlots> const colors{ SRGBToLinear(look_.ColorBoss), SRGBToLinear(look_.ColorPlayer) };
+		std::array<CosinePalette const*, NumBannerSlots> const palettes{ &art.Boss, &art.Player };
+		std::array<Float3, NumBannerSlots> const colors{ SRGBToLinear(look_.ColorBoss), SRGBToLinear(look_.ColorPlayer) };
 
-		for (uint32_t idx{ 0U }; idx < NumSlots; ++idx) {
+		for (uint32_t idx{ 0U }; idx < NumBannerSlots; ++idx) {
 			Banner const& b{ *banners[idx] };
 			Content const& content{ contents_[idx] };
 			// 中身の RT の中心は「帯の中心 − HoldCenter」= 帯が止まったとき画面の中心。帯と一緒に滑るが回さない
@@ -279,10 +365,97 @@ namespace Lumina::VsBanner {
 		cmdList_->SetPipelineState(PSO_.Get());
 		cmdList_->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-		for (uint32_t idx{ 0U }; idx < NumSlots; ++idx) {
+		for (uint32_t idx{ 0U }; idx < NumBannerSlots; ++idx) {
 			cmdList_->SetGraphicsRootConstantBufferView(0U, cbBase + ConstantsStride * idx);
 			cmdList_->SetGraphicsRootDescriptorTable(1U, contents_[idx].SRV);
 			cmdList_->SetGraphicsRootDescriptorTable(2U, shape_.SRV);
+			cmdList_->DrawInstanced(6U, 1U, 0U, 0U);
+		}
+	}
+
+	void Renderer::RenderLetters(
+		DX12::CommandList const& cmdList_,
+		std::array<LetterPiece, 2> const& pieces_,
+		LetterSettings const& settings_,
+		std::array<LetterShape, 2> const& shapes_,
+		int debugView_,
+		Float2 screenSize_
+	) {
+		if (!(screenSize_.x > 0.0f) || !(screenSize_.y > 0.0f)) { return; }
+		if (!pieces_[0].Visible && !pieces_[1].Visible) { return; }
+
+		Float3 const color{ SRGBToLinear(settings_.Color) };
+		Float3 const edgeColor{ SRGBToLinear(settings_.EdgeColor) };
+		Float3 const flashColor{ SRGBToLinear(settings_.FlashColor) };
+		GlowSettings const& glow{ settings_.Glow };
+		auto const mix{
+			[](Float3 const& a_, Float3 const& b_, float t_) -> Float3 {
+				return { Lerp(a_.x, b_.x, t_), Lerp(a_.y, b_.y, t_), Lerp(a_.z, b_.z, t_) };
+			}
+		};
+
+		for (uint32_t idx{ 0U }; idx < NumLetterSlots; ++idx) {
+			LetterPiece const& piece{ pieces_[idx] };
+			LetterShape const& shape{ shapes_[idx] };
+			// グローは SDF の距離の範囲（px 換算）までに抑える
+			float glowWidth{ glow.Enabled ? std::max(glow.Width, 0.0f) : 0.0f };
+			if (shape.Enabled) {
+				float const rangePx{ shape.Range * (2.0f * piece.HalfSize.x) / std::max(shape.Texels.x, 1.0f) };
+				glowWidth = std::min(glowWidth, rangePx * 0.95f);
+			}
+			float const flash{ Saturate(piece.Flash) };
+
+			ShaderConstants const constants{
+				.Center{ piece.Center },
+				.Axis{ 1.0f, 0.0f },					// 回さない（画像の右 = 画面の右、上 = 画面の上）
+				.HalfSize{ piece.HalfSize },
+				.InvHalfScreen{ 2.0f / screenSize_.x, 2.0f / screenSize_.y },
+				.Color{ mix(color, flashColor, flash) },
+				.Opacity{ Saturate(settings_.Opacity) },
+				.EdgeColor{ mix(edgeColor, flashColor, flash) },
+				.EdgeWidth{ std::max(settings_.EdgeWidth, 0.0f) },
+				.HasContent{ 0.0f },
+				.DebugView{ static_cast<float>(debugView_) },
+				.CornerRadius{ 0.0f },
+				.Margin{ 2.0f + glowWidth },
+				.ContentOffset{ 0.0f, 0.0f },
+				.ContentSize{ 1.0f, 1.0f },
+				.ContentOpacity{ 0.0f },
+				.ContentFeather{ 0.0f },
+				.HasShape{ shape.Enabled ? 1.0f : 0.0f },
+				.ShapeRange{ std::max(shape.Range, 1.0e-3f) },
+				.ShapeTexels{ std::max(shape.Texels.x, 1.0f), std::max(shape.Texels.y, 1.0f) },
+				.ShapeUseOpacity{ 1.0f },
+				.EdgeUseOpacity{ 1.0f },
+				.PaletteBias{ 0.0f, 0.0f, 0.0f },
+				.ArtTime{ 0.0f },
+				.PaletteAmplitude{ 0.0f, 0.0f, 0.0f },
+				.ArtScale{ 1.0f },
+				.PaletteFrequency{ 0.0f, 0.0f, 0.0f },
+				.ArtEnabled{ 0.0f },					// ベタ塗り
+				.PalettePhase{ 0.0f, 0.0f, 0.0f },
+				.GlowWidth{ glowWidth },
+				.GlowColor{ SRGBToLinear(glow.Color) },
+				.GlowIntensity{ std::max(glow.Intensity, 0.0f) * (1.0f + piece.Flash) },
+				.ArtOrigin{ 0.0f, 0.0f },
+				.GlowFalloff{ std::max(glow.Falloff, 0.01f) },
+				.ArtOutputIsGamma{ 0.0f },
+			};
+			UB_Constants_.Store(&constants, sizeof(ShaderConstants), ConstantsStride * (NumBannerSlots + idx));
+		}
+
+		D3D12_GPU_VIRTUAL_ADDRESS const cbBase{ UB_Constants_->GetGPUVirtualAddress() };
+
+		cmdList_->SetGraphicsRootSignature(RS_.Get());
+		cmdList_->SetPipelineState(PSO_.Get());
+		cmdList_->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+		for (uint32_t idx{ 0U }; idx < NumLetterSlots; ++idx) {
+			if (!pieces_[idx].Visible) { continue; }
+			cmdList_->SetGraphicsRootConstantBufferView(0U, cbBase + ConstantsStride * (NumBannerSlots + idx));
+			// 中身は使わない（HasContent = 0）が、テーブルは設定しておく（形の SRV をそのまま置く）
+			cmdList_->SetGraphicsRootDescriptorTable(1U, shapes_[idx].SRV);
+			cmdList_->SetGraphicsRootDescriptorTable(2U, shapes_[idx].SRV);
 			cmdList_->DrawInstanced(6U, 1U, 0U, 0U);
 		}
 	}
@@ -301,6 +474,7 @@ namespace Lumina::VsBanner {
 		ScreenSize_ = screenSize_;
 		Context_ = &dxContext_;
 		ShapeSRV_ = dxContext_.GlobalDescriptorHeap().Allocate(1U);
+		LetterSRVs_ = dxContext_.GlobalDescriptorHeap().Allocate(2U);
 		Renderer_.Initialize(dxContext_, rtvFormat_, dsvFormat_);
 
 		// 中身: キャラ 2 体と、それぞれの Canvas（SRGB ＋ D24S8。ShowcaseCharacter の既定のフォーマット）
@@ -409,7 +583,10 @@ namespace Lumina::VsBanner {
 		}
 
 		// ファイルが無ければ初期値のまま。読めたときは Load の中で形も作る
-		if (!Load()) { LoadShape(); }
+		if (!Load()) {
+			LoadShape();
+			LoadLetters();
+		}
 		AdvancePortraits(0.0f);
 		ResetParticles();
 	}
@@ -436,12 +613,12 @@ namespace Lumina::VsBanner {
 
 		if (State_ != State::Playing || Preview_) { return; }
 		Time_ += std::max(dt_, 0.0f);
-		if (Time_ >= TotalTime(Config.Time)) { State_ = State::Finished; }
+		if (Time_ >= TotalTime(Config)) { State_ = State::Finished; }
 	}
 
 	auto Presenter::Progress() const -> float {
 		if (State_ == State::Finished) { return 1.0f; }
-		float const total{ TotalTime(Config.Time) };
+		float const total{ TotalTime(Config) };
 		return (total > 0.0f) ? Saturate(Time_ / total) : 1.0f;
 	}
 
@@ -826,6 +1003,19 @@ namespace Lumina::VsBanner {
 			.RangePx{ HasShape_ ? (ShapeBakedRange_ * std::max(Config.Placement.Length, 0.0f) / std::max(ShapeTexels_.x, 1.0f)) : 0.0f },
 		};
 		Renderer_.Render(cmdList_, pose, Config.Placement, Config.Appearance, contents, shape, decoration, ScreenSize_);
+
+		// 文字はバナーの上に描く
+		std::array<LetterPiece, 2> const pieces{ EvaluateLetters(Config, time, ScreenSize_, LetterHalfSizes(), LetterGlowMargin()) };
+		std::array<LetterShape, 2> letterShapes{};
+		for (uint32_t idx{ 0U }; idx < 2U; ++idx) {
+			letterShapes[idx] = LetterShape{
+				.SRV{ LetterSRVs_.GPUHandle(idx) },
+				.Texels{ LetterTexels_[idx] },
+				.Range{ LetterRange_[idx] },
+				.Enabled{ HasLetter_[idx] },
+			};
+		}
+		Renderer_.RenderLetters(cmdList_, pieces, Config.Letters, letterShapes, Config.Appearance.DebugView, ScreenSize_);
 	}
 
 	//====	======	======	======	======	====//
@@ -892,6 +1082,81 @@ namespace Lumina::VsBanner {
 		if (HasShape_ && Config.Shape.LockAspect && ShapeAspect_ > 0.0f) {
 			Config.Placement.Thickness = std::max(Config.Placement.Length, 0.0f) * ShapeAspect_;
 		}
+	}
+
+	void Presenter::LoadLetters() {
+		if (Context_ == nullptr) { return; }
+		auto const& device{ Context_->Device() };
+		LetterSettings const& cfg{ Config.Letters };
+		std::array<std::string const*, 2> const images{ &cfg.ImageV, &cfg.ImageS };
+		std::array<char const*, 2> const names{ "V", "S" };
+
+		LetterStatus_.clear();
+		for (uint32_t idx{ 0U }; idx < 2U; ++idx) {
+			HasLetter_[idx] = false;
+			LetterAspect_[idx] = 1.0f;
+
+			std::string error{};
+			std::optional<SDF::Baked> baked{};
+			if (!images[idx]->empty()) {
+				SDF::BakeOptions const options{
+					.Width{ static_cast<uint32_t>(std::clamp(cfg.Resolution, 16, 4096)) },
+					.Height{ 0U },
+					.Range{ std::max(cfg.Range, 0.5f) },
+				};
+				SDF::ImageOptions const image{
+					.Source{ SDF::Channel::Alpha },
+					.Threshold{ std::clamp(cfg.Threshold, 0.001f, 0.999f) },
+					.Invert{ false },
+				};
+				baked = SDF::BakeFromImage(*images[idx], image, options, error);
+			}
+			else {
+				error = "no image";
+			}
+
+			std::unique_ptr<DX12::DefaultTexture2D> texture{};
+			std::string const debugName{ std::string{ "VsBanner.Letter." } + names[idx] };
+			if (baked) {
+				std::vector<uint8_t> const texels{ SDF::EncodeUNorm8x2(baked->Distance, baked->Range, baked->Coverage) };
+				texture = SDF::CreateTexture(
+					*Context_, SDF::TexelFormat::R8G8, baked->Distance.Width, baked->Distance.Height, texels, debugName.c_str()
+				);
+				if (!texture) { error = "cannot create texture"; }
+			}
+
+			if (texture) {
+				LetterTextures_[idx] = std::move(texture);
+				LetterTexels_[idx] = { static_cast<float>(baked->Distance.Width), static_cast<float>(baked->Distance.Height) };
+				LetterRange_[idx] = baked->Range;
+				LetterAspect_[idx] = static_cast<float>(baked->SourceWidth) / static_cast<float>(std::max(baked->SourceHeight, 1U));
+				HasLetter_[idx] = true;
+				LetterStatus_ += std::string{ names[idx] } + ": " + std::to_string(baked->SourceWidth) + "x" + std::to_string(baked->SourceHeight) +
+					" -> SDF " + std::to_string(baked->Distance.Width) + "x" + std::to_string(baked->Distance.Height) + "\n";
+			}
+			else {
+				// テーブルは毎回設定するので、使わないときも有効な SRV を置いておく（形が無いので長方形で描かれる）
+				uint8_t const outside[2]{ 0U, 255U };
+				LetterTextures_[idx] = SDF::CreateTexture(*Context_, SDF::TexelFormat::R8G8, 1U, 1U, outside, (debugName + ".Fallback").c_str());
+				LetterTexels_[idx] = { 1.0f, 1.0f };
+				LetterRange_[idx] = 1.0f;
+				LetterStatus_ += std::string{ names[idx] } + ": failed (" + error + "), drawn as a box\n";
+			}
+			DX12::SRV<void>::Create(device, LetterSRVs_.CPUHandle(idx), *LetterTextures_[idx]);
+		}
+	}
+
+	auto Presenter::LetterHalfSizes() const -> std::array<Float2, 2> {
+		float const halfHeight{ std::max(Config.Letters.Height, 0.0f) * 0.5f };
+		return {
+			Float2{ halfHeight * LetterAspect_[0], halfHeight },
+			Float2{ halfHeight * LetterAspect_[1], halfHeight },
+		};
+	}
+
+	auto Presenter::LetterGlowMargin() const -> float {
+		GlowSettings const& glow{ Config.Letters.Glow };
+		return 2.0f + (glow.Enabled ? std::max(glow.Width, 0.0f) : 0.0f);
 	}
 
 	//====	======	======	======	======	====//
@@ -1055,6 +1320,23 @@ namespace Lumina::VsBanner {
 			};
 		}
 
+		void ReadGlow(JSON const& j_, GlowSettings& g_) {
+			Read(j_, "Enabled", g_.Enabled);
+			Read(j_, "Color", g_.Color);
+			Read(j_, "Intensity", g_.Intensity);
+			Read(j_, "Width", g_.Width);
+			Read(j_, "Falloff", g_.Falloff);
+		}
+		auto WriteGlow(GlowSettings const& g_) -> JSON {
+			return JSON{
+				{ "Enabled", g_.Enabled },
+				{ "Color", ToJSON(g_.Color) },
+				{ "Intensity", g_.Intensity },
+				{ "Width", g_.Width },
+				{ "Falloff", g_.Falloff },
+			};
+		}
+
 		auto Section(JSON const& root_, char const* key_) -> JSON const* {
 			auto const itr{ root_.find(key_) };
 			return (itr != root_.end() && itr->is_object()) ? &*itr : nullptr;
@@ -1146,8 +1428,36 @@ namespace Lumina::VsBanner {
 			Read(*j, "Width", g.Width);
 			Read(*j, "Falloff", g.Falloff);
 		}
+		if (JSON const* j{ Section(root, "Letters") }) {
+			LetterSettings& v{ Config.Letters };
+			Read(*j, "Enabled", v.Enabled);
+			Read(*j, "ImageV", v.ImageV);
+			Read(*j, "ImageS", v.ImageS);
+			Read(*j, "Resolution", v.Resolution);
+			Read(*j, "Range", v.Range);
+			Read(*j, "Threshold", v.Threshold);
+			Read(*j, "Height", v.Height);
+			Read(*j, "HoldOffset", v.HoldOffset);
+			Read(*j, "EnterFromDeg", v.EnterFromDeg);
+			Read(*j, "ExitToDeg", v.ExitToDeg);
+			Read(*j, "InDelay", v.InDelay);
+			Read(*j, "InTime", v.InTime);
+			Read(*j, "Overshoot", v.Overshoot);
+			Read(*j, "Stagger", v.Stagger);
+			Read(*j, "OutLead", v.OutLead);
+			Read(*j, "OutTime", v.OutTime);
+			Read(*j, "FlashTime", v.FlashTime);
+			Read(*j, "FlashIntensity", v.FlashIntensity);
+			Read(*j, "FlashColor", v.FlashColor);
+			Read(*j, "Color", v.Color);
+			Read(*j, "EdgeColor", v.EdgeColor);
+			Read(*j, "EdgeWidth", v.EdgeWidth);
+			Read(*j, "Opacity", v.Opacity);
+			if (JSON const* g{ Section(*j, "Glow") }) { ReadGlow(*g, v.Glow); }
+		}
 		ResetParticles();
 		LoadShape();
+		LoadLetters();
 		Status_ = "Loaded.";
 		return true;
 	}
@@ -1220,6 +1530,33 @@ namespace Lumina::VsBanner {
 			{ "Width", Config.Glow.Width },
 			{ "Falloff", Config.Glow.Falloff },
 		};
+		LetterSettings const& v{ Config.Letters };
+		root["Letters"] = JSON{
+			{ "Enabled", v.Enabled },
+			{ "ImageV", v.ImageV },
+			{ "ImageS", v.ImageS },
+			{ "Resolution", v.Resolution },
+			{ "Range", v.Range },
+			{ "Threshold", v.Threshold },
+			{ "Height", v.Height },
+			{ "HoldOffset", ToJSON(v.HoldOffset) },
+			{ "EnterFromDeg", v.EnterFromDeg },
+			{ "ExitToDeg", v.ExitToDeg },
+			{ "InDelay", v.InDelay },
+			{ "InTime", v.InTime },
+			{ "Overshoot", v.Overshoot },
+			{ "Stagger", v.Stagger },
+			{ "OutLead", v.OutLead },
+			{ "OutTime", v.OutTime },
+			{ "FlashTime", v.FlashTime },
+			{ "FlashIntensity", v.FlashIntensity },
+			{ "FlashColor", ToJSON(v.FlashColor) },
+			{ "Color", ToJSON(v.Color) },
+			{ "EdgeColor", ToJSON(v.EdgeColor) },
+			{ "EdgeWidth", v.EdgeWidth },
+			{ "Opacity", v.Opacity },
+			{ "Glow", WriteGlow(v.Glow) },
+		};
 		root["Portraits"] = JSON{
 			{ "Boss", WritePortrait(Config.Boss) },
 			{ "Player", WritePortrait(Config.Player) },
@@ -1253,7 +1590,7 @@ namespace Lumina::VsBanner {
 		ImGui::TextDisabled("%s  (%s)", Status_.c_str(), ConfigPath);
 
 		ImGui::SeparatorText("Playback");
-		float const total{ TotalTime(Config.Time) };
+		float const total{ TotalTime(Config) };
 		char const* const stateName{
 			(State_ == State::Playing) ? "Playing" : (State_ == State::Finished) ? "Finished" : "Idle"
 		};
@@ -1300,6 +1637,7 @@ namespace Lumina::VsBanner {
 
 		DrawShapeEditor();
 		DrawDecorationEditor();
+		DrawLetterEditor();
 		DrawParticleEditor();
 		DrawPortraitEditor("Portrait: Boss", Config.Boss, 0U);
 		DrawPortraitEditor("Portrait: Player", Config.Player, 1U);
@@ -1398,6 +1736,100 @@ namespace Lumina::VsBanner {
 			ImGui::TextDisabled("color(t) = Bias + Amplitude * cos(2pi * (Frequency * t + Phase))");
 			ImGui::PopID();
 		}
+#endif
+	}
+
+	void Presenter::DrawLetterEditor() {
+#if defined(_DEBUG)
+		if (!ImGui::CollapsingHeader("Letters (V / S)")) { return; }
+		ImGui::PushID("Letters");
+		LetterSettings& v{ Config.Letters };
+
+		ImGui::Checkbox("Enabled", &v.Enabled);
+
+		ImGui::SeparatorText("Images (-> SDF)");
+		auto const editPath{
+			[](char const* label_, std::string& path_) {
+				char buffer[260]{};
+				path_.copy(buffer, sizeof(buffer) - 1U);
+				if (ImGui::InputText(label_, buffer, sizeof(buffer))) { path_ = buffer; }
+			}
+		};
+		editPath("Image V", v.ImageV);
+		editPath("Image S", v.ImageS);
+		ImGui::SliderInt("SDF width (texels)", &v.Resolution, 32, 2048);
+		ImGui::DragFloat("SDF range (texels)", &v.Range, 0.1f, 0.5f, 64.0f, "%.1f");
+		ImGui::SliderFloat("Outline threshold (alpha)", &v.Threshold, 0.001f, 0.999f, "%.3f");
+		if (ImGui::Button("Reload letters")) { LoadLetters(); }
+		ImGui::SameLine();
+		ImGui::TextDisabled("(images / width / range / threshold apply on reload)");
+		ImGui::TextUnformatted(LetterStatus_.c_str());
+
+		ImGui::SeparatorText("Placement (px, V; S is point-symmetric)");
+		ImGui::DragFloat("Height", &v.Height, 1.0f, 0.0f, 720.0f, "%.0f");
+		ImGui::DragFloat2("Hold offset (V)", &v.HoldOffset.x, 1.0f, -1280.0f, 1280.0f, "%.0f");
+		ImGui::DragFloat("Enter from (deg)", &v.EnterFromDeg, 1.0f, -360.0f, 360.0f, "%.0f");
+		ImGui::SameLine();
+		ImGui::TextDisabled("180 = left");
+		ImGui::DragFloat("Exit to (deg)", &v.ExitToDeg, 1.0f, -360.0f, 360.0f, "%.0f");
+		ImGui::SameLine();
+		ImGui::TextDisabled("90 = up");
+		{
+			std::array<Float2, 2> const half{ LetterHalfSizes() };
+			ImGui::TextDisabled("V %.0fx%.0f px, S %.0fx%.0f px", half[0].x * 2.0f, half[0].y * 2.0f, half[1].x * 2.0f, half[1].y * 2.0f);
+		}
+
+		ImGui::SeparatorText("Timing (s)");
+		ImGui::DragFloat("In delay (after banners stop)", &v.InDelay, 0.005f, -3.0f, 3.0f, "%.3f");
+		ImGui::DragFloat("In", &v.InTime, 0.005f, 0.0f, 3.0f, "%.3f");
+		ImGui::DragFloat("Overshoot", &v.Overshoot, 0.01f, 0.0f, 4.0f, "%.2f");
+		ImGui::DragFloat("Stagger (S after V)", &v.Stagger, 0.005f, -1.0f, 1.0f, "%.3f");
+		ImGui::DragFloat("Out lead (before banners leave)", &v.OutLead, 0.005f, -3.0f, 3.0f, "%.3f");
+		ImGui::DragFloat("Out", &v.OutTime, 0.005f, 0.0f, 3.0f, "%.3f");
+		for (uint32_t idx{ 0U }; idx < 2U; ++idx) {
+			LetterSchedule const s{ ScheduleLetter(Config, idx) };
+			ImGui::TextDisabled(
+				"%s: in %.2f-%.2f  hold  out %.2f-%.2f", (idx == 0U) ? "V" : "S", s.InBegin, s.Land, s.OutBegin, s.OutEnd
+			);
+		}
+		ImGui::TextDisabled("Banners: stop %.2f, leave %.2f, end %.2f",
+			std::max(Config.Time.Delay, 0.0f) + std::max(Config.Time.InTime, 0.0f),
+			std::max(Config.Time.Delay, 0.0f) + std::max(Config.Time.InTime, 0.0f) + std::max(Config.Time.HoldTime, 0.0f),
+			TotalTime(Config.Time)
+		);
+
+		ImGui::SeparatorText("Flash on landing");
+		ImGui::DragFloat("Flash time", &v.FlashTime, 0.005f, 0.0f, 2.0f, "%.3f s");
+		ImGui::DragFloat("Flash intensity", &v.FlashIntensity, 0.01f, 0.0f, 4.0f, "%.2f");
+		ImGui::ColorEdit3("Flash color (sRGB)", &v.FlashColor.x);
+
+		ImGui::SeparatorText("Look");
+		ImGui::ColorEdit3("Fill (sRGB)", &v.Color.x);
+		ImGui::ColorEdit3("Edge (sRGB)", &v.EdgeColor.x);
+		ImGui::DragFloat("Edge width", &v.EdgeWidth, 0.1f, 0.0f, 64.0f, "%.1f");
+		ImGui::SliderFloat("Opacity", &v.Opacity, 0.0f, 1.0f, "%.2f");
+
+		ImGui::SeparatorText("Glow");
+		GlowSettings& g{ v.Glow };
+		ImGui::Checkbox("Glow enabled", &g.Enabled);
+		ImGui::ColorEdit3("Glow color (sRGB)", &g.Color.x);
+		ImGui::DragFloat("Glow intensity", &g.Intensity, 0.01f, 0.0f, 10.0f, "%.2f");
+		ImGui::DragFloat("Glow width (px)", &g.Width, 0.1f, 0.0f, 200.0f, "%.1f");
+		ImGui::DragFloat("Glow falloff", &g.Falloff, 0.01f, 0.01f, 8.0f, "%.2f");
+		{
+			// 文字ごとの SDF の距離の範囲（px）。小さい方で切られる
+			std::array<Float2, 2> const half{ LetterHalfSizes() };
+			float rangePx{ 1.0e9f };
+			for (uint32_t idx{ 0U }; idx < 2U; ++idx) {
+				if (!HasLetter_[idx]) { continue; }
+				rangePx = std::min(rangePx, LetterRange_[idx] * (2.0f * half[idx].x) / std::max(LetterTexels_[idx].x, 1.0f));
+			}
+			if (rangePx < 1.0e8f && g.Width > rangePx * 0.95f) {
+				ImGui::TextColored(ImVec4{ 1.0f, 0.6f, 0.3f, 1.0f }, "Clamped to %.1f px (SDF range). Raise SDF range and reload.", rangePx * 0.95f);
+			}
+		}
+
+		ImGui::PopID();
 #endif
 	}
 

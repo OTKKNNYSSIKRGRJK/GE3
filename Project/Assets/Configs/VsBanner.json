@@ -76,6 +76,57 @@
     "Shift": 0.0,
     "Thickness": 300.0
   },
+  "Letters": {
+    "Color": [
+      0.22058820724487305,
+      0.16327853500843048,
+      0.19699010252952576
+    ],
+    "EdgeColor": [
+      0.8970587849617004,
+      0.8091118931770325,
+      0.8970588445663452
+    ],
+    "EdgeWidth": 2.0,
+    "Enabled": true,
+    "EnterFromDeg": 184.0,
+    "ExitToDeg": 72.0,
+    "FlashColor": [
+      1.0,
+      1.0,
+      1.0
+    ],
+    "FlashIntensity": 0.800000011920929,
+    "FlashTime": 0.30000001192092896,
+    "Glow": {
+      "Color": [
+        0.4803921580314636,
+        0.4205509126186371,
+        0.3956170678138733
+      ],
+      "Enabled": true,
+      "Falloff": 3.75,
+      "Intensity": 2.200000047683716,
+      "Width": 12.600000381469727
+    },
+    "Height": 227.0,
+    "HoldOffset": [
+      -69.0,
+      0.0
+    ],
+    "ImageS": "Assets/Img/VsBanner.S.png",
+    "ImageV": "Assets/Img/VsBanner.V.png",
+    "InDelay": -0.2849999964237213,
+    "InTime": 0.125,
+    "Opacity": 0.8999999761581421,
+    "OutLead": 0.15000000596046448,
+    "OutTime": 0.25,
+    "Overshoot": 0.5699999928474426,
+    "Range": 24.0,
+    "Resolution": 185,
+    "Stagger": 0.0,
+    "Threshold": 0.5
+  },
   "Look": {
     "ColorBoss": [
       0.10294115543365479,

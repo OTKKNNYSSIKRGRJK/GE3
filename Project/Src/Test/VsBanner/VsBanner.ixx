@@ -34,6 +34,11 @@
 //         帯の中心を模様の中心にして帯のローカル座標で描くので、帯と一緒に傾いて滑る。
 //         渡すのは時間とパレット（色 = Bias + Amplitude · cos(2π · (Frequency · t + Phase))）。パレットはボス / プレイヤーで別
 //
+// 文字  : バナーの間に「V」「S」を 1 文字ずつ別に飛ばす（逆転裁判の「尋問開始」のように、どこかから飛んできてどこかへ飛んでいく）。
+//         V は左から入って上へ、S は右から入って下へ抜ける（S は V を画面中心まわりに点対称にした位置。文字そのものは回さない）。
+//         回転・拡大縮小はなし。着地の瞬間に少し光らせる（Flash）。形はバナーと同じく画像 → SDF（1 文字 1 枚）、描画もバナーと同じシェーダ
+//         （中身なし・背景アートなしの小さい帯として描く）。タイミングはバナーの再生に乗せる（バナーが止まってから入り、抜け始める少し前に抜ける）
+//
 // 描画: 1 本 = SV_VertexID から作るクアッド 1 枚（頂点バッファなし）、ルート CBV（256 バイト境界のスロット × 2）＋中身の SRV テーブル。
 //       プリマルチプライド α、深度なし。InGame の UIPass（バックバッファ）に描く。
 //       中身は RenderPortraits で先に描いておく（RT とビューポートを切り替えるので、パスの外で呼ぶ）
@@ -226,6 +231,47 @@ export namespace Lumina::VsBanner {
 		float Falloff{ 2.0f };				// 減り方（(1 − d / 幅)^Falloff）
 	};
 
+	// バナーの間の文字（V と S を別々に飛ばす）。位置は V の値だけを持ち、S は (-x, -y)（点対称）。文字そのものは回さない
+	struct LetterSettings {
+		bool Enabled{ true };
+		std::string ImageV{ "Assets/Img/VsBanner.V.png" };	// 透明 PNG に白で塗った文字（α を形に使う）
+		std::string ImageS{ "Assets/Img/VsBanner.S.png" };
+		int Resolution{ 256 };			// SDF テクスチャの幅（高さは画像の縦横比から）
+		float Range{ 24.0f };			// SDF に詰める距離の範囲（テクセル）。グローはこれより太くできない
+		float Threshold{ 0.5f };		// α がこれ以上の所を形に含める
+
+		float Height{ 200.0f };			// 画面上の高さ（px）。幅は画像の縦横比から
+		Float2 HoldOffset{ -80.0f, 0.0f };	// 止まったときの V の中心（画面中心から、px、y 上）。S は (-x, -y)
+		float EnterFromDeg{ 180.0f };	// V が来る方向（止まる位置から見た向き。180 = 左から）。S は +180°
+		float ExitToDeg{ 90.0f };		// V が去る方向（90 = 上へ）。S は +180°
+
+		// 時間（秒）。入りはバナーが止まった時点（バナーの Delay + In）から、抜けはバナーが抜け始める時点から数える
+		float InDelay{ 0.05f };			// バナーが止まってから V が動き始めるまで（負なら止まる前から）
+		float InTime{ 0.22f };			// 画面外 → 定位置
+		float Overshoot{ 1.2f };		// 入りの行き過ぎ（ease-out-back の係数。0 なら ease-out cubic）
+		float Stagger{ 0.06f };			// S を V からどれだけ遅らせるか（入り・抜けとも）
+		float OutLead{ 0.15f };			// バナーが抜け始めるどれだけ前に V が抜け始めるか（負なら後）
+		float OutTime{ 0.25f };			// 定位置 → 画面外
+
+		// 着地の光（塗りと縁取りを FlashColor へ寄せ、グローを強める）。(1 − 経過 / FlashTime)^2 で消える
+		float FlashTime{ 0.25f };		// 0 で無し
+		float FlashIntensity{ 0.8f };
+		Float3 FlashColor{ 1.0f, 1.0f, 1.0f };	// sRGB
+
+		// 見た目（色は sRGB）
+		Float3 Color{ 1.0f, 0.95f, 0.85f };
+		Float3 EdgeColor{ 0.45f, 0.06f, 0.08f };
+		float EdgeWidth{ 5.0f };		// 縁取りの太さ（内側へ、px）
+		float Opacity{ 1.0f };
+		GlowSettings Glow{
+			.Enabled{ true },
+			.Color{ 1.0f, 0.55f, 0.35f },
+			.Intensity{ 0.9f },
+			.Width{ 14.0f },
+			.Falloff{ 1.6f },
+		};
+	};
+
 	struct Settings {
 		Layout Placement{};
 		ShapeSettings Shape{};
@@ -256,6 +302,7 @@ export namespace Lumina::VsBanner {
 		BackgroundParticles Particles{};
 		BackgroundArt Background{};
 		GlowSettings Glow{};
+		LetterSettings Letters{};
 	};
 
 	//----	配置の計算（描画とは独立）			----//
@@ -274,10 +321,35 @@ export namespace Lumina::VsBanner {
 		bool Visible{ false };
 	};
 
-	auto TotalTime(Timing const& timing_) -> float;
+	// 文字 1 つぶん（[0] = V、[1] = S）。画面ピクセル空間（原点 = 画面中心、y 上）。向きは常に画面の水平（回さない）
+	struct LetterPiece {
+		Float2 Center{ 0.0f, 0.0f };
+		Float2 HalfSize{ 0.0f, 0.0f };
+		float Flash{ 0.0f };			// 着地の光（0..FlashIntensity）
+		bool Visible{ false };
+	};
+
+	// 文字 1 つぶんの時刻（秒、0 = 再生の始まり）
+	struct LetterSchedule {
+		float InBegin{ 0.0f };			// 動き始め（画面外）
+		float Land{ 0.0f };				// 定位置に着く
+		float OutBegin{ 0.0f };			// 抜け始め
+		float OutEnd{ 0.0f };			// 画面外に出きる
+	};
+
+	auto TotalTime(Timing const& timing_) -> float;		// バナーだけ
+	auto TotalTime(Settings const& settings_) -> float;	// バナーと文字の両方が終わるまで（再生全体の長さ）
+	auto ScheduleLetter(Settings const& settings_, uint32_t index_) -> LetterSchedule;
 
 	// 時刻 time_（秒、0 = 始まり）の配置。screenSize_ は px
 	auto Evaluate(Settings const& settings_, float time_, Float2 screenSize_) -> Pose;
+
+	// 時刻 time_ の文字の配置。halfSizes_ は文字ごとの (幅, 高さ) / 2（画像の縦横比で決まるので呼び出し側が渡す）。
+	// margin_ は画面外とみなすときに余分に離す量（グローの幅など、px）
+	auto EvaluateLetters(
+		Settings const& settings_, float time_, Float2 screenSize_,
+		std::array<Float2, 2> const& halfSizes_, float margin_
+	) -> std::array<LetterPiece, 2>;
 
 	//----	描画							----//
 
@@ -298,6 +370,14 @@ export namespace Lumina::VsBanner {
 		GlowSettings const* Glow{ nullptr };
 		float Time{ 0.0f };
 		float RangePx{ 0.0f };				// SDF の距離の範囲（px 換算）。形が無いときは 0（制限なし）
+	};
+
+	// 文字 1 つぶんの形の SDF
+	struct LetterShape {
+		D3D12_GPU_DESCRIPTOR_HANDLE SRV{};	// 有効なものを渡すこと（中身のテーブルにも同じものを置く）
+		Float2 Texels{ 1.0f, 1.0f };
+		float Range{ 1.0f };
+		bool Enabled{ false };				// false なら長方形（読めなかったときの目印）
 	};
 
 	struct Content {
@@ -328,6 +408,17 @@ export namespace Lumina::VsBanner {
 			Float2 screenSize_
 		);
 
+		// 文字を描く（バナーと同じ RS / PSO。中身なし・背景アートなし）。見えない文字は描かない。
+		// RT / Viewport / DescriptorHeap は呼び出し側で設定済みであること
+		void RenderLetters(
+			DX12::CommandList const& cmdList_,
+			std::array<LetterPiece, 2> const& pieces_,
+			LetterSettings const& settings_,
+			std::array<LetterShape, 2> const& shapes_,
+			int debugView_,
+			Float2 screenSize_
+		);
+
 	private:
 		// VsBanner.hlsl の cbuffer Constants と同じ並び。16 バイト境界をまたぐベクトルは置かない。32 の倍数に揃える（C4324 対策の方針）
 		struct ShaderConstants {
@@ -349,7 +440,9 @@ export namespace Lumina::VsBanner {
 		static_assert(sizeof(ShaderConstants) % 32U == 0U);
 
 		static constexpr uint64_t ConstantsStride{ (sizeof(ShaderConstants) + 0xFFLLU) & ~0xFFLLU };
-		static constexpr uint32_t NumSlots{ 2U };
+		static constexpr uint32_t NumBannerSlots{ 2U };	// [0] = A、[1] = B
+		static constexpr uint32_t NumLetterSlots{ 2U };	// [2] = V、[3] = S
+		static constexpr uint32_t NumSlots{ NumBannerSlots + NumLetterSlots };
 
 	private:
 		DX12::RootSignature RS_{};
@@ -430,10 +523,16 @@ export namespace Lumina::VsBanner {
 		void DrawParticleEditor();
 		void DrawShapeEditor();
 		void DrawDecorationEditor();
+		void DrawLetterEditor();
 
 		// バナーの形: Config.Shape から SDF を作り直す（失敗したら角の丸い長方形に戻す）
 		void LoadShape();
 		void ApplyShapeAspect();	// LockAspect なら太さを長さ × 縦横比にそろえる
+
+		// 文字: Config.Letters の画像から SDF を作り直す（読めなかった文字は長方形になる）
+		void LoadLetters();
+		auto LetterHalfSizes() const -> std::array<Float2, 2>;	// 高さ × 画像の縦横比
+		auto LetterGlowMargin() const -> float;					// 画面外の判定に足す量（グローの幅 ＋ にじみ）
 
 	private:
 		Renderer Renderer_{};
@@ -453,10 +552,19 @@ export namespace Lumina::VsBanner {
 		DX12::DescriptorTable ShapeSRV_{};							// グローバルヒープに 1 つ（作り直しても同じ場所に書く）
 		Float2 ShapeTexels_{ 1.0f, 1.0f };
 		float ShapeAspect_{ 0.0f };									// 画像の 高さ / 幅（読めていないときは 0）
-		float ShapeBakedRange_{ 1.0f };
-		float ArtTime_{ 0.0f };										// 背景のシェーダアートの時間（見えている間だけ進める）								// テクスチャを作ったときの Range（シェーダにはこちらを渡す）
+		float ShapeBakedRange_{ 1.0f };								// テクスチャを作ったときの Range（シェーダにはこちらを渡す）
+		float ArtTime_{ 0.0f };										// 背景のシェーダアートの時間（見えている間だけ進める）
 		bool HasShape_{ false };
 		std::string ShapeStatus_{};
+
+		// 文字の形: [0] = V、[1] = S
+		std::array<std::unique_ptr<DX12::DefaultTexture2D>, 2> LetterTextures_{};
+		DX12::DescriptorTable LetterSRVs_{};						// グローバルヒープに 2 つ（作り直しても同じ場所に書く）
+		std::array<Float2, 2> LetterTexels_{ Float2{ 1.0f, 1.0f }, Float2{ 1.0f, 1.0f } };
+		std::array<float, 2> LetterRange_{ 1.0f, 1.0f };
+		std::array<float, 2> LetterAspect_{ 1.0f, 1.0f };			// 画像の 幅 / 高さ（読めていないときは 1）
+		std::array<bool, 2> HasLetter_{ false, false };
+		std::string LetterStatus_{};
 
 		// [バナー][層]。層の数は MaxParticleGroups まで（起動時に全部確保する。ParticleSystem は作るたびにグローバルヒープを消費するため）
 		std::array<std::array<std::unique_ptr<ParticleSystem<BannerParticle>>, MaxParticleGroups>, 2> ParticleSystems_{};

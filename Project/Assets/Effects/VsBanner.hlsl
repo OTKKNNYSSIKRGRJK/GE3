@@ -7,7 +7,8 @@
 //
 // 形: BannerDistance。HasShape なら SDF テクスチャ（Lumina.SDF で画像から作った R8G8。R = 距離、G = 元の α）、無ければ角の丸い長方形。
 //     縁の演出は d から作る。SDF は内外の 2 値なので、半透明・濃淡は G（opacity）で別に掛ける
-// 背景: ArtEnabled ならベタ塗りの代わりにシェーダアート（Fancy.CS の移植。時間とコサインパレットだけ受け取る）
+// 背景: ArtEnabled ならベタ塗りの色にシェーダアート（Fancy.CS の移植。時間とコサインパレットだけ受け取る）を薄く混ぜる
+// 文字（V / S）も同じシェーダで描く（中身なし・アートなし・回さない帯）
 // グロー: 形の外側（d > 0）に加算でにじませる。幅は C++ 側で SDF の距離の範囲までに抑えてある
 
 cbuffer Constants : register(b0) {
@@ -165,8 +166,8 @@ float4 PSMain(VSOutput input_) : SV_Target {
 		edge = saturate(0.5f - band / aa);
 	}
 
-	//float3 rgb = (ArtEnabled > 0.5f) ? BackgroundArtColor(input_.Local) : Color;
-	float3 rgb = BackgroundArtColor(input_.Local) * 0.25f + Color * 0.75f;
+	// 背景のアートは塗りの色に薄く混ぜる（0.125）。ArtEnabled = 0（文字・アートを切ったとき）はベタ塗り
+	float3 rgb = (ArtEnabled > 0.5f) ? (BackgroundArtColor(input_.Local) * 0.125f + Color * 0.875f) : Color;
 
 	// 中身の UV（左上 0,0）。画面の向きのまま（帯の回転は掛けない）
 	const float2 rel = input_.Screen - ContentOffset;
