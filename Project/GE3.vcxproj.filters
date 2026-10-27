@@ -59,6 +59,9 @@
     <Filter Include="Src\Game\Enemies">
       <UniqueIdentifier>{f402c778-295f-49db-a234-0ac2a085231c}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Src\Game\UI">
+      <UniqueIdentifier>{3c6f0f2a-8d41-4b7e-9a52-6e1d2b7c4f90}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Src\Game\Scene">
       <UniqueIdentifier>{8d54533e-b3cd-4197-b4d0-324ff3d2a4dd}</UniqueIdentifier>
     </Filter>
@@ -586,6 +589,12 @@
     </ClCompile>
     <ClCompile Include="Src\Game\Game.CollisionLayer.ixx">
       <Filter>Src\Game</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Game\UI\Game.PauseMenu.ixx">
+      <Filter>Src\Game\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Game\UI\Game.PauseMenu.cpp">
+      <Filter>Src\Game\UI</Filter>
     </ClCompile>
     <ClCompile Include="Src\Test\ShowcaseCharacter\ShowcaseCharacter.cpp">
       <Filter>Src\Lumina\Test</Filter>

@@ -10,6 +10,8 @@ import Lumina;
 
 import Game.CollisionLayer;
 import Game.AnimEventDemo;
+import Game.PauseMenu;
+import Game.Scene;
 
 #if defined(_DEBUG)
 import Lumina.Utils.ImGui;
@@ -275,6 +277,24 @@ namespace Game::Scene::Impl {
 		Lumina::DX12::CommandList const& cmdList_,
 		Lumina::WinApp::RawInput const& input_
 	) {
+		// ポーズメニュー（ESC）。開いている間（と、決定で閉じたあと決定キーを離すまで）はゲームを丸ごと止める。
+		// Render はそのまま止まった状態を描き続け、その上に暗幕とメニューを重ねる
+		switch (PauseMenu_.Update(input_)) {
+			case Game::PauseMenu::Action::Restart:
+				RestartBattle();
+				break;
+			case Game::PauseMenu::Action::ReturnToTitle:
+				RestartBattle();			// 次に InGame に入ったときは最初から
+				Game::Scene::Flag = 0;
+				break;
+			default:
+				break;
+		}
+#if defined(_DEBUG)
+		PauseMenu_.DrawEditor();
+#endif
+		if (PauseMenu_.IsBlockingGame()) { return; }
+
 		switch (CurrentPhase_) {
 			case PHASE_STARTUP:
 				Startup(dxContext_, cmdList_, input_);

@@ -1,0 +1,16 @@
+{
+  "CenterX": 640.0,
+  "CenterY": 360.0,
+  "DimAlpha": 0.8830000162124634,
+  "DimFadeTime": 0.3199999928474426,
+  "HintAlpha": 0.24199999868869781,
+  "HintMarginX": 36.81100082397461,
+  "HintMarginY": 29.523000717163086,
+  "HintScale": 0.3199999928474426,
+  "LabelScale": 0.6050000190734863,
+  "ShowHint": true,
+  "Smoothing": 8.772000312805176,
+  "Spacing": 118.50499725341797,
+  "UnselectedAlpha": 0.1550000011920929,
+  "UnselectedScale": 0.8759999871253967
+}

@@ -634,6 +634,7 @@ namespace Game::Scene::Impl {
 		bool OutroIsPreview_{ false };
 		bool OutroSwitchSceneInPreview_{ false };	// Debug：プレビューでも最後に次のシーンへ渡す（保存しない）
 		float OutroDebugRate_{ 1.0f };				// Debug：再生速度（保存しない）
+		bool HasLeftScene_{ false };				// FinishOutro で次のシーンへ渡した。次に Update が呼ばれたら戻ってきたので、タイトルをやり直す
 
 		// 開始時のカメラ（ここから補間する。巻き戻しでも使う）
 		CameraPose OutroStartPose_{};

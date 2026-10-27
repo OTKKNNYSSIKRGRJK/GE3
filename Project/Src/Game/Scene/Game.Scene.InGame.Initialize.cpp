@@ -793,6 +793,8 @@ namespace Game::Scene::Impl {
 			AnimEventVfx_.Initialize(dxContext_, DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, Lumina::DX12::GraphicsPSO::DefaultDSVFormat);
 			// バトル開始の VS バナー。UIPass（バックバッファ SRGB 1 枚・深度なし）に描く。DSV は SpriteUI の PSO に合わせて既定値
 			VsBanner_.Initialize(dxContext_, assetMngr, DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, Lumina::DX12::GraphicsPSO::DefaultDSVFormat, { 1280.0f, 720.0f });
+			// ポーズメニュー。UIPass（バックバッファ SRGB 1 枚・深度なし）に描く
+			PauseMenu_.Initialize(dxContext_, assetMngr);
 			PlayAnimation(currentAnim_, currentAnimName_, animTimer_, IsAnimationLoop_, "Idle", true);
 			PlayAnimation(currentAnim_Boss_, currentAnimName_Boss_, animTimer_Boss_, IsAnimationLoop_Boss_, "Idle", true);
 			animTimer_ = 0.0f;

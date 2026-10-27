@@ -271,7 +271,8 @@ int32_t WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 			::SendMessage(mainWindow.Handle(), WM_CLOSE, 0, 0);
 		}
 
-		if (keyboard.IsPressed(Lumina::WinApp::KEY::ESC)) {
+		// ESC で閉じるのはタイトルだけ（InGame の ESC はポーズメニュー）
+		if (Game::Scene::Flag == 0 && keyboard.IsPressed(Lumina::WinApp::KEY::ESC)) {
 			::SendMessage(mainWindow.Handle(), WM_CLOSE, 0, 0);
 		}
 	}

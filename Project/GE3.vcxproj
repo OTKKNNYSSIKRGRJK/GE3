@@ -323,6 +323,8 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="Src\Lumina\Phys\Phys.DebugDraw.cpp" />
     <ClCompile Include="Src\Lumina\Phys\Phys.ixx" />
     <ClCompile Include="Src\Game\Game.CollisionLayer.ixx" />
+    <ClCompile Include="Src\Game\UI\Game.PauseMenu.ixx" />
+    <ClCompile Include="Src\Game\UI\Game.PauseMenu.cpp" />
     <ClCompile Include="Src\Test\ShowcaseCharacter\ShowcaseCharacter.cpp" />
     <ClCompile Include="Src\Test\ShowcaseCharacter\ShowcaseCharacter.ixx" />
     <ClCompile Include="Src\Test\Editor\Lumina.Editor.Layout.cpp" />

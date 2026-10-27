@@ -6,6 +6,19 @@ import Lumina;
 import Lumina.VsBanner;
 
 namespace Game::Scene::Impl {
+	void InGame::RestartBattle() {
+		CurrentPhase_ = PHASE_STARTUP;
+		NextPhaseCountDown_ = 90;
+		Player_->Initialize(Lumina::Vec3{ 10.0f, 0.25f, 0.0f });
+		Boss_Kinoko_->Initialize(Lumina::Vec3{ -10.0f, 0.0f, 0.0f });
+		UI_PlayerHPValue_ = Player_->HP_;	// HP バーの追従を満タンから始める（LOSE からだと 0 から伸び直していた）
+		playerATKFlag = 0;
+		// 飛んでいる弾は消す（弾の更新は IN_BATTLE だけなので、残すと STARTUP の間その場に止まって見え、当たり判定も残る）
+		PlayerBullets_->Clear();
+		BossBullets_->Clear();
+		VsBanner_.Reset();					// STARTUP に入ったら頭から再生される
+	}
+
 	template<>
 	void InGame::Startup(
 		[[maybe_unused]] Lumina::DX12::Context const& dxContext_,
@@ -14,6 +27,10 @@ namespace Game::Scene::Impl {
 	) {
 		bool canMove = 0;
 		Player_->Update(input_, canMove);
+
+		// 弾の描画データ（RestartBattle で消したあとの数）を GPU に写す。弾が無いので更新関数は要らない
+		PlayerBullets_->Update(cmdList_, Lumina::Mat4{});
+		BossBullets_->Update(cmdList_, Lumina::Mat4{});
 
 		// バトル開始の VS バナーを頭から再生し、終わったら IN_BATTLE へ（以前は 90 フレーム固定の待ち）
 		if (VsBanner_.CurrentState() == Lumina::VsBanner::Presenter::State::Idle) {
@@ -50,10 +67,7 @@ namespace Game::Scene::Impl {
 
 		using Lumina::WinApp::KEY;
 		if (NextPhaseCountDown_ < 0 && keyboard.IsPressed(KEY::SPACE)) {
-			CurrentPhase_ = PHASE_STARTUP;
-			NextPhaseCountDown_ = 90;
-			Player_->Initialize(Lumina::Vec3{ 10.0f, 0.25f, 0.0f });
-			Boss_Kinoko_->Initialize(Lumina::Vec3{ -10.0f, 0.0f, 0.0f });
+			RestartBattle();
 		}
 		else {
 			--NextPhaseCountDown_;
@@ -76,10 +90,7 @@ namespace Game::Scene::Impl {
 
 		using Lumina::WinApp::KEY;
 		if (NextPhaseCountDown_ < 0 && keyboard.IsPressed(KEY::SPACE)) {
-			CurrentPhase_ = PHASE_STARTUP;
-			NextPhaseCountDown_ = 90;
-			Player_->Initialize(Lumina::Vec3{ 10.0f, 0.25f, 0.0f });
-			Boss_Kinoko_->Initialize(Lumina::Vec3{ -10.0f, 0.0f, 0.0f });
+			RestartBattle();
 		}
 		else {
 			--NextPhaseCountDown_;

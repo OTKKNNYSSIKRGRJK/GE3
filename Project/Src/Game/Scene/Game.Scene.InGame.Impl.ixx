@@ -32,6 +32,8 @@ import Game.AnimEventVfx;
 
 import Lumina.VsBanner;
 
+import Game.PauseMenu;
+
 namespace Game::Scene::Impl {
 	struct SkinnedModel {
 		Lumina::CG3D::Collection Collection_;
@@ -230,6 +232,9 @@ namespace Game::Scene::Impl {
 
 		int playerATKFlag = 0;
 
+		// バトルを最初から（STARTUP の VS バナーから）やり直す。WIN / LOSE の SPACE と、ポーズメニューの Restart / Return to Title から呼ぶ
+		void RestartBattle();
+
 		// プレイヤーのアニメの時刻とアニメーションイベント（当たり判定のタイミングのテスト）。
 		// animTimer_ の代わりにこれが時刻を持つ。Debug では ImGui「AnimEvent Hitbox」で調整する
 		Game::AnimEventDemo::PlayerAnimEvents PlayerAnimEvents_{};
@@ -239,6 +244,9 @@ namespace Game::Scene::Impl {
 
 		// バトル開始の合図（VS バナー）。STARTUP で再生し、終わったら IN_BATTLE へ。Debug では ImGui「VS Banner」で調整する
 		Lumina::VsBanner::Presenter VsBanner_{};
+
+		// ポーズメニュー（ESC）。開いている間はゲームの Update を丸ごと止める（Render は止まった状態を描き続け、その上に暗幕とメニューを重ねる）
+		Game::PauseMenu::Menu PauseMenu_{};
 
 		//----	Skybox							----//
 		//----	------	------	------	------	----//

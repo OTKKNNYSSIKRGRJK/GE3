@@ -459,6 +459,10 @@ namespace Game::Scene::Impl {
 		}
 		SpriteRenderer_->BatchEnd();
 
+		// ポーズメニューのスプライトも、コピーを積むのでレンダーパスの外で写しておく。
+		// 閉じているときは右下の「ESC : ポーズ」（STARTUP の間は出さない）
+		PauseMenu_.Prepare(cmdList_, CurrentPhase_ != PHASE_STARTUP);
+
 		/*auto const& swapChain{ dxContext_.SwapChain() };
 		auto rtv{ swapChain.BackBufferRTVCPUHandle() };
 		auto dsv{ swapChain.DSVCPUHandle() };
@@ -488,6 +492,8 @@ namespace Game::Scene::Impl {
 			CollisionDebug_.Render(cmdList_, PlayerCamera_->VP);
 		}
 #endif
+		// ポーズメニュー（開いている間だけ。暗幕 → ラベル、アルファ合成）。一番手前
+		PauseMenu_.Render();
 		UIPass_.End();
 
 		SpriteRenderer_->End();

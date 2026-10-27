@@ -216,6 +216,13 @@ namespace Game::Scene::Impl {
 	) {
 		// シーンの切り替え（Start / Exit）はメニュー（UpdateUI）が行う
 
+		// InGame から戻ってきた（ポーズメニューの Return to Title）: Outro を巻き戻し、メニューを黒からのフェードインでやり直す
+		if (HasLeftScene_) {
+			HasLeftScene_ = false;
+			RewindOutro();
+			ResetMenu();
+		}
+
 		constexpr float twoPi{ std::numbers::pi_v<float> * 2.0f };
 
 		// Outro 中は Pause / TimeScale を無視して、Outro の時計と同じ刻み（固定 1/60 秒）でシーンを進める。

@@ -174,6 +174,7 @@ namespace Game::Scene::Impl {
 		}*/
 
 		// 次のシーンへ渡す。遷移シーンを作ったら、渡す先はここだけ変える
+		HasLeftScene_ = true;
 		Game::Scene::Flag = 1;
 	}
 
