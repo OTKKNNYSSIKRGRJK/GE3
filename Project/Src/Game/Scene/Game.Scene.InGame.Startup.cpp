@@ -17,6 +17,7 @@ namespace Game::Scene::Impl {
 		PlayerBullets_->Clear();
 		BossBullets_->Clear();
 		VsBanner_.Reset();					// STARTUP に入ったら頭から再生される
+		GradeFx_.Reset();					// ゲームオーバーの色抜けを元に戻す
 	}
 
 	template<>

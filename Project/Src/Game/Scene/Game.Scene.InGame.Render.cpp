@@ -447,10 +447,17 @@ namespace Game::Scene::Impl {
 
 		auto const& swapChain{ dxContext_.SwapChain() };
 
+		// ゲームオーバーの演出中は HP バーをフェードアウトして消す（元の不透明度は Initialize.cpp の RGBA と同じ 0.25）
+		float const uiAlpha{ GradeFx_.UiAlpha() };
+		UI_PlayerHPBar_.RGBA({ 1.0f, 1.0f, 1.0f, 0.25f * uiAlpha });
+		UI_BossHPBar_.RGBA({ 1.0f, 1.0f, 1.0f, 0.25f * uiAlpha });
+
 		SpriteRenderer_->Begin(cmdList_);
 		SpriteRenderer_->BatchBegin();
-		SpriteRenderer_->Batch(UI_PlayerHPBar_);
-		SpriteRenderer_->Batch(UI_BossHPBar_);
+		if (uiAlpha > 0.0f) {
+			SpriteRenderer_->Batch(UI_PlayerHPBar_);
+			SpriteRenderer_->Batch(UI_BossHPBar_);
+		}
 		if (CurrentPhase_ == PHASE_WIN) {
 			SpriteRenderer_->Batch(UI_WIN_);
 		}
@@ -461,7 +468,7 @@ namespace Game::Scene::Impl {
 
 		// ポーズメニューのスプライトも、コピーを積むのでレンダーパスの外で写しておく。
 		// 閉じているときは右下の「ESC : ポーズ」（STARTUP の間は出さない）
-		PauseMenu_.Prepare(cmdList_, CurrentPhase_ != PHASE_STARTUP);
+		PauseMenu_.Prepare(cmdList_, CurrentPhase_ != PHASE_STARTUP && uiAlpha >= 1.0f);
 
 		/*auto const& swapChain{ dxContext_.SwapChain() };
 		auto rtv{ swapChain.BackBufferRTVCPUHandle() };
@@ -469,7 +476,15 @@ namespace Game::Scene::Impl {
 		PostProcessingPass_.RenderTarget(0U).View() = rtv;
 		PostProcessingPass_.DepthStencil().View() = dsv;*/
 
-		UIPass_.RenderTarget(0U).View() = swapChain.BackBufferRTVCPUHandle();
+		// ゲームオーバーの色抜けの間だけ、UI まで中間 RT に描き、UIPass の後ろでバックバッファへ色抜けして写す。
+		// それ以外は今までどおりバックバッファへ直接描く
+		bool const gradeActive{ GradeFx_.IsActive() };
+		if (gradeActive) {
+			UIPass_.RenderTarget(0U).View() = GradeFx_.BeginSource(cmdList_);
+		}
+		else {
+			UIPass_.RenderTarget(0U).View() = swapChain.BackBufferRTVCPUHandle();
+		}
 
 		UIPass_.Begin(cmdList_);
 		PrimitiveManager2_->Render(
@@ -497,6 +512,10 @@ namespace Game::Scene::Impl {
 		UIPass_.End();
 
 		SpriteRenderer_->End();
+
+		if (gradeActive) {
+			GradeFx_.Apply(dxContext_, cmdList_);
+		}
 	}
 }
 

@@ -149,6 +149,7 @@ namespace Game::Scene::Impl {
 			}
 			else if (Player_->HP_ <= 0.0f) {
 				CurrentPhase_ = PHASE_LOSE;
+				GradeFx_.Start();			// 色抜け（グラデーションマップ＋ビネット）を頭から
 			}
 			NextPhaseCountDown_ = 90;
 		}

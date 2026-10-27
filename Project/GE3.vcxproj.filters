@@ -596,6 +596,12 @@
     <ClCompile Include="Src\Game\UI\Game.PauseMenu.cpp">
       <Filter>Src\Game\UI</Filter>
     </ClCompile>
+    <ClCompile Include="Src\Game\UI\Game.GameOverGrade.ixx">
+      <Filter>Src\Game\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Game\UI\Game.GameOverGrade.cpp">
+      <Filter>Src\Game\UI</Filter>
+    </ClCompile>
     <ClCompile Include="Src\Test\ShowcaseCharacter\ShowcaseCharacter.cpp">
       <Filter>Src\Lumina\Test</Filter>
     </ClCompile>
@@ -655,6 +661,12 @@
       <Filter>Assets\Effects</Filter>
     </None>
     <None Include="Assets\Effects\VsBanner.json">
+      <Filter>Assets\Effects</Filter>
+    </None>
+    <None Include="Assets\Effects\GameOverGrade.hlsl">
+      <Filter>Assets\Effects</Filter>
+    </None>
+    <None Include="Assets\Effects\GameOverGrade.json">
       <Filter>Assets\Effects</Filter>
     </None>
     <None Include="Assets\Title\TitlePost.hlsl">

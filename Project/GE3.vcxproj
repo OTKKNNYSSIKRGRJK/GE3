@@ -325,6 +325,8 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="Src\Game\Game.CollisionLayer.ixx" />
     <ClCompile Include="Src\Game\UI\Game.PauseMenu.ixx" />
     <ClCompile Include="Src\Game\UI\Game.PauseMenu.cpp" />
+    <ClCompile Include="Src\Game\UI\Game.GameOverGrade.ixx" />
+    <ClCompile Include="Src\Game\UI\Game.GameOverGrade.cpp" />
     <ClCompile Include="Src\Test\ShowcaseCharacter\ShowcaseCharacter.cpp" />
     <ClCompile Include="Src\Test\ShowcaseCharacter\ShowcaseCharacter.ixx" />
     <ClCompile Include="Src\Test\Editor\Lumina.Editor.Layout.cpp" />
@@ -357,6 +359,8 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <None Include="Assets\Effects\RadialRays.json" />
     <None Include="Assets\Effects\VsBanner.hlsl" />
     <None Include="Assets\Effects\VsBanner.json" />
+    <None Include="Assets\Effects\GameOverGrade.hlsl" />
+    <None Include="Assets\Effects\GameOverGrade.json" />
     <None Include="Assets\Title\TitlePost.hlsl" />
     <None Include="Assets\Title\TitlePost.json" />
     <None Include="Assets\Title\TitleCrack.hlsli" />

@@ -292,8 +292,11 @@ namespace Game::Scene::Impl {
 		}
 #if defined(_DEBUG)
 		PauseMenu_.DrawEditor();
+		GradeFx_.DrawEditor();		// ポーズ中も触れるよう、ゲームを止める判定より前で呼ぶ
 #endif
 		if (PauseMenu_.IsBlockingGame()) { return; }
+
+		GradeFx_.Update(1.0f / 60.0f);
 
 		switch (CurrentPhase_) {
 			case PHASE_STARTUP:

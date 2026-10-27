@@ -33,6 +33,7 @@ import Game.AnimEventVfx;
 import Lumina.VsBanner;
 
 import Game.PauseMenu;
+import Game.GameOverGrade;
 
 namespace Game::Scene::Impl {
 	struct SkinnedModel {
@@ -247,6 +248,10 @@ namespace Game::Scene::Impl {
 
 		// ポーズメニュー（ESC）。開いている間はゲームの Update を丸ごと止める（Render は止まった状態を描き続け、その上に暗幕とメニューを重ねる）
 		Game::PauseMenu::Menu PauseMenu_{};
+
+		// ゲームオーバー（LOSE）の色抜け演出（グラデーションマップ＋ビネット）。演出中だけ UIPass を中間 RT に描き、その後ろでバックバッファへ写す。
+		// Debug では ImGui「GameOver Grade」で調整する
+		Game::GameOverGrade::Effect GradeFx_{};
 
 		//----	Skybox							----//
 		//----	------	------	------	------	----//
