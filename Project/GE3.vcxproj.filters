@@ -344,6 +344,24 @@
     <ClCompile Include="Src\Game\PlayerCamera.ixx">
       <Filter>Src\Game</Filter>
     </ClCompile>
+    <ClCompile Include="Src\Game\Game.GameOverCamera.ixx">
+      <Filter>Src\Game</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Game\Game.GameOverCamera.cpp">
+      <Filter>Src\Game</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Game\Game.GameOverDirector.ixx">
+      <Filter>Src\Game</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Game\Game.GameOverDirector.cpp">
+      <Filter>Src\Game</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Game\Game.GameOverShatter.ixx">
+      <Filter>Src\Game</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Game\Game.GameOverShatter.cpp">
+      <Filter>Src\Game</Filter>
+    </ClCompile>
     <ClCompile Include="Src\Game\Scene\Game.Scene.InGame.Initialize.cpp">
       <Filter>Src\Game\Scene\InGame</Filter>
     </ClCompile>

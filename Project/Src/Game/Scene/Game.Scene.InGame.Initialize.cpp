@@ -124,6 +124,8 @@ namespace Game::Scene::Impl {
 					{ "Blank", "Assets/Img/Blank.png" },
 					{ "Win", "Assets/Img/YouWin.png" },
 					{ "Lose", "Assets/Img/YouLose.png" },
+					{ "GameOverLabel", "Assets/UI/Label.GameOver.png" },			// 6：「Game Over」
+					{ "GameOverPrompt", "Assets/UI/Label.PressSpace.png" },		// 7：「Press Space to Continue」
 				}
 			);
 
@@ -636,6 +638,43 @@ namespace Game::Scene::Impl {
 						{ DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, },
 						Lumina::DX12::GraphicsPSO::DefaultDSVFormat
 						);
+
+					// 結果表示（LOSE）用：別のレンダラと、そのルートシグネチャで作った PSO_SpriteUI_ と同じ PSO
+					ResultRenderer_.reset(new Lumina::SpriteRenderer{});
+					ResultRenderer_->Initialize(dxContext_, 256U);
+					// ラベルの文字（白・透明背景）を普通に重ねるので、通常のアルファ合成（本編の UI 用 PSO は加算で、明るい背景では文字が埋もれる）
+					Lumina::DX12::BlendState resultBlendState{};
+					resultBlendState.RenderTarget[0] = D3D12_RENDER_TARGET_BLEND_DESC{
+						.BlendEnable{ true },
+						.LogicOpEnable{ false },
+						.SrcBlend{ D3D12_BLEND_SRC_ALPHA },
+						.DestBlend{ D3D12_BLEND_INV_SRC_ALPHA },
+						.BlendOp{ D3D12_BLEND_OP_ADD },
+						.SrcBlendAlpha{ D3D12_BLEND_ONE },
+						.DestBlendAlpha{ D3D12_BLEND_INV_SRC_ALPHA },
+						.BlendOpAlpha{ D3D12_BLEND_OP_ADD },
+						.LogicOp{ D3D12_LOGIC_OP_NOOP },
+						.RenderTargetWriteMask{ D3D12_COLOR_WRITE_ENABLE_ALL },
+					};
+					PSO_SpriteResult_.Initialize(
+						device,
+						ResultRenderer_->RootSignature(),
+						VS_Sprite_,
+						PS_SpriteUI_,
+						resultBlendState,
+						Lumina::DX12::RasterizerState{
+							.FillMode{ D3D12_FILL_MODE_SOLID },
+							.CullMode{ D3D12_CULL_MODE_NONE },
+						},
+						Lumina::DX12::DepthStencilState{
+							.DepthEnable{ false },
+							.StencilEnable{ false },
+						},
+						spriteInputLayout,
+						D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE,
+						{ DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, },
+						Lumina::DX12::GraphicsPSO::DefaultDSVFormat
+					);
 			}
 
 			// PlayerHPBar
@@ -675,6 +714,17 @@ namespace Game::Scene::Impl {
 				UI_LOSE_.AnchorPoint({ 0.5f, 0.5f });
 				UI_LOSE_.TextureID(5U);
 				UI_LOSE_.RGBA({ 1.0f, 1.0f, 1.0f, 1.0f });
+				// 「Game Over」と「Press Space to Continue」。位置と大きさは毎フレーム Director の値で決める（Render.cpp）
+				UI_GAMEOVER_.Translate({ 640.0f, 290.0f });
+				UI_GAMEOVER_.Scale({ 668.0f, 114.0f });
+				UI_GAMEOVER_.AnchorPoint({ 0.5f, 0.5f });
+				UI_GAMEOVER_.TextureID(6U);
+				UI_GAMEOVER_.RGBA({ 1.0f, 1.0f, 1.0f, 1.0f });
+				UI_GAMEOVER_PROMPT_.Translate({ 640.0f, 430.0f });
+				UI_GAMEOVER_PROMPT_.Scale({ 531.0f, 67.0f });
+				UI_GAMEOVER_PROMPT_.AnchorPoint({ 0.5f, 0.5f });
+				UI_GAMEOVER_PROMPT_.TextureID(7U);
+				UI_GAMEOVER_PROMPT_.RGBA({ 1.0f, 1.0f, 1.0f, 1.0f });
 			}
 
 			//// Manual Button
@@ -797,6 +847,17 @@ namespace Game::Scene::Impl {
 			PauseMenu_.Initialize(dxContext_, assetMngr);
 			// ゲームオーバーの色抜け。UIPass の描画先を中間 RT（SRGB 1 枚・深度なし）に切り替えて掛ける
 			GradeFx_.Initialize(dxContext_);
+			CameraFx_.Initialize();
+			// ゲームオーバーの時計と倒れるモーション（Dying.gltf は 11 本入り。使うのは設定の ClipName。見つからなければ最後の 1 本）
+			{
+				auto animation_dying{ Lumina::CG3D::LoadAnimationFile("Dying.gltf", "Assets/Neki") };
+				// Dying.gltf の骨は Neki と同じ骨格で名前だけ違う。骨格を作って、クリップの骨の名前を付け替えるのに使う
+				auto const dyingCollection{ Lumina::CG3D::Import("Dying.gltf", "Assets/Neki") };
+				auto const dyingSkeleton{ Lumina::CG3D::CreateSkeleton(dyingCollection.Root) };
+				// 粉々の演出。体のメッシュと影響（CPU で粒子の出る位置を求める）を渡す。Director がこれを時間に合わせて動かす
+				Shatter_.Initialize(dxContext_, PlayerSkinnedModel_->Collection_.Meshes[0], PlayerSkinnedInstance_->SkinCluster_);
+				GameOver_.Initialize(animation_dying, dyingSkeleton, PlayerSkinnedInstance_->Skeleton_, GradeFx_, CameraFx_, Shatter_);
+			}
 			PlayAnimation(currentAnim_, currentAnimName_, animTimer_, IsAnimationLoop_, "Idle", true);
 			PlayAnimation(currentAnim_Boss_, currentAnimName_Boss_, animTimer_Boss_, IsAnimationLoop_Boss_, "Idle", true);
 			animTimer_ = 0.0f;

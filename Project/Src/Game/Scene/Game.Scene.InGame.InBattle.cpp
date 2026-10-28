@@ -112,7 +112,7 @@ namespace Game::Scene::Impl {
 		if (atkCD > 0) {
 			atkCD += 1;
 		}
-		if (!Player_->IsBeingKnockedBack() && keyboard.IsPressed(KEY::Z) && atkCD == 0) {
+		if (!Player_->IsBeingKnockedBack() && !Player_->IsInputLocked() && keyboard.IsPressed(KEY::Z) && atkCD == 0) {
 			playerATK(1.0f, 0.0f, 0.0f);
 			playerATK(0.8f, -0.1f, 0.2f);
 			playerATK(0.9f, 0.1f, -0.2f);
@@ -127,12 +127,17 @@ namespace Game::Scene::Impl {
 			atkCD2 += 1;
 		}
 		if (playerATKFlag != 3) {
-			if (!Player_->IsBeingKnockedBack() && keyboard.IsPressed(KEY::Z) && (atkCD2 == 0 || atkCD2 > 30)) {
+			if (!Player_->IsBeingKnockedBack() && !Player_->IsInputLocked() && keyboard.IsPressed(KEY::Z) && (atkCD2 == 0 || atkCD2 > 30)) {
 				atkCD2 = 1;
 				if (playerATKFlag == 0) { playerATKFlag = 1; }
 				else if (playerATKFlag == 1) { playerATKFlag = 2; }
 				else if (playerATKFlag == 2) { playerATKFlag = 3; }
 			}
+		}
+
+		// Q: 自害（公開デモ用。HP を 0 にするだけで、あとは本当に死んだときと同じ流れ = LOSE → ゲームオーバー演出 → SPACE で再開）
+		if (keyboard.IsPressed(KEY::Q) && !Player_->IsInputLocked() && Player_->HP_ > 0.0f) {
+			Player_->HP_ = 0.0f;
 		}
 
 		PlayerBullets_->Update(cmdList_, Mat4_I, UpdatePlayerBullet);
@@ -149,7 +154,7 @@ namespace Game::Scene::Impl {
 			}
 			else if (Player_->HP_ <= 0.0f) {
 				CurrentPhase_ = PHASE_LOSE;
-				GradeFx_.Start();			// 色抜け（グラデーションマップ＋ビネット）を頭から
+				GameOver_.Start();			// 色抜け・カメラ・倒れるモーション・結果表示を同じ時刻から（通常は Update.cpp が HP 0 になった瞬間に開始済み）
 			}
 			NextPhaseCountDown_ = 90;
 		}

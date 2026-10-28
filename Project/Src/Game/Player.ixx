@@ -29,6 +29,14 @@ namespace Game {
 
 		constexpr int32_t IsBeingKnockedBack() const noexcept { return IsBeingKnockedBack_; }
 
+		// 入力を受け付けない状態にする（ゲームオーバー中）。キーは読まず、横の移動・ダッシュ・吹き飛ばしは止まる。
+		// 空中なら落ちて着地する（Update は呼び続けること）。Initialize で解除される
+		void LockInput(bool locked_) noexcept { InputLocked_ = locked_; }
+		constexpr bool IsInputLocked() const noexcept { return InputLocked_; }
+
+		// 巻き戻し（ゲームオーバーのあと、再開の前）：水平の位置と向きを決める。次の Update で ModelTranslate / ModelRotate に反映される
+		void SetRewindPose(float x_, float z_, float angle_) noexcept { Position_.x = x_; Position_.z = z_; Angle_ = angle_; }
+
 		void Reset();
 
 	public:
@@ -81,6 +89,7 @@ namespace Game {
 		Lumina::Vec2 KnockBackDir_{};
 		int32_t IsBeingKnockedBack_{};
 		int32_t IsReturningToCenter_{};
+		bool InputLocked_{ false };
 
 	public:
 		// コライダ（形状はメッシュ空間で持つ。World の更新は親行列を知っている InGame が行う）

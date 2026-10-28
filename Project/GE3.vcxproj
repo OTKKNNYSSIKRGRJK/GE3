@@ -199,6 +199,12 @@ copy "$(WindowsSdkDir)bin\$(TargetPlatformVersion)\x64\dxil.dll" "$(TargetDir)dx
     <ClCompile Include="Src\Game\Player.cpp" />
     <ClCompile Include="Src\Game\Player.ixx" />
     <ClCompile Include="Src\Game\PlayerCamera.ixx" />
+    <ClCompile Include="Src\Game\Game.GameOverCamera.ixx" />
+    <ClCompile Include="Src\Game\Game.GameOverCamera.cpp" />
+    <ClCompile Include="Src\Game\Game.GameOverDirector.ixx" />
+    <ClCompile Include="Src\Game\Game.GameOverDirector.cpp" />
+    <ClCompile Include="Src\Game\Game.GameOverShatter.ixx" />
+    <ClCompile Include="Src\Game\Game.GameOverShatter.cpp" />
     <ClCompile Include="Src\Game\Scene\Game.Scene.InGame.Impl.ixx" />
     <ClCompile Include="Src\Game\Scene\Game.Scene.InGame.InBattle.cpp" />
     <ClCompile Include="Src\Game\Scene\Game.Scene.InGame.Initialize.cpp" />

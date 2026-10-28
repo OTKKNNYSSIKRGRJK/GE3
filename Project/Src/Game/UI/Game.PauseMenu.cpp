@@ -134,6 +134,7 @@ namespace Game::PauseMenu {
 					{ "Pause.Item1", ItemImages[1] },
 					{ "Pause.Item2", ItemImages[2] },
 					{ "Pause.Hint", HintImage },
+					{ "Pause.QuitHint", QuitHintImage },
 				}
 			);
 			GlobalTable_Textures_ = dxContext_.GlobalDescriptorHeap().Allocate(8U);
@@ -169,6 +170,9 @@ namespace Game::PauseMenu {
 		HintSize_ = ReadPngSize(HintImage).value_or(Lumina::Float2{ 597.0f, 128.0f });
 		Hint_.AnchorPoint({ 1.0f, 1.0f });		// 右下の角に合わせる
 		Hint_.TextureID(1U + NumItems);
+		QuitHintSize_ = ReadPngSize(QuitHintImage).value_or(Lumina::Float2{ 387.0f, 134.0f });
+		QuitHint_.AnchorPoint({ 1.0f, 1.0f });	// 右下の角に合わせる（「ESC : ポーズ」の上に積む）
+		QuitHint_.TextureID(2U + NumItems);
 
 		Close();
 
@@ -284,14 +288,21 @@ namespace Game::PauseMenu {
 		Hint_.Translate({ 1280.0f - style.HintMarginX, 720.0f - style.HintMarginY });
 		Hint_.Scale({ HintSize_.x * scale, HintSize_.y * scale });
 		Hint_.RGBA({ 1.0f, 1.0f, 1.0f, Saturate(style.HintAlpha) });
+
+		// 「Q : 自害」は「ESC : ポーズ」の真上（右端そろえ）
+		float const hintHeight{ HintSize_.y * scale };
+		QuitHint_.Translate({ 1280.0f - style.HintMarginX, 720.0f - style.HintMarginY - hintHeight - style.QuitHintGap });
+		QuitHint_.Scale({ QuitHintSize_.x * scale, QuitHintSize_.y * scale });
+		QuitHint_.RGBA({ 1.0f, 1.0f, 1.0f, Saturate(style.HintAlpha) });
 	}
 
-	void Menu::Prepare(Lumina::DX12::CommandList const& cmdList_, bool showHint_) {
+	void Menu::Prepare(Lumina::DX12::CommandList const& cmdList_, bool showHint_, bool showQuitHint_) {
 		IsPrepared_ = false;
 		if (!Renderer_) { return; }
 		bool const drawMenu{ IsOpen_ };
 		bool const drawHint{ !IsOpen_ && showHint_ && Look.ShowHint };
-		if (!drawMenu && !drawHint) { return; }
+		bool const drawQuitHint{ !IsOpen_ && showQuitHint_ && Look.ShowQuitHint };
+		if (!drawMenu && !drawHint && !drawQuitHint) { return; }
 
 		// 描画順 = Batch 順。暗幕 → ラベル（閉じているときは操作ヒントだけ）。
 		// BatchEnd がアップロード → デフォルトバッファのコピーを積む（パスの外で）
@@ -306,7 +317,8 @@ namespace Game::PauseMenu {
 		}
 		else {
 			UpdateHint();
-			renderer.Batch(Hint_);
+			if (drawHint) { renderer.Batch(Hint_); }
+			if (drawQuitHint) { renderer.Batch(QuitHint_); }
 		}
 		renderer.BatchEnd();
 		IsPrepared_ = true;
@@ -346,6 +358,8 @@ namespace Game::PauseMenu {
 		Read(root, "HintMarginY", s.HintMarginY);
 		Read(root, "HintScale", s.HintScale);
 		Read(root, "HintAlpha", s.HintAlpha);
+		Read(root, "ShowQuitHint", s.ShowQuitHint);
+		Read(root, "QuitHintGap", s.QuitHintGap);
 		Status_ = "Loaded.";
 		return true;
 	}
@@ -367,6 +381,8 @@ namespace Game::PauseMenu {
 			{ "HintMarginY", s.HintMarginY },
 			{ "HintScale", s.HintScale },
 			{ "HintAlpha", s.HintAlpha },
+			{ "ShowQuitHint", s.ShowQuitHint },
+			{ "QuitHintGap", s.QuitHintGap },
 		};
 
 		std::ofstream ofs{ ConfigPath, std::ios::out | std::ios::trunc };
@@ -423,6 +439,9 @@ namespace Game::PauseMenu {
 		ImGui::SliderFloat("Hint scale", &style.HintScale, 0.05f, 1.0f);
 		ImGui::SliderFloat("Hint alpha", &style.HintAlpha, 0.0f, 1.0f);
 		ImGui::TextDisabled("%s (%.0fx%.0f)", HintImage, HintSize_.x, HintSize_.y);
+		ImGui::Checkbox("Show quit hint (Q)", &style.ShowQuitHint);
+		ImGui::SliderFloat("Quit hint gap", &style.QuitHintGap, -40.0f, 100.0f);
+		ImGui::TextDisabled("%s (%.0fx%.0f)", QuitHintImage, QuitHintSize_.x, QuitHintSize_.y);
 		ImGui::End();
 		#endif
 	}

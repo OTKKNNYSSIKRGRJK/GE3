@@ -65,6 +65,10 @@ export namespace Game::PauseMenu {
 		float HintMarginY{ 16.0f };		// 画面の下端から（px）
 		float HintScale{ 0.3f };		// 画像の px に掛ける（597x128 → 約 179x38）
 		float HintAlpha{ 0.8f };
+
+		// 「Q : 自害」（Assets/UI/Label.QuitHint.png）。「ESC : ポーズ」の真上に右端を揃えて積む。大きさ・濃さはヒントと同じ
+		bool ShowQuitHint{ true };
+		float QuitHintGap{ 0.0f };		// 「ESC : ポーズ」との間（px）。画像の余白があるので 0 でも少し空く
 	};
 
 	class Menu {
@@ -85,7 +89,8 @@ export namespace Game::PauseMenu {
 		// 描画は 2 段に分ける（SpriteRenderer の BatchEnd がコピー（CopyBufferRegion）を積むので、レンダーパスの中では呼べない）。
 		// Prepare: レンダーパスの外で呼ぶ。開いているときはメニュー、閉じているときは（showHint_ なら）操作ヒントを GPU へ写す
 		// Render : レンダーパスの中で呼ぶ。Prepare したフレームだけ描く。RT / Viewport / DescriptorHeap は呼び出し側で設定済みであること
-		void Prepare(Lumina::DX12::CommandList const& cmdList_, bool showHint_);
+		// showQuitHint_ : 「Q : 自害」を出してよいか（Q が効く間だけ。InGame は IN_BATTLE）
+		void Prepare(Lumina::DX12::CommandList const& cmdList_, bool showHint_, bool showQuitHint_ = false);
 		void Render();
 
 		void DrawEditor();							// ImGui「Pause Menu」（Debug のみ）
@@ -104,6 +109,7 @@ export namespace Game::PauseMenu {
 		};
 		static constexpr char const* ItemNames[NumItems]{ "Resume", "Restart", "Return to Title" };
 		static constexpr char const* HintImage{ "Assets/UI/Label.PauseHint.png" };
+		static constexpr char const* QuitHintImage{ "Assets/UI/Label.QuitHint.png" };
 		static constexpr char const* ConfigPath{ "Assets/Configs/PauseMenu.json" };
 
 	private:
@@ -116,7 +122,7 @@ export namespace Game::PauseMenu {
 		Lumina::DX12::Shader VS_{};
 		Lumina::DX12::Shader PS_{};
 		Lumina::DX12::GraphicsPSO PSO_{};
-		Lumina::DX12::DescriptorTable GlobalTable_Textures_{};	// [0] = Blank、[1 + i] = 項目 i、[1 + NumItems] = 操作ヒント
+		Lumina::DX12::DescriptorTable GlobalTable_Textures_{};	// [0] = Blank、[1 + i] = 項目 i、[1 + NumItems] = 操作ヒント、[2 + NumItems] = 「Q : 自害」
 		Lumina::DX12::UploadBuffer UB_Ortho_{};
 		Lumina::DX12::DescriptorHeap LocalHeap_{};
 
@@ -124,6 +130,8 @@ export namespace Game::PauseMenu {
 		std::array<Lumina::Sprite, NumItems> Items_{};
 		std::array<Lumina::Float2, NumItems> ImageSizes_{};		// 画像の px（読めなければ 720x180）
 		Lumina::Sprite Hint_{};
+		Lumina::Sprite QuitHint_{};
+		Lumina::Float2 QuitHintSize_{};							// 「Q : 自害」の画像の px
 		Lumina::Float2 HintSize_{};								// 操作ヒントの画像の px
 
 		bool IsOpen_{ false };

@@ -32,6 +32,15 @@ namespace Game {
 
 		void Reset(Lumina::Vec3 const& initPos_);
 
+		// 巻き戻し（ゲームオーバーのあと、再開の前）：水平の位置と向き（ModelRotate の Y）を直接決める。Update を止めている間に呼ぶ
+		void SetRewindPose(float x_, float z_, float rotateY_) noexcept {
+			Position_.x = x_;
+			Position_.z = z_;
+			ModelTranslate_.x = x_;
+			ModelTranslate_.z = z_;
+			ModelRotate_.y = rotateY_;
+		}
+
 	public:
 		void KnockedBack(float power_, Lumina::Vec2 const& dir_);
 

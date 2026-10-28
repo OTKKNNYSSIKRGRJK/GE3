@@ -138,7 +138,19 @@ namespace Game {
 		Lumina::WinApp::RawInput const& input_,
 		bool const& canMove_
 	) {
-		if (IsReturningToCenter_) {
+		if (InputLocked_) {
+			// 入力ロック中（ゲームオーバー）：キーは読まない。横の動き・ダッシュ・吹き飛ばしを止める（ジャンプ中なら下で落ちる）
+			Velocity_ = {};
+			SpeedByInput_ = 0.0f;
+			SpeedByDash_ = 0.0f;
+			DashStatus_ = -1;
+			Trigger_Jump_ = 0;
+			Trigger_Dash_ = 0;
+			SpeedByKnockBack_ = 0.0f;
+			IsBeingKnockedBack_ = 0;
+			IsReturningToCenter_ = 0;
+		}
+		else if (IsReturningToCenter_) {
 			ReturnToCenter();
 		}
 		else if (IsBeingKnockedBack_) {
@@ -172,7 +184,9 @@ namespace Game {
 		ModelRotate_.y = ModelRotate_.y * 0.85f + (-Angle_) * 0.15f;
 
 		ModelTranslate_.y += 1.25f + std::sin(Floating_.Timer * Floating_.AngularFrequency) * Floating_.Amplitude;
-		Floating_.Timer += 1.0f;
+		if (!InputLocked_) {		// ロック中は止める（倒れた体が上下に揺れないように）
+			Floating_.Timer += 1.0f;
+		}
 
 		if (HP_ < 0.0f) { HP_ = 0.0f; }
 
@@ -217,6 +231,8 @@ namespace Game {
 		IsBeingKnockedBack_ = 0;
 		IsReturningToCenter_ = 0;
 		
+		InputLocked_ = false;
+
 		MaxHP_ = 150.0f;
 		Inv_MaxHP_ = 1.0f / MaxHP_;
 		HP_ = MaxHP_;

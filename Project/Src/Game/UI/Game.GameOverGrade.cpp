@@ -46,7 +46,21 @@ namespace Game::GameOverGrade {
 			float ViewLuma;
 			float DitherAmount;
 
-			float Padding[8];
+			float ChannelSplitPixels;		// 今のずれ（px。脈動と包絡を含む。0 ならスキップ）
+			float ChannelSplitRadial;
+			float ChannelSplitDirX;
+			float ChannelSplitDirY;
+
+			float BlurPixels;				// 今のぼかし半径（px）。0 ならスキップ
+			float ChannelSplitFocusU;		// キャラの画面上の位置（UV）
+			float ChannelSplitFocusV;
+			float ChannelSplitFocusRadius;	// px
+
+			float ChannelSplitFar;			// 遠くに残る割合
+			float ChannelSplitCenterSoft;	// px
+			float SpinAngle;				// 回転ぼかしの振れ幅（ラジアン。0 ならスキップ）
+			float SpinFocus;				// 0 = 画面の中心、1 = キャラの位置
+			float Padding[4];
 		};
 		static_assert(sizeof(GradeConstants) % 32U == 0U);
 
@@ -61,6 +75,38 @@ namespace Game::GameOverGrade {
 		auto Progress(float elapsed_, float delay_, float duration_) -> float {
 			if (duration_ <= 1.0e-4f) { return (elapsed_ >= delay_) ? 1.0f : 0.0f; }
 			return SmootherStep((elapsed_ - delay_) / duration_);
+		}
+
+		// 鼓動の 1 拍：phase_ は拍の頭からの位置（拍の周期を 1 とする）。短い立ち上がりのあと指数で減衰する。頂点は 1 に正規化する
+		auto Beat(float phase_, float decay_) -> float {
+			if (phase_ < 0.0f) { return 0.0f; }
+			float const decay{ std::max(decay_, 1.0e-3f) };
+			auto const raw{ [decay](float p_) -> float { return SmootherStep(p_ / 0.05f) * std::exp(-p_ / decay); } };
+
+			// 頂点の高さ（立ち上がりと減衰の積の最大値。頂点は拍の頭から 0.05〜0.2 の範囲にあるので、そこを粗くサンプルすれば十分）
+			float peak{ 1.0e-3f };
+			for (int idx{ 1 }; idx <= 80; ++idx) {
+				peak = std::max(peak, raw(0.0025f * static_cast<float>(idx)));
+			}
+			return Saturate(raw(phase_) / peak);
+		}
+
+		// t_ 秒での脈動の強さ（0..1）。1 拍に 2 つの拍（ドクン、ドクン）。拍の合間は PulseBase まで下がる
+		auto Heartbeat(Style const& style_, float t_) -> float {
+			float const period{ std::max(style_.PulsePeriod, 0.05f) };
+			float const time{ std::max(t_, 0.0f) };
+			float baseScale{ 1.0f };
+			if (style_.PulseCount > 0) {
+				float const pulses{ time / period };
+				float const lastStart{ static_cast<float>(style_.PulseCount - 1) };
+				if (pulses >= static_cast<float>(style_.PulseCount)) { return 0.0f; }		// 回数を打ち終えたら止まる
+				if (pulses >= lastStart) { baseScale = 1.0f - SmootherStep(pulses - lastStart); }		// 最後の 1 周期で、拍の合間の残りも消す
+			}
+			float const phase{ std::fmod(time, period) / period };
+			float const first{ Beat(phase, style_.PulseDecay) };
+			float const second{ Saturate(style_.PulseSecond) * Beat(phase - 0.3f, style_.PulseDecay) };
+			float const base{ Saturate(style_.PulseBase) * baseScale };
+			return base + (1.0f - base) * std::max(first, second);
 		}
 
 		// 位置の昇順に並べる（先頭から count_ 個）
@@ -78,6 +124,10 @@ namespace Game::GameOverGrade {
 		void Read(JSON const& obj_, char const* key_, float& out_) {
 			auto const itr{ obj_.find(key_) };
 			if (itr != obj_.end() && itr->is_number()) { out_ = itr->get<float>(); }
+		}
+		void Read(JSON const& obj_, char const* key_, int& out_) {
+			auto const itr{ obj_.find(key_) };
+			if (itr != obj_.end() && itr->is_number_integer()) { out_ = itr->get<int>(); }
 		}
 		void Read(JSON const& obj_, char const* key_, Lumina::Float3& out_) {
 			auto const itr{ obj_.find(key_) };
@@ -365,10 +415,10 @@ namespace Game::GameOverGrade {
 	}
 
 	auto Effect::TotalTime() const -> float {
-		return std::max(
-			Look.GradientDelay + Look.GradientDuration,
-			Look.VignetteDelay + Look.VignetteDuration
-		);
+		float total{ std::max(Look.GradientDelay + Look.GradientDuration, Look.VignetteDelay + Look.VignetteDuration) };
+		total = std::max(total, Look.SplitDelay + Look.SplitDuration);
+		total = std::max(total, Look.BlurDelay + Look.BlurDuration);
+		return total;
 	}
 
 	auto Effect::Elapsed() const -> float {
@@ -394,6 +444,23 @@ namespace Game::GameOverGrade {
 		if (!IsActive()) { return 1.0f; }
 		float const duration{ std::max(Look.UiFadeDuration, 1.0e-4f) };
 		return 1.0f - Saturate((Elapsed() - Look.UiFadeDelay) / duration);
+	}
+
+	auto Effect::SplitEnvelope() const -> float {
+		return 1.0f - Progress(Elapsed(), Look.SplitDelay, Look.SplitDuration);
+	}
+
+	auto Effect::SplitPixelsNow() const -> float {
+		return Look.SplitPixels * SplitEnvelope() * Heartbeat(Look, Elapsed());
+	}
+
+	auto Effect::SplitIntensity() const -> float {
+		if (!IsActive()) { return 0.0f; }
+		return SplitEnvelope() * Heartbeat(Look, Elapsed());
+	}
+
+	auto Effect::BlurProgress() const -> float {
+		return Progress(Elapsed(), Look.BlurDelay, Look.BlurDuration);
 	}
 
 	//////	//////	//////	//////	//////	//////
@@ -426,6 +493,22 @@ namespace Game::GameOverGrade {
 		constants.SplitPosition = SplitView_ ? SplitPosition_ : -1.0f;
 		constants.ViewLuma = ViewLuma_ ? 1.0f : 0.0f;
 		constants.DitherAmount = 1.0f / 255.0f;
+		{
+			bool const filters{ !FiltersSuppressed_ };
+			float const angle{ style.SplitAngle * (3.14159265f / 180.0f) };
+			constants.ChannelSplitPixels = filters ? SplitPixelsNow() : 0.0f;
+			constants.ChannelSplitRadial = Saturate(style.SplitRadial);
+			constants.ChannelSplitDirX = std::cos(angle);
+			constants.ChannelSplitDirY = std::sin(angle);
+			constants.BlurPixels = filters ? std::max(style.BlurRadius, 0.0f) * BlurProgress() : 0.0f;
+			constants.ChannelSplitFocusU = FocusU_;
+			constants.ChannelSplitFocusV = FocusV_;
+			constants.ChannelSplitFocusRadius = std::max(style.SplitFocusRadius, 1.0f);
+			constants.ChannelSplitFar = Saturate(style.SplitFarAmount);
+			constants.ChannelSplitCenterSoft = std::max(style.SplitCenterSoft, 1.0f);
+			constants.SpinAngle = filters ? SpinRadians_ : 0.0f;
+			constants.SpinFocus = SpinFocus_;
+		}
 		UB_.Store(&constants, sizeof(GradeConstants), 0LLU);
 
 		D3D12_RESOURCE_BARRIER const barrier{
@@ -486,6 +569,10 @@ namespace Game::GameOverGrade {
 		Read(timeline, "VignetteDuration", style.VignetteDuration);
 		Read(timeline, "UiFadeDelay", style.UiFadeDelay);
 		Read(timeline, "UiFadeDuration", style.UiFadeDuration);
+		Read(timeline, "SplitDelay", style.SplitDelay);
+		Read(timeline, "SplitDuration", style.SplitDuration);
+		Read(timeline, "BlurDelay", style.BlurDelay);
+		Read(timeline, "BlurDuration", style.BlurDuration);
 
 		JSON const& gradient{ Section(root, "Gradient") };
 		Read(gradient, "Amount", style.GradientAmount);
@@ -523,6 +610,22 @@ namespace Game::GameOverGrade {
 		Read(vignette, "Roundness", style.VignetteRoundness);
 		Read(vignette, "Color", style.VignetteColor);
 
+		JSON const& split{ Section(root, "ChannelSplit") };
+		Read(split, "Pixels", style.SplitPixels);
+		Read(split, "Radial", style.SplitRadial);
+		Read(split, "Angle", style.SplitAngle);
+		Read(split, "PulsePeriod", style.PulsePeriod);
+		Read(split, "PulseDecay", style.PulseDecay);
+		Read(split, "PulseSecond", style.PulseSecond);
+		Read(split, "PulseBase", style.PulseBase);
+		Read(split, "PulseCount", style.PulseCount);
+		Read(split, "FocusRadius", style.SplitFocusRadius);
+		Read(split, "FarAmount", style.SplitFarAmount);
+		Read(split, "CenterSoft", style.SplitCenterSoft);
+
+		JSON const& blur{ Section(root, "Blur") };
+		Read(blur, "Radius", style.BlurRadius);
+
 		Selected_ = std::clamp(Selected_, 0, static_cast<int>(style.NumStops) - 1);
 		Status_ = "Loaded.";
 		return true;
@@ -548,6 +651,10 @@ namespace Game::GameOverGrade {
 			{ "VignetteDuration", style.VignetteDuration },
 			{ "UiFadeDelay", style.UiFadeDelay },
 			{ "UiFadeDuration", style.UiFadeDuration },
+			{ "SplitDelay", style.SplitDelay },
+			{ "SplitDuration", style.SplitDuration },
+			{ "BlurDelay", style.BlurDelay },
+			{ "BlurDuration", style.BlurDuration },
 		};
 		root["Gradient"] = JSON{
 			{ "Amount", style.GradientAmount },
@@ -562,6 +669,23 @@ namespace Game::GameOverGrade {
 			{ "Softness", style.VignetteSoftness },
 			{ "Roundness", style.VignetteRoundness },
 			{ "Color", JSON::array({ style.VignetteColor.x, style.VignetteColor.y, style.VignetteColor.z }) },
+		};
+
+		root["ChannelSplit"] = JSON{
+			{ "Pixels", style.SplitPixels },
+			{ "Radial", style.SplitRadial },
+			{ "Angle", style.SplitAngle },
+			{ "PulsePeriod", style.PulsePeriod },
+			{ "PulseDecay", style.PulseDecay },
+			{ "PulseSecond", style.PulseSecond },
+			{ "PulseBase", style.PulseBase },
+			{ "PulseCount", style.PulseCount },
+			{ "FocusRadius", style.SplitFocusRadius },
+			{ "FarAmount", style.SplitFarAmount },
+			{ "CenterSoft", style.SplitCenterSoft },
+		};
+		root["Blur"] = JSON{
+			{ "Radius", style.BlurRadius },
 		};
 
 		std::ofstream ofs{ ConfigPath, std::ios::out | std::ios::trunc };
@@ -631,6 +755,10 @@ namespace Game::GameOverGrade {
 		ImGui::SliderFloat("Vignette duration", &style.VignetteDuration, 0.0f, 5.0f);
 		ImGui::SliderFloat("UI fade delay", &style.UiFadeDelay, 0.0f, 5.0f);
 		ImGui::SliderFloat("UI fade duration", &style.UiFadeDuration, 0.0f, 5.0f);
+		ImGui::SliderFloat("Channel split hold (s)", &style.SplitDelay, 0.0f, 5.0f);
+		ImGui::SliderFloat("Channel split fade (s)", &style.SplitDuration, 0.0f, 8.0f);
+		ImGui::SliderFloat("Blur delay", &style.BlurDelay, 0.0f, 8.0f);
+		ImGui::SliderFloat("Blur duration", &style.BlurDuration, 0.0f, 8.0f);
 
 		//----	Gradient map					----//
 		ImGui::SeparatorText("Gradient map");
@@ -702,6 +830,37 @@ namespace Game::GameOverGrade {
 		ImGui::SliderFloat("Softness", &style.VignetteSoftness, 0.0f, 1.5f);
 		ImGui::SliderFloat("Roundness", &style.VignetteRoundness, 0.0f, 1.0f);
 		ImGui::ColorEdit3("Vignette color (sRGB)", &style.VignetteColor.x);
+
+		//----	Channel split						----//
+		ImGui::SeparatorText("Channel split (pulse)");
+		ImGui::SliderFloat("Peak shift (px)", &style.SplitPixels, 0.0f, 60.0f);
+		ImGui::SliderFloat("Focus radius (px)", &style.SplitFocusRadius, 50.0f, 1500.0f);
+		ImGui::SliderFloat("Far amount", &style.SplitFarAmount, 0.0f, 1.0f);
+		ImGui::SliderFloat("Center soft (px)", &style.SplitCenterSoft, 1.0f, 200.0f);
+		ImGui::SliderFloat("Away from character (0 = fixed direction)", &style.SplitRadial, 0.0f, 1.0f);
+		ImGui::BeginDisabled(style.SplitRadial >= 0.999f);
+		ImGui::SliderFloat("Direction (deg)", &style.SplitAngle, -180.0f, 180.0f);
+		ImGui::EndDisabled();
+		ImGui::SliderFloat("Pulse period (s)", &style.PulsePeriod, 0.2f, 2.0f);
+		ImGui::SliderFloat("Pulse decay", &style.PulseDecay, 0.03f, 0.6f);
+		ImGui::SliderFloat("Second beat", &style.PulseSecond, 0.0f, 1.0f);
+		ImGui::SliderFloat("Between beats", &style.PulseBase, 0.0f, 1.0f);
+		ImGui::SliderInt("Pulse count (0 = until the fade ends)", &style.PulseCount, 0, 16);
+		{
+			// 脈動の形（包絡は掛けない）。回数が決まっていればその分＋1 周期、0 なら 3 周期ぶん
+			float shape[160]{};
+			float const span{ std::max(style.PulsePeriod, 0.05f) * static_cast<float>(style.PulseCount > 0 ? std::min(style.PulseCount + 1, 8) : 3) };
+			for (int idx{ 0 }; idx < 160; ++idx) {
+				shape[idx] = Heartbeat(style, static_cast<float>(idx) / 160.0f * span);
+			}
+			ImGui::PlotLines("##PulseShape", shape, 160, 0, "pulse shape", 0.0f, 1.0f, ImVec2{ 0.0f, 56.0f });
+		}
+		ImGui::TextDisabled("Shift now %.1f px   envelope %.2f", SplitPixelsNow(), SplitEnvelope());
+
+		//----	Blur								----//
+		ImGui::SeparatorText("Blur (background; the result label is drawn after it)");
+		ImGui::SliderFloat("Radius (px)", &style.BlurRadius, 0.0f, 40.0f);
+		ImGui::TextDisabled("Progress %.2f   (the split and the blur are skipped while the pause menu is open)", BlurProgress());
 
 		ImGui::End();
 #endif

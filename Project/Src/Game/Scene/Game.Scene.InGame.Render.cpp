@@ -3,6 +3,7 @@ module Game.Scene.InGame;
 import : Impl;
 
 import Lumina;
+import Game.GameOverShatter;
 
 namespace Game::Scene::Impl {
 	template<>
@@ -122,7 +123,12 @@ namespace Game::Scene::Impl {
 			weaponWorld;
 
 		// VfxLoop の窓のエフェクト。ソケット（刃先）は武器メッシュと同じ行列で変換する（刃と光がずれないように）
-		AnimEventVfx_.Prepare(PlayerAnimEvents_.VfxTracks(), weaponWorld, PlayerCamera_->VP);
+		// （倒れている間はアニメーションイベントの時計が止まり、途中の光線が出たまま残るので、空にして渡す）
+		AnimEventVfx_.Prepare(
+			GameOver_.IsActive() ? decltype(PlayerAnimEvents_.VfxTracks()){} : PlayerAnimEvents_.VfxTracks(),
+			weaponWorld,
+			PlayerCamera_->VP
+		);
 
 		MeshManager_->Begin(cmdList_);
 		MeshManager_->BatchBegin();
@@ -179,8 +185,9 @@ namespace Game::Scene::Impl {
 			cmdList_->SetGraphicsRootDescriptorTable(2U, GlobalTable_Materials_.GPUHandle(0U));
 			cmdList_->SetGraphicsRootDescriptorTable(3U, GlobalTable_SRV_ImageTexture_.GPUHandle(0U));
 			cmdList_->SetGraphicsRootDescriptorTable(5U, Skybox_->GlobalTable().GPUHandle(0U));
-			auto const& cameraPos{ PlayerCamera_->Position };
-			cmdList_->SetGraphicsRoot32BitConstants(6U, 3U, &cameraPos, 0U);
+			// カメラ位置＋ゲームオーバーのディゾルブ（12 個）。ディゾルブが無いときは閾値が -10 で何も消えない
+			auto const playerConstants{ Shatter_.PlayerConstants(PlayerCamera_->Position) };
+			cmdList_->SetGraphicsRoot32BitConstants(6U, Game::GameOverShatter::NumConstants, &playerConstants, 0U);
 
 			D3D12_VERTEX_BUFFER_VIEW const vbvs[2]{
 				reinterpret_cast<D3D12_VERTEX_BUFFER_VIEW const&>(PlayerSkinnedModel_->VBV_),
@@ -200,8 +207,8 @@ namespace Game::Scene::Impl {
 			cmdList_->SetGraphicsRootDescriptorTable(2U, GlobalTable_Materials_.GPUHandle(1U));
 			cmdList_->SetGraphicsRootDescriptorTable(3U, GlobalTable_SRV_ImageTexture_.GPUHandle(0U));
 			cmdList_->SetGraphicsRootDescriptorTable(5U, Skybox_->GlobalTable().GPUHandle(0U));
-			auto const& cameraPos{ PlayerCamera_->Position };
-			cmdList_->SetGraphicsRoot32BitConstants(6U, 3U, &cameraPos, 0U);
+			auto const bossConstants{ Game::GameOverShatter::Effect::NoDissolveConstants(PlayerCamera_->Position) };
+			cmdList_->SetGraphicsRoot32BitConstants(6U, Game::GameOverShatter::NumConstants, &bossConstants, 0U);
 
 			D3D12_VERTEX_BUFFER_VIEW const vbvs[2]{
 				reinterpret_cast<D3D12_VERTEX_BUFFER_VIEW const&>(PlayerSkinnedModel_->VBV_),
@@ -347,6 +354,18 @@ namespace Game::Scene::Impl {
 				GlobalTable_SRV_ImageTexture_,
 				GlobalTable_SRV_CanvasTexture_
 			);
+			// ゲームオーバーで体が砕けて舞う粒子（グループごとに別の ParticleSystem。同じ加算 PSO）
+			// 色抜けを掛ける設定のグループだけ、ここ（MergePass）で描く。既定の「掛けない」グループは UIPass の後ろ
+			Shatter_.Render(
+				Game::GameOverShatter::Layer::Graded,
+				cmdList_,
+				RS_ParticleSystem_,
+				GraphicsPSO_BasicParticle_AdditiveMode_,
+				LocalHeap_Scene_.CPUHandle(1U),
+				LocalHeap_Scene_.CPUHandle(0U),
+				GlobalTable_SRV_ImageTexture_,
+				GlobalTable_SRV_CanvasTexture_
+			);
 			PlayerBullets_->Render(
 				cmdList_,
 				RS_ParticleSystem_,
@@ -453,22 +472,48 @@ namespace Game::Scene::Impl {
 		UI_BossHPBar_.RGBA({ 1.0f, 1.0f, 1.0f, 0.25f * uiAlpha });
 
 		SpriteRenderer_->Begin(cmdList_);
-		SpriteRenderer_->BatchBegin();
-		if (uiAlpha > 0.0f) {
-			SpriteRenderer_->Batch(UI_PlayerHPBar_);
-			SpriteRenderer_->Batch(UI_BossHPBar_);
+		// バッチが 1 つも無いときは BatchBegin しない（BatchBegin は転送先を COPY_DEST にし、BatchEnd は 0 個だと戻さないため）
+		bool const showHPBars{ uiAlpha > 0.0f && !GameOver_.IsRewinding() };		// 巻き戻し中は出さない（再開してからの VS バナーで伸びてくる）
+		bool const showWin{ CurrentPhase_ == PHASE_WIN };
+		if (showHPBars || showWin) {
+			SpriteRenderer_->BatchBegin();
+			if (showHPBars) {
+				SpriteRenderer_->Batch(UI_PlayerHPBar_);
+				SpriteRenderer_->Batch(UI_BossHPBar_);
+			}
+			if (showWin) {
+				SpriteRenderer_->Batch(UI_WIN_);
+			}
+			SpriteRenderer_->BatchEnd();
 		}
-		if (CurrentPhase_ == PHASE_WIN) {
-			SpriteRenderer_->Batch(UI_WIN_);
+
+		// 結果表示（LOSE）は別のレンダラで、色抜けとぼかしの後ろ（バックバッファ直描き）に描く。中間 RT に入れるとぼかしでぼけるため。
+		// 演出の時計に合わせてフェードイン（演出中でなければ不透明度 1）。ポーズメニューが開いている間は出さない（メニューと重なるため）
+		// 「Game Over」と「Press Space to Continue」は、それぞれ演出の時計に合わせてフェードイン（演出中でなければ不透明度 1）
+		float const gameOverAlpha{ GameOver_.ResultAlpha() };
+		float const promptAlpha{ GameOver_.PromptAlpha() };
+		bool const showResult{ (CurrentPhase_ == PHASE_LOSE || GameOver_.IsActive() || GameOver_.ForceLabels) && (gameOverAlpha > 0.0f || promptAlpha > 0.0f) && !PauseMenu_.IsBlockingGame() };
+		ResultRenderer_->Begin(cmdList_);
+		if (showResult) {
+			auto const& look{ GameOver_.Look };
+			auto const labelSize{ GameOver_.LabelSize() };
+			auto const promptSize{ GameOver_.PromptSize() };
+			UI_GAMEOVER_.Translate({ 640.0f, look.GameOverY });
+			UI_GAMEOVER_.Scale({ labelSize.x, labelSize.y });
+			UI_GAMEOVER_.RGBA({ 1.0f, 1.0f, 1.0f, gameOverAlpha });
+			UI_GAMEOVER_PROMPT_.Translate({ 640.0f, look.PromptY });
+			UI_GAMEOVER_PROMPT_.Scale({ promptSize.x, promptSize.y });
+			UI_GAMEOVER_PROMPT_.RGBA({ 1.0f, 1.0f, 1.0f, promptAlpha });
+			ResultRenderer_->BatchBegin();
+			ResultRenderer_->Batch(UI_GAMEOVER_);
+			ResultRenderer_->Batch(UI_GAMEOVER_PROMPT_);
+			ResultRenderer_->BatchEnd();
 		}
-		else if (CurrentPhase_ == PHASE_LOSE) {
-			SpriteRenderer_->Batch(UI_LOSE_);
-		}
-		SpriteRenderer_->BatchEnd();
 
 		// ポーズメニューのスプライトも、コピーを積むのでレンダーパスの外で写しておく。
 		// 閉じているときは右下の「ESC : ポーズ」（STARTUP の間は出さない）
-		PauseMenu_.Prepare(cmdList_, CurrentPhase_ != PHASE_STARTUP && uiAlpha >= 1.0f);
+		// 右下のヒント。「ESC : ポーズ」は STARTUP 以外、「Q : 自害」は Q が効く IN_BATTLE の間だけ
+		PauseMenu_.Prepare(cmdList_, CurrentPhase_ != PHASE_STARTUP && uiAlpha >= 1.0f && !GameOver_.IsRewinding(), CurrentPhase_ == PHASE_IN_BATTLE && uiAlpha >= 1.0f);
 
 		/*auto const& swapChain{ dxContext_.SwapChain() };
 		auto rtv{ swapChain.BackBufferRTVCPUHandle() };
@@ -478,6 +523,18 @@ namespace Game::Scene::Impl {
 
 		// ゲームオーバーの色抜けの間だけ、UI まで中間 RT に描き、UIPass の後ろでバックバッファへ色抜けして写す。
 		// それ以外は今までどおりバックバッファへ直接描く
+		// ポーズメニューが開いている間は、チャンネルスプリットとぼかしを止める（メニューの文字が読めなくなるため）
+		GradeFx_.SuppressFilters(PauseMenu_.IsBlockingGame());
+		GradeFx_.SetSpin(GameOver_.SpinRadians(), GameOver_.Look.SpinFocus);		// 巻き戻し中の回転ぼかし（それ以外は 0）
+
+		// チャンネルスプリットの中心：プレイヤー（体の真ん中あたり）の画面上の位置。見えない（カメラの後ろ）ときは前の値のまま
+		{
+			Lumina::Vec4 const world{ Player_->ModelTranslate().x, Player_->ModelTranslate().y + 2.7f, Player_->ModelTranslate().z, 1.0f };
+			Lumina::Vec4 const clip{ world * PlayerCamera_->VP };
+			if (clip.w > 1.0e-4f) {
+				GradeFx_.SetFocus((clip.x / clip.w) * 0.5f + 0.5f, 0.5f - (clip.y / clip.w) * 0.5f);
+			}
+		}
 		bool const gradeActive{ GradeFx_.IsActive() };
 		if (gradeActive) {
 			UIPass_.RenderTarget(0U).View() = GradeFx_.BeginSource(cmdList_);
@@ -515,6 +572,34 @@ namespace Game::Scene::Impl {
 
 		if (gradeActive) {
 			GradeFx_.Apply(dxContext_, cmdList_);
+		}
+
+		// 色抜けを掛けない粒子（Group::BypassGrade）は、色抜けのあとにバックバッファへ直接描く（粒子の色がそのまま見える）。
+		// 深度は MergePass と同じ SRV で読む（遠くの物に隠れる判定）
+		{
+			D3D12_CPU_DESCRIPTOR_HANDLE const backBufferRTV{ swapChain.BackBufferRTVCPUHandle() };
+			cmdList_->OMSetRenderTargets(1U, &backBufferRTV, false, nullptr);
+			cmdList_->RSSetViewports(1U, Canvas_Merge_.Viewports().data());
+			cmdList_->RSSetScissorRects(1U, Canvas_Merge_.ScissorRects().data());
+			// ラベル（Game Over / Press Space to Continue）。色抜け・ぼかしを通さず、バックバッファへそのまま描く
+			if (showResult) {
+				ResultRenderer_->Render(
+					PSO_SpriteResult_,
+					GlobalTable_SRV_ImageTexture_.GPUHandle(0U),
+					LocalHeap_OrthoProj_.CPUHandle(0U)
+				);
+			}
+			ResultRenderer_->End();
+			Shatter_.Render(
+				Game::GameOverShatter::Layer::Direct,
+				cmdList_,
+				RS_ParticleSystem_,
+				GraphicsPSO_BasicParticle_AdditiveMode_,
+				LocalHeap_Scene_.CPUHandle(1U),
+				LocalHeap_Scene_.CPUHandle(0U),
+				GlobalTable_SRV_ImageTexture_,
+				GlobalTable_SRV_CanvasTexture_
+			);
 		}
 	}
 }

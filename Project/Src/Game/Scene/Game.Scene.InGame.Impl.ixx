@@ -34,6 +34,9 @@ import Lumina.VsBanner;
 
 import Game.PauseMenu;
 import Game.GameOverGrade;
+import Game.GameOverCamera;
+import Game.GameOverDirector;
+import Game.GameOverShatter;
 
 namespace Game::Scene::Impl {
 	struct SkinnedModel {
@@ -162,12 +165,17 @@ namespace Game::Scene::Impl {
 		//----	------	------	------	------	----//
 
 		std::unique_ptr<Lumina::SpriteRenderer> SpriteRenderer_{ nullptr };
+		// 結果表示（LOSE）専用。色抜けとぼかしの後ろ（バックバッファへ直描き）に描くので、HP バーなどとは別のレンダラ
+		// （SpriteRenderer は 1 フレーム 1 バッチ前提）
+		std::unique_ptr<Lumina::SpriteRenderer> ResultRenderer_{ nullptr };
 		//Lumina::Sprite UI_StartButton_;
 		//Lumina::Sprite UI_ExitButton_;
 		Lumina::Sprite UI_PlayerHPBar_;
 		Lumina::Sprite UI_BossHPBar_;
 		Lumina::Sprite UI_WIN_;
 		Lumina::Sprite UI_LOSE_;
+		Lumina::Sprite UI_GAMEOVER_;		// 「Game Over」（ResultRenderer_ で描く。位置と大きさは毎フレーム Director の値）
+		Lumina::Sprite UI_GAMEOVER_PROMPT_;	// 「Press Space to Continue」
 		float UI_PlayerHPValue_;
 		float MaxWidth_UI_PlayerHPBar_;
 		float MaxWidth_UI_BossHPBar_;
@@ -178,6 +186,7 @@ namespace Game::Scene::Impl {
 		Lumina::DX12::Shader PS_Sprite_{};
 
 		Lumina::DX12::GraphicsPSO PSO_SpriteUI_{};
+		Lumina::DX12::GraphicsPSO PSO_SpriteResult_{};		// ResultRenderer_ の RS で作る（PSO_SpriteUI_ と同じ設定）
 		Lumina::DX12::Shader PS_SpriteUI_{};
 
 		Lumina::DX12::UploadBuffer UB_OrthoProj_{};
@@ -236,6 +245,14 @@ namespace Game::Scene::Impl {
 		// バトルを最初から（STARTUP の VS バナーから）やり直す。WIN / LOSE の SPACE と、ポーズメニューの Restart / Return to Title から呼ぶ
 		void RestartBattle();
 
+		// 巻き戻し（LOSE で SPACE を押してから再開するまで）の始まりの位置と向き。終わりは初期配置（Startup.cpp の PlayerStartX など）
+		float RewindPlayerFromX_{ 0.0f };
+		float RewindPlayerFromZ_{ 0.0f };
+		float RewindPlayerAngleFrom_{ 0.0f };
+		float RewindBossFromX_{ 0.0f };
+		float RewindBossFromZ_{ 0.0f };
+		float RewindBossRotateFrom_{ 0.0f };
+
 		// プレイヤーのアニメの時刻とアニメーションイベント（当たり判定のタイミングのテスト）。
 		// animTimer_ の代わりにこれが時刻を持つ。Debug では ImGui「AnimEvent Hitbox」で調整する
 		Game::AnimEventDemo::PlayerAnimEvents PlayerAnimEvents_{};
@@ -252,6 +269,17 @@ namespace Game::Scene::Impl {
 		// ゲームオーバー（LOSE）の色抜け演出（グラデーションマップ＋ビネット）。演出中だけ UIPass を中間 RT に描き、その後ろでバックバッファへ写す。
 		// Debug では ImGui「GameOver Grade」で調整する
 		Game::GameOverGrade::Effect GradeFx_{};
+
+		// ゲームオーバーのカメラワーク（キーフレーム）。UpdatePlayerCamera の直後に Apply して View / VP / FOV を上書きする。
+		// Debug では ImGui「GameOver Camera」で調整する
+		Game::GameOverCamera::Rig CameraFx_{};
+
+		// ゲームオーバー演出の時計。色抜け・カメラ・倒れるモーション・結果表示・再開の解禁をひとつの時刻で動かす
+		// （致命打の瞬間に Start()。色抜けとカメラの Start / Reset もここが呼ぶ）。Debug では ImGui「GameOver Director」
+		Game::GameOverDirector::Director GameOver_{};
+
+		// 倒れた体が粉々になって消える演出（ディゾルブ＋グループ別の粒子）。時刻は GameOver_ の経過秒。Debug では ImGui「GameOver Shatter」
+		Game::GameOverShatter::Effect Shatter_{};
 
 		//----	Skybox							----//
 		//----	------	------	------	------	----//

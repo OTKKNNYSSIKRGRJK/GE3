@@ -215,7 +215,7 @@ namespace Game::Scene::Impl {
 		};
 		// 新方式: Hitbox の窓が開いている間だけ有効（窓の状態は、ボーン行列と同じ前フレーム終わりの時刻のもの）
 		// 旧方式: 攻撃中ずっと有効
-		Player_->WeaponCollider().Enabled = PlayerAnimEvents_.UseAnimEvent ? PlayerAnimEvents_.IsHitboxOpen() : (playerATKFlag != 0);
+		Player_->WeaponCollider().Enabled = !GameOver_.IsActive() && (PlayerAnimEvents_.UseAnimEvent ? PlayerAnimEvents_.IsHitboxOpen() : (playerATKFlag != 0));	// 倒れている間は攻撃判定なし
 		Player_->WeaponCollider().UpdateWorld(weaponWorld);
 
 		Lumina::Mat4 const bossMeshWorld{
@@ -293,10 +293,22 @@ namespace Game::Scene::Impl {
 #if defined(_DEBUG)
 		PauseMenu_.DrawEditor();
 		GradeFx_.DrawEditor();		// ポーズ中も触れるよう、ゲームを止める判定より前で呼ぶ
+		CameraFx_.DrawEditor();
+		Shatter_.DrawEditor();
+		GameOver_.DrawEditor();		// 色抜け・カメラの後ろ（スクラブ中はこれらの時計を上書きするため）
 #endif
 		if (PauseMenu_.IsBlockingGame()) { return; }
 
-		GradeFx_.Update(1.0f / 60.0f);
+		// ゲームオーバーの序盤は、演出の時計（倒れるモーション・色抜け・カメラ・粉々の時刻）だけ遅く進める（スローモーション）。
+		// 色抜けとカメラは自分の時計を持つので、Director と同じ倍率の dt を渡してそろえる。ボスや弾などの世界の動きは変えない
+		float const gameOverDt{ (1.0f / 60.0f) * GameOver_.TimeScale() };
+		GradeFx_.Update(gameOverDt);
+		CameraFx_.Update(gameOverDt);
+		GameOver_.Update(1.0f / 60.0f);		// 実時間を渡す（中で倍率を掛ける）
+
+		// ゲームオーバーの演出中は、フェーズに関係なくプレイヤーの入力を受け付けない（LOSE に入る前の IN_BATTLE でも、
+		// エディタの Replay / Scrub のときも）。IN_BATTLE のままでも Player::Update はキーを読まずに重力だけ進める
+		Player_->LockInput(GameOver_.IsActive());
 
 		switch (CurrentPhase_) {
 			case PHASE_STARTUP:
@@ -322,8 +334,12 @@ namespace Game::Scene::Impl {
 
 		hitBoss *= 0.9f;
 		UpdatePlayerCamera(*PlayerCamera_, *Player_);
+		CameraFx_.SetShake(GradeFx_.SplitIntensity());		// カメラシェークは、チャンネルスプリットの脈動に合わせる（包絡 × 鼓動。演出中でなければ 0）
+		CameraFx_.Apply(*PlayerCamera_);		// ゲームオーバーの演出中だけ View / VP / FOV を上書き（以降の viewToWorld などはこの結果を使う）
 
-		Boss_Kinoko_->Update(*Player_);
+		if (!GameOver_.IsRewinding()) {		// 巻き戻し中は止める（位置と向きは Lose() が決める）
+			Boss_Kinoko_->Update(*Player_);
+		}
 
 		auto& rndEngine{ Lumina::Random::Generator() };
 
@@ -435,7 +451,7 @@ namespace Game::Scene::Impl {
 				Boss_Kinoko_->HP_ -= 100.0f;
 				emitKnockEffectParticles(contactPoint, 195.0f);
 			}*/
-			if (!Player_->IsDashing() && !Player_->IsBeingKnockedBack()) {
+			if (!GameOver_.IsActive() && !Player_->IsDashing() && !Player_->IsBeingKnockedBack()) {		// 倒れている間は吹き飛ばさない
 				Player_->KnockedBack(5.0f, { dPos.x, dPos.z });
 				Player_->HP_ -= 5.0f;
 				emitKnockEffectParticles(contactPoint, -7.5f);
@@ -478,7 +494,7 @@ namespace Game::Scene::Impl {
 					0.95f
 				}
 			);
-
+			
 			for (int i = 0; i < 2; ++i) {
 				Particle p{};
 				{
@@ -681,6 +697,27 @@ namespace Game::Scene::Impl {
 		}
 
 		KnockEffects_->Update(cmdList_, viewToWorld, UpdateKnockEffect);
+
+		// ゲームオーバーで体が砕ける粒子。ディゾルブの閾値と出す位置は Director の経過秒から決まる
+		// （パレットは前フレームのポーズ。ポーズ反映は、この関数の後ろの方にあるため）
+		{
+			Lumina::Mat4 const shatterMeshWorld{
+				Lumina::Mat4::SRT(
+					Player_->ModelScale() * 2.0f,
+					Player_->ModelRotate() + Lumina::Vec3{ 0.0f, 1.57f, 0.0f },
+					Player_->ModelTranslate()
+				)
+			};
+			Shatter_.Update(
+				cmdList_,
+				viewToWorld,
+				GameOver_.Elapsed(),
+				GameOver_.IsActive(),
+				GameOver_.IsRunning() && !GameOver_.IsRewinding(),		// 巻き戻し中は粒子を出さない（時刻が戻るので、いまある粒子も消え、体が元に戻っていく）
+				shatterMeshWorld,
+				PlayerSkinnedInstance_->SkinCluster_
+			);
+		}
 
 		List_PointLight_.Clear();
 		List_LocalToWorld_LightSphere_.Clear();
@@ -1063,6 +1100,14 @@ namespace Game::Scene::Impl {
 		}
 		UB_PostProcessingConstants_.Store(&PPConstants_, sizeof(PostProcessingConstants), 0LLU);
 
+		// HP が 0 になったその瞬間にゲームオーバー演出を始める（InBattle の判定は 91 フレームごとで、最大 1.5 秒ほど遅れる）。
+		// ボスが先に倒れている場合は勝ち（InBattle の判定に任せる）
+		if (CurrentPhase_ == PHASE_IN_BATTLE && Player_->HP_ <= 0.0f && Boss_Kinoko_->HP_ > 0.0f) {
+			CurrentPhase_ = PHASE_LOSE;
+			NextPhaseCountDown_ = 90;
+			GameOver_.Start();
+		}
+
 		switch (playerATKFlag) {
 		case 0:
 			if (Player_->IsMoving()) {
@@ -1086,7 +1131,16 @@ namespace Game::Scene::Impl {
 			break;
 		}
 
-		if (currentAnim_) {
+		if (GameOver_.HasDyingPose()) {
+			// 倒れるモーション：時刻は演出の時計が決める（クリップの終端で止まる）。武器は骨に付いてくる
+			Lumina::CG3D::Update(
+				PlayerSkinnedInstance_->SkinCluster_,
+				PlayerSkinnedInstance_->Skeleton_,
+				*GameOver_.DyingClip(),
+				GameOver_.DyingTime()
+			);
+		}
+		else if (currentAnim_) {
 			// 時刻はアニメーションイベントのプレイヤーが持つ（4 倍速・ループは折り返し・非ループは終端で止まる、は今までと同じ）。
 			// クリップ名が変わったら最初から再生する。プレビュー中はエディタで選んだクリップのポーズになる
 			PlayerAnimEvents_.Update(currentAnimName_, IsAnimationLoop_, 1.0f / 60.0f);

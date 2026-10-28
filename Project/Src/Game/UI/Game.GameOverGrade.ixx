@@ -11,6 +11,8 @@
 // 時間：Start() からの秒で、グラデーションマップとビネットがそれぞれ Delay 秒後から Duration 秒かけて（smootherstep で）効く。
 //       進み方は固定の dt（InGame の Update から Update(dt) を呼ぶ。ポーズ中は進まない）。Reset() で元の絵に戻る。
 // 色：ストップの色は sRGB で持つ（ImGui のカラーピッカーの値がそのまま見た目になる）。計算の空間は GameOverGrade.hlsl の冒頭を参照。
+// チャンネルスプリット：R を外へ・B を内へずらす。心臓の鼓動のように脈打ちながら、Duration 秒かけて弱まる（演出の頭に効く）。
+// ぼかし：背景をぼかす（終盤。結果表示のラベルを読みやすくする）。ラベルは色抜けの後ろに描くので、ぼけない。
 // 調整：ImGui「GameOver Grade」（Debug のみ）。グラデーションバー（クリックで追加・ドラッグで移動・右クリックで削除）、
 //       選択中のストップのカラーピッカー、プリセット、プレビュー（常に表示 / 時間をスクラブ / 左右比較 / 輝度だけ表示）。
 //       Assets/Configs/GameOverGrade.json に保存し、Initialize で読み込む（Release でも読む。無いキーは初期値のまま）
@@ -45,6 +47,26 @@ export namespace Game::GameOverGrade {
 		float VignetteDuration{ 2.0f };
 		float UiFadeDelay{ 0.0f };					// HP バーなどの UI を消す（線形のフェードアウト）
 		float UiFadeDuration{ 0.5f };
+
+		// チャンネルスプリット（脈動）。Delay 秒までは最大の強さのまま、そこから Duration 秒かけて 0 へ（なめらかに）
+		float SplitDelay{ 0.0f };
+		float SplitDuration{ 2.6f };
+		float SplitPixels{ 16.0f };					// 拍の頂点でのずれ（px）。キャラの近くでこの値（遠いほど弱まる）
+		float SplitRadial{ 1.0f };					// 0 = 一定の向き、1 = キャラから離れる向き（放射状）
+		float SplitAngle{ 0.0f };					// 度。放射状でないときのずれの向き（0 = 横）
+		float PulsePeriod{ 0.8f };					// 1 拍の秒
+		float PulseDecay{ 0.14f };					// 拍の減衰（1 拍に対する割合。小さいほど鋭い）
+		float PulseSecond{ 0.6f };					// 2 つ目の拍（ドクン、ドクン）の強さ。0 で 1 拍だけ
+		float PulseBase{ 0.08f };					// 拍の合間にも残る量（0..1）
+		int PulseCount{ 4 };						// 鼓動（ドクン、ドクン）の回数。打ち終えたら止まる。0 = 包絡が消えるまで続ける
+		float SplitFocusRadius{ 450.0f };			// キャラ（画面上の位置）からこの距離（px）で、ずれは SplitFarAmount まで弱まる
+		float SplitFarAmount{ 0.12f };				// 遠くに残るずれの割合（0..1）
+		float SplitCenterSoft{ 40.0f };			// キャラの真上ではずれの向きが定まらないので、この距離（px）以内ではずれを小さくする
+
+		// ぼかし（終盤）。Delay 秒後から Duration 秒かけて Radius まで（なめらかに）
+		float BlurDelay{ 1.6f };
+		float BlurDuration{ 1.8f };
+		float BlurRadius{ 10.0f };					// 完了時の半径（px）
 
 		// グラデーションマップ
 		float GradientAmount{ 1.0f };				// 完了時のブレンド量（0 = 元の絵のまま）
@@ -92,6 +114,11 @@ export namespace Game::GameOverGrade {
 
 		void DrawEditor();				// ImGui「GameOver Grade」（Debug のみ）
 
+		// 外の時計（Game.GameOverDirector）から時刻を指定して止める／解除する。解除すると自分の時計に戻る
+		void ScrubTo(float seconds_) { PreviewMode_ = Preview::Scrub; ScrubTime_ = seconds_; }
+		void ClearScrub() { PreviewMode_ = Preview::Off; }
+		void SetTime(float seconds_) { if (Started_) { Time_ = seconds_; } }	// 巻き戻し用：自分の時計を直接決める（Start していなければ何もしない）
+
 		auto Load() -> bool;			// Look を設定ファイルから読む（あるキーだけ上書き）
 		auto Save() -> bool;
 
@@ -99,6 +126,20 @@ export namespace Game::GameOverGrade {
 		auto GradientProgress() const -> float;
 		// UI（HP バーなど）の不透明度の倍率。演出中でなければ 1、フェードが済めば 0
 		auto UiAlpha() const -> float;
+		// チャンネルスプリットの包絡（1 = 最大、0 = 消えた。脈動は含まない）と、今のずれ（px。脈動を含む）
+		auto SplitEnvelope() const -> float;
+		auto SplitPixelsNow() const -> float;
+		// チャンネルスプリットの強さを 0..1 に正規化したもの（= 包絡 × 鼓動。SplitPixels は掛けない）。カメラシェークの強さに使う。演出中でなければ 0
+		auto SplitIntensity() const -> float;
+		// ぼかしの進行（0..1）
+		auto BlurProgress() const -> float;
+		// true の間、チャンネルスプリットとぼかしを掛けない（ポーズメニューが開いているときなど。時計は止めない）
+		void SuppressFilters(bool suppressed_) { FiltersSuppressed_ = suppressed_; }
+		// チャンネルスプリットの中心（キャラの画面上の位置。UV の 0..1）。毎フレーム、Apply の前に呼ぶ
+		void SetFocus(float u_, float v_) { FocusU_ = u_; FocusV_ = v_; }
+		// 回転ぼかし（巻き戻しのあいだ）：中心のまわりの振れ幅（ラジアン。0 = なし）と、中心（0 = 画面の中心、1 = SetFocus の位置）。毎フレーム、Apply の前に呼ぶ。
+		// 色抜けの時計とは関係なく、呼び出し側（Director）が強さを決める。ポーズメニューが開いている間は掛からない（SuppressFilters）
+		void SetSpin(float radians_, float focus_) { SpinRadians_ = radians_; SpinFocus_ = focus_; }
 		auto VignetteProgress() const -> float;
 		auto TotalTime() const -> float;
 
@@ -119,6 +160,11 @@ export namespace Game::GameOverGrade {
 		Lumina::DX12::UploadBuffer UB_{};
 
 		bool Started_{ false };
+		bool FiltersSuppressed_{ false };
+		float FocusU_{ 0.5f };
+		float FocusV_{ 0.5f };
+		float SpinRadians_{ 0.0f };
+		float SpinFocus_{ 0.0f };
 		float Time_{ 0.0f };
 
 		// エディタの状態（保存しない）

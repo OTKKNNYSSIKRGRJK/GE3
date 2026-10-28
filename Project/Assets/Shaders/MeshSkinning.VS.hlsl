@@ -24,6 +24,7 @@ struct VSOutput {
 	float3 WorldPos : POSITION0;
 	float2 TexCoord : TEXCOORD0;
 	float3 Normal : NORMAL0;
+	float3 LocalPos : POSITION1;	// スキニング前（バインドポーズ）の位置。ゲームオーバーのディゾルブのノイズ座標（体に貼り付いて動く）
 };
 
 struct Skinned {
@@ -69,6 +70,7 @@ VSOutput main(in VSInput vsIN_) {
 	//vsOUT.Normal = mul(vsIN_.Normal, (float3x3) TR_INV_World);
 	
 	vsOUT.TexCoord = vsIN_.TexCoord;
+	vsOUT.LocalPos = vsIN_.Pos;
 	
 	return vsOUT;
 }
