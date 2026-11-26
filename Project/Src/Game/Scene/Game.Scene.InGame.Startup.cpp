@@ -4,6 +4,8 @@ import : Impl;
 
 import Lumina;
 import Lumina.VsBanner;
+import Game.CombatVfx;
+import Game.Scene;		// Game::Scene::Flag（勝利演出の暗転のあと、タイトルへ）
 
 namespace {
 	// 戦闘開始時の初期配置（RestartBattle と、LOSE の巻き戻しの行き先）
@@ -22,14 +24,19 @@ namespace Game::Scene::Impl {
 		CurrentPhase_ = PHASE_STARTUP;
 		NextPhaseCountDown_ = 90;
 		Player_->Initialize(Lumina::Vec3{ PlayerStartX, 0.25f, PlayerStartZ });
+		PlayerCamera_->Yaw = Player_->Angle();		// 視点もプレイヤーの後ろへ戻す
 		Boss_Kinoko_->Initialize(Lumina::Vec3{ BossStartX, 0.0f, BossStartZ });
 		UI_PlayerHPValue_ = Player_->HP_;	// HP バーの追従を満タンから始める（LOSE からだと 0 から伸び直していた）
-		playerATKFlag = 0;
+		playerATKFlag = 0;					// コンボ・アビリティは Player_->Initialize でやめている
 		// 飛んでいる弾は消す（弾の更新は IN_BATTLE だけなので、残すと STARTUP の間その場に止まって見え、当たり判定も残る）
 		PlayerBullets_->Clear();
 		BossBullets_->Clear();
 		VsBanner_.Reset();					// STARTUP に入ったら頭から再生される
 		GameOver_.Reset();					// ゲームオーバーの色抜け・カメラワーク・倒れるモーションを元に戻す
+		Victory_.Reset();					// 勝利演出も（色抜けは共用なので、どちらの Reset でも戻る）
+		CombatVfx_.Clear();					// 軌跡・予兆・命中・粒子を消す
+		HitPostFxTime_ = -1.0f;				// 被弾のポスエフェを切る（のけぞりの立ち上がりは次の Update で見直す）
+		PPConstants_.IsEnemySuccessfullyAttacking = 0U;
 	}
 
 	template<>
@@ -38,8 +45,7 @@ namespace Game::Scene::Impl {
 		[[maybe_unused]] Lumina::DX12::CommandList const& cmdList_,
 		[[maybe_unused]] Lumina::WinApp::RawInput const& input_
 	) {
-		bool canMove = 0;
-		Player_->Update(input_, canMove);
+		Player_->Update(PlayerFrame(false));		// 動き出さない（重力だけ）
 
 		// 弾の描画データ（RestartBattle で消したあとの数）を GPU に写す。弾が無いので更新関数は要らない
 		PlayerBullets_->Update(cmdList_, Lumina::Mat4{});
@@ -77,7 +83,7 @@ namespace Game::Scene::Impl {
 			float const p{ GameOver_.RewindProgress() };
 			auto const mix{ [p](float from_, float to_) { return from_ + (to_ - from_) * p; } };
 			constexpr float PlayerAngleEnd{ Pi * 0.5f };		// Player::Initialize の Angle_
-			constexpr float BossRotateEnd{ -Pi * 0.5f };		// Boss_Kinoko::Initialize の ModelRotate_.y
+			float const BossAngleEnd{ Boss_Kinoko_->Setup().InitialAngle };	// Boss::Initialize の向き
 			Player_->SetRewindPose(
 				mix(RewindPlayerFromX_, PlayerStartX),
 				mix(RewindPlayerFromZ_, PlayerStartZ),
@@ -86,13 +92,14 @@ namespace Game::Scene::Impl {
 			Boss_Kinoko_->SetRewindPose(
 				mix(RewindBossFromX_, BossStartX),
 				mix(RewindBossFromZ_, BossStartZ),
-				RewindBossRotateFrom_ + WrapAngle(BossRotateEnd - RewindBossRotateFrom_) * p
+				RewindBossRotateFrom_ + WrapAngle(BossAngleEnd - RewindBossRotateFrom_) * p
 			);
+			// 視点も戻す（巻き戻しの終わりで通常のカメラに戻ったとき、RestartBattle で向きが跳ばないように）
+			PlayerCamera_->Yaw = RewindCameraYawFrom_ + WrapAngle(PlayerAngleEnd - RewindCameraYawFrom_) * p;
 		}
 
-		bool const noMove{ false };
 		Player_->LockInput(true);
-		Player_->Update(input_, noMove);
+		Player_->Update(PlayerFrame(false));
 
 		UI_PlayerHPValue_ = UI_PlayerHPValue_ * 0.9f + Player_->HP_ * 0.1f;
 		if (std::abs(UI_PlayerHPValue_ - Player_->HP_) < 1.0E-2) { UI_PlayerHPValue_ = Player_->HP_; }
@@ -115,9 +122,10 @@ namespace Game::Scene::Impl {
 			RewindPlayerFromX_ = Player_->WorldPosition().x;
 			RewindPlayerFromZ_ = Player_->WorldPosition().z;
 			RewindPlayerAngleFrom_ = Player_->Angle();
+			RewindCameraYawFrom_ = PlayerCamera_->Yaw;
 			RewindBossFromX_ = Boss_Kinoko_->WorldPosition().x;
 			RewindBossFromZ_ = Boss_Kinoko_->WorldPosition().z;
-			RewindBossRotateFrom_ = Boss_Kinoko_->ModelRotate().y;
+			RewindBossRotateFrom_ = Boss_Kinoko_->Angle();		// 体の向き（ModelRotate.y = -Angle）
 			if (!GameOver_.BeginRewind()) {		// 演出が始まっていない（巻き戻すものがない）ならそのまま再開
 				RestartBattle();
 			}
@@ -139,11 +147,26 @@ namespace Game::Scene::Impl {
 		UI_PlayerHPBar_.Scale_.x = MaxWidth_UI_PlayerHPBar_ * (UI_PlayerHPValue_ * Player_->Inv_MaxHP_);
 		UI_BossHPBar_.Scale_.x = MaxWidth_UI_BossHPBar_ * (Boss_Kinoko_->HP_ * Boss_Kinoko_->Inv_MaxHP_);
 
+		// プレイヤーは入力なしで重力だけ（勝った瞬間に空中でも落ちて着地する）。ロックは RestartBattle の Player_->Initialize で解ける
+		Player_->LockInput(true);
+		Player_->Update(PlayerFrame(false));
+
 		auto const& keyboard{ input_.Keyboard() };
 
 		using Lumina::WinApp::KEY;
-		if (NextPhaseCountDown_ < 0 && keyboard.IsPressed(KEY::SPACE)) {
-			RestartBattle();
+		if (Victory_.IsExiting()) {
+			// 暗転しきったらタイトルへ。次に InGame に入ったときは最初から（ポーズメニューの Return to Title と同じ）
+			if (Victory_.IsExitFinished()) {
+				RestartBattle();
+				Game::Scene::Flag = 0;
+			}
+		}
+		else if (NextPhaseCountDown_ < 0 && Victory_.CanRestart() && keyboard.IsPressed(KEY::SPACE)) {
+			// SPACE：暗転してからタイトルへ（暗転の間も演出の時計とカメラは進む）。演出が始まっていなければすぐ
+			if (!Victory_.BeginExit()) {
+				RestartBattle();
+				Game::Scene::Flag = 0;
+			}
 		}
 		else {
 			--NextPhaseCountDown_;

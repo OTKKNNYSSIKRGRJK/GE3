@@ -75,7 +75,7 @@ namespace Game::GameOverCamera {
 		//----	Pose							----//
 
 		auto PoseOfKey(Key const& key_) -> Pose {
-			return Pose{ key_.Distance, key_.TargetHeight, key_.PitchDeg, key_.YawDeg, key_.RollDeg, key_.FovDeg };
+			return Pose{ key_.Distance, key_.TargetHeight, key_.PitchDeg, key_.YawDeg, key_.RollDeg, key_.FovDeg, key_.Focus };
 		}
 
 		auto Mix(Pose const& a_, Pose const& b_, float w_) -> Pose {
@@ -87,6 +87,7 @@ namespace Game::GameOverCamera {
 				mix(a_.YawDeg, b_.YawDeg),
 				mix(a_.RollDeg, b_.RollDeg),
 				mix(a_.FovDeg, b_.FovDeg),
+				mix(a_.Focus, b_.Focus),
 			};
 		}
 
@@ -200,7 +201,7 @@ namespace Game::GameOverCamera {
 			Pose const pose{ EvaluateKeys(keys, start_, time_) };
 			Key const added{
 				time_, pose.Distance, pose.TargetHeight, pose.PitchDeg, pose.YawDeg, pose.RollDeg, pose.FovDeg,
-				keys[at - 1U].EaseToNext
+				keys[at - 1U].EaseToNext, pose.Focus
 			};
 			keys.insert(keys.begin() + static_cast<std::vector<Key>::difference_type>(at), added);
 			return static_cast<int>(at);
@@ -454,7 +455,9 @@ namespace Game::GameOverCamera {
 	//	Time									//
 	//////	//////	//////	//////	//////	//////
 
-	void Rig::Initialize() {
+	void Rig::Initialize(char const* configPath_, char const* editorTitle_) {
+		if (configPath_) { ConfigPath = configPath_; }
+		if (editorTitle_) { EditorTitle = editorTitle_; }
 		Load();
 	}
 
@@ -484,7 +487,7 @@ namespace Game::GameOverCamera {
 	}
 
 	auto Rig::StartPose() const -> Pose {
-		return Pose{ StartDistance_, 0.0f, StartPitchDeg_, 0.0f, 0.0f, StartFovDeg_ };
+		return Pose{ StartDistance_, 0.0f, StartPitchDeg_, StartYawOffsetDeg_, 0.0f, StartFovDeg_, 0.0f };
 	}
 
 	//////	//////	//////	//////	//////	//////
@@ -501,6 +504,19 @@ namespace Game::GameOverCamera {
 		StartPitchDeg_ = ToDeg(std::asin(std::clamp(offset.y / StartDistance_, -1.0f, 1.0f)));
 		StartYawRad_ = std::atan2(offset.x, offset.z);
 		StartFovDeg_ = ToDeg(BaseFovRad_);
+		// Yaw の基準。YawFromOther なら「もう一人 → プレイヤー」の水平の向き（重なっていたら取り込んだ向きのまま）
+		BaseYawRad_ = StartYawRad_;
+		StartYawOffsetDeg_ = 0.0f;
+		if (Look.YawFromOther && HasOther_) {
+			float const dx{ camera_.Target.x - Other_.x };
+			float const dz{ camera_.Target.z - Other_.z };
+			if (dx * dx + dz * dz > 1.0e-6f) {
+				BaseYawRad_ = std::atan2(dx, dz);
+				float yawOffset{ StartYawRad_ - BaseYawRad_ };
+				yawOffset -= 2.0f * Pi * std::floor((yawOffset + Pi) / (2.0f * Pi));		// [-π, π) に畳む
+				StartYawOffsetDeg_ = ToDeg(yawOffset);
+			}
+		}
 		Captured_ = true;
 	}
 
@@ -520,12 +536,18 @@ namespace Game::GameOverCamera {
 		if (!Captured_ || PreviewMode_ != Preview::Off) { Capture(camera_); }
 
 		Pose const pose{ EvaluateKeys(Look.Keys, StartPose(), Elapsed()) };
-		float const yaw{ StartYawRad_ + ToRad(pose.YawDeg) };
+		float const yaw{ BaseYawRad_ + ToRad(pose.YawDeg) };
 		float const pitch{ ToRad(std::clamp(pose.PitchDeg, -85.0f, 85.0f)) };
 		float const cosPitch{ std::cos(pitch) };
 		float const distance{ std::max(pose.Distance, 0.5f) };
 
-		V3 const target{ camera_.Target.x, camera_.Target.y + pose.TargetHeight, camera_.Target.z };
+		// 注視点：プレイヤー（camera_.Target）ともう一人（SetOther）の間を Focus で。高さはその点の足元から TargetHeight 上
+		float const focus{ HasOther_ ? std::clamp(pose.Focus, 0.0f, 1.0f) : 0.0f };
+		V3 const target{
+			camera_.Target.x + (Other_.x - camera_.Target.x) * focus,
+			camera_.Target.y + (Other_.y - camera_.Target.y) * focus + pose.TargetHeight,
+			camera_.Target.z + (Other_.z - camera_.Target.z) * focus
+		};
 		V3 const eye{
 			target.x + distance * std::sin(yaw) * cosPitch,
 			target.y + distance * std::sin(pitch),
@@ -584,6 +606,7 @@ namespace Game::GameOverCamera {
 				Read(element, "Yaw", key.YawDeg);
 				Read(element, "Roll", key.RollDeg);
 				Read(element, "Fov", key.FovDeg);
+				Read(element, "Focus", key.Focus);
 				key.EaseToNext = ParseEase(element, "Ease", Ease::Linear);
 				key.Time = std::max(key.Time, 0.0f);
 				keys.push_back(key);
@@ -598,6 +621,7 @@ namespace Game::GameOverCamera {
 		Read(root, "ShakeAmount", Look.ShakeAmount);
 		Read(root, "ShakeRollDeg", Look.ShakeRollDeg);
 		Read(root, "ShakeFrequency", Look.ShakeFrequency);
+		if (auto const yawItr{ root.find("YawFromOther") }; yawItr != root.end() && yawItr->is_boolean()) { Look.YawFromOther = yawItr->get<bool>(); }
 
 		Selected_ = std::clamp(Selected_, 0, static_cast<int>(Look.Keys.size()) - 1);
 		Status_ = "Loaded.";
@@ -615,6 +639,7 @@ namespace Game::GameOverCamera {
 				{ "Yaw", key.YawDeg },
 				{ "Roll", key.RollDeg },
 				{ "Fov", key.FovDeg },
+				{ "Focus", key.Focus },
 				{ "Ease", EaseNames[static_cast<int>(key.EaseToNext)] },
 			});
 		}
@@ -623,6 +648,7 @@ namespace Game::GameOverCamera {
 		root["ShakeAmount"] = Look.ShakeAmount;
 		root["ShakeRollDeg"] = Look.ShakeRollDeg;
 		root["ShakeFrequency"] = Look.ShakeFrequency;
+		root["YawFromOther"] = Look.YawFromOther;
 
 		std::ofstream ofs{ ConfigPath, std::ios::out | std::ios::trunc };
 		if (!ofs.is_open()) { Status_ = "Save failed (cannot open file)."; return false; }
@@ -638,7 +664,7 @@ namespace Game::GameOverCamera {
 
 	void Rig::DrawEditor() {
 #if defined(_DEBUG)
-		if (!ImGui::Begin("GameOver Camera")) {
+		if (!ImGui::Begin(EditorTitle)) {
 			ImGui::End();
 			return;
 		}
@@ -657,6 +683,10 @@ namespace Game::GameOverCamera {
 		ImGui::SliderFloat("Shake roll (deg)", &style.ShakeRollDeg, 0.0f, 3.0f);
 		ImGui::SliderFloat("Shake frequency (Hz)", &style.ShakeFrequency, 1.0f, 60.0f);
 		ImGui::TextDisabled("Shake now: %.2f (0..1)", Shake_);
+
+		ImGui::SeparatorText("Subject");
+		ImGui::Checkbox("Yaw 0 = behind the player, facing the other (needs SetOther)", &style.YawFromOther);
+		ImGui::TextDisabled("Other: %s  (Focus per key: 0 = player, 1 = other)", HasOther_ ? "set" : "not set");
 
 		//----	Preview							----//
 		ImGui::SeparatorText("Preview");
@@ -703,8 +733,8 @@ namespace Game::GameOverCamera {
 
 			if (idx == 0U) {
 				ImGui::TextDisabled(
-					"Captured at Start: distance %.1f, pitch %.1f deg, FOV %.1f deg (yaw 0, roll 0, target height 0)",
-					StartDistance_, StartPitchDeg_, StartFovDeg_
+					"Captured at Start: distance %.1f, pitch %.1f deg, yaw %.1f deg, FOV %.1f deg (roll 0, target height 0, focus 0)",
+					StartDistance_, StartPitchDeg_, StartYawOffsetDeg_, StartFovDeg_
 				);
 			}
 			else {
@@ -717,6 +747,7 @@ namespace Game::GameOverCamera {
 				ImGui::SliderFloat("Yaw (deg)", &key.YawDeg, -180.0f, 180.0f);
 				ImGui::SliderFloat("Roll (deg)", &key.RollDeg, -30.0f, 30.0f);
 				ImGui::SliderFloat("FOV (deg)", &key.FovDeg, 5.0f, 90.0f);
+				ImGui::SliderFloat("Focus (0 = player, 1 = other)", &key.Focus, 0.0f, 1.0f);
 			}
 
 			ImGui::BeginDisabled(idx + 1U >= keys.size());

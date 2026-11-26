@@ -24,6 +24,17 @@
 // - プレビュー中は窓の開閉をそのまま見せる（Preview = true。閉じたら即座に消す）。スクラブのたびに再生し直すので、
 //   エンベロープを掛けると、止めた時刻の光り方を確認できなくなるため
 // - VfxLoop のキー: "effect"（名前、必須）, "socket"（名前、省略時 "WeaponTip"）, "scale"（省略時 1）
+//
+// 合図の瞬間イベント（Cue、2026-11-11 追加。スキル用）
+// - "instants": [ { "type": "Cue", "frame": 19, "name": "Lunge" } ]。判定系なので持ち主のインスタンスだけ、ライブ再生のときだけ
+// - Update で鳴った Cue の名前の ID（TypeIdOf(name) = Game::CueIdOf(name)）を FiredCues() で返す。次の Update まで残る
+//   （体はそれを次のフレームの FighterFrame::Cues で受け取る。Cancel の窓と同じく 1 フレーム遅れ）
+//
+// 行動の受付と再生速度の窓（2026-11-06 追加。コンボ用。判定系なので持ち主のインスタンスだけ）
+// - Cancel:   開いている間、"allow" に書いた行動へ移れる（["Attack"] でコンボの次の段、["Dodge", "Jump", "Move"] で振りから抜ける）。
+//             名前は Game.PlayerInput の行動名。"allow" が無い・配列でない・知らない名前は読み込みエラー。状態は CancelAllowMask() で問い合わせる
+// - PlayRate: 開いている間、再生速度に "rate"（0 より大きい、必須）を掛ける。振り抜きの後半を遅くして、次の段の受付を長くする。
+//             重なったら一番小さい値。窓の状態は前のステップのものなので、1 フレーム遅れて効く。クリップを再生し直したフレームには掛けない
 
 export module Game.AnimEventDemo;
 
@@ -34,6 +45,7 @@ import <algorithm>;
 import <cmath>;
 import <cstddef>;
 import <cstdint>;
+import <cstring>;
 import <format>;
 import <fstream>;
 import <memory>;
@@ -51,6 +63,8 @@ import Lumina.AnimEvent;
 import Lumina.AnimEvent.Adapter;
 import Lumina.CG3D.Struct;
 
+import Game.PlayerInput;
+
 //////	//////	//////	//////	//////	//////
 
 export namespace Game::AnimEventDemo {
@@ -59,7 +73,7 @@ export namespace Game::AnimEventDemo {
 		static constexpr std::string_view TypeName{ "Hitbox" };
 		std::uint32_t Slot{ 0U };		// "slot": "RightBlade" → TypeIdOf。今は武器が 1 本なので使っていない
 		float Damage{ 0.0f };			// "damage"
-		float Knockback{ 0.0f };		// "knockback"（Boss_Kinoko::KnockedBack の power）
+		float Knockback{ 0.0f };		// "knockback"（Fighter::KnockedBack の power）
 	};
 
 	// 演出の窓のペイロード。窓が開いている間エフェクトを出す。
@@ -69,6 +83,24 @@ export namespace Game::AnimEventDemo {
 		std::uint32_t Effect{ 0U };		// "effect": "TipRays" → TypeIdOf
 		std::uint32_t Socket{ 0U };		// "socket": "WeaponTip" → TypeIdOf
 		float Scale{ 1.0f };			// "scale"：強さの倍率
+	};
+
+	// 行動の受付の窓のペイロード（"allow": 行動名の配列）
+	struct CancelPayload {
+		static constexpr std::string_view TypeName{ "Cancel" };
+		std::uint64_t Allow{ 0U };		// Lumina::Input::ActionMask（bit = Game::PlayerInput::Act の値）
+	};
+
+	// 再生速度の窓のペイロード（"rate": 倍率）
+	struct PlayRatePayload {
+		static constexpr std::string_view TypeName{ "PlayRate" };
+		float Rate{ 1.0f };
+	};
+
+	// 合図の瞬間イベントのペイロード（"name": 合図の名前）。スキルが「ここで踏み込む・ここで撃つ」をデータで決めるため
+	struct CuePayload {
+		static constexpr std::string_view TypeName{ "Cue" };
+		std::uint32_t Name{ 0U };		// "name": "Lunge" → TypeIdOf
 	};
 
 	// VfxLoop の窓 1 つ分（開いているもの、または閉じてから VfxLinger 秒以内のもの）
@@ -115,6 +147,24 @@ export namespace Game::AnimEventDemo {
 		// Hitbox の窓が開いているか（武器のコライダの Enabled にそのまま使う）
 		auto IsHitboxOpen() const -> bool;
 
+		// 開いている Cancel の窓の Allow の和（コンボの次の段・振りから抜ける行動）。Update の後の状態
+		auto CancelAllowMask() const -> std::uint64_t;
+
+		// 開いている PlayRate の窓の倍率（一番小さい値。無ければ 1）
+		auto PlayRateScale() const -> float;
+
+		// ゲームが再生しているクリップ（非ループ）が終端に着いて止まっているか
+		auto IsLiveFinished() const -> bool;
+
+		// 前の Update で鳴った Cue の名前の ID（ライブ再生のみ）
+		auto FiredCues() const noexcept -> std::span<std::uint32_t const> { return FiredCues_; }
+
+		// エディタのプレビュー中か（プレビュー中はゲームのクリップを再生していないので、コンボは止める）
+		auto IsPreviewing() const noexcept -> bool { return Mode_ == Mode::Preview; }
+
+		// 次の Update で、ゲームが選んでいるクリップを頭から再生し直す（名前が同じでも。コンボの段が変わったときなど）
+		void RestartLive() noexcept { RestartLive_ = true; }
+
 		// 武器が targetId_ に触れたときに呼ぶ。今開いている窓でまだ当たっていなければ、その窓のペイロードを返す。
 		// 同じ窓の間に 2 回目以降は nullopt。プレビュー中はダメージを入れないので常に nullopt
 		auto TryHit(std::uint32_t targetId_) -> std::optional<HitboxPayload>;
@@ -131,6 +181,9 @@ export namespace Game::AnimEventDemo {
 		// true: アニメーションイベントの窓で当たり判定する／false: 旧方式（攻撃中ずっと有効、ボスがノックバック中は当てない）。
 		// 時刻とポーズはどちらでもこのクラスが持つ（比べやすいように、違うのは当たり判定だけにしている）
 		bool UseAnimEvent{ true };
+
+		// エディタのウィンドウ名（2 つ目を作るときは変えること。ImGui は名前でウィンドウを区別する）
+		std::string EditorTitle{ "AnimEvent Hitbox" };
 
 	public:
 		PlayerAnimEvents() = default;
@@ -168,6 +221,7 @@ export namespace Game::AnimEventDemo {
 		std::vector<std::unique_ptr<ClipSlot>> Slots_{};		// ClipSlot のアドレスは動かさない
 		std::vector<OpenHitbox> OpenHitboxes_{};
 		std::vector<VfxTrack> VfxTracks_{};
+		std::vector<std::uint32_t> FiredCues_{};
 		std::uint32_t NextVfxSerial_{ 0U };
 		float Rate_{ 1.0f };
 		std::uint64_t StepCount_{ 0U };

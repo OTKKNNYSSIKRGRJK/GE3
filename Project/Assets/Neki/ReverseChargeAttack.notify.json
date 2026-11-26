@@ -1,0 +1,25 @@
+{
+  "_note": "ボスのスキル『溜め斬り』の振り（SkillSlam）。2026-11-11 の仮の値。刃先の速さ（glTF を読んで計算）から: 振りかぶり 0〜18、振り下ろし 20〜35（速さの山は 31）、36 以降は沈んだまま。Cue Lunge = 踏み込みの開始。ゲームで見て直すこと",
+  "clip": "SkillSlam",
+  "curves": [],
+  "frameRate": 30,
+  "instants": [
+    {
+      "frame": 19,
+      "name": "Lunge",
+      "type": "Cue"
+    }
+  ],
+  "take": "Armature.004|mixamo.com|Layer0.001 Retarget.001",
+  "version": 1,
+  "windows": [
+    {
+      "begin": 24,
+      "damage": 400,
+      "end": 37,
+      "knockback": 20,
+      "slot": "RightBlade",
+      "type": "Hitbox"
+    }
+  ]
+}

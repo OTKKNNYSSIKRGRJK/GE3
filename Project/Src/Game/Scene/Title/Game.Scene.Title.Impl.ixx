@@ -9,6 +9,7 @@ module;
 export module Game.Scene.Title : Impl;
 
 import Lumina;
+import Game.KeyConfigScreen;
 import Lumina.FirePillar;
 import Lumina.MagicCircle;
 import Lumina.ShowcaseCharacter;
@@ -541,7 +542,7 @@ namespace Game::Scene::Impl {
 			Done,		// シーン切り替え / 終了を要求済み
 			Outro,		// Start 決定後の演出中（入力は受け付けない）
 		};
-		static constexpr int NumMenuItems{ 2 };		// 0: Start / 1: Exit
+		static constexpr int NumMenuItems{ 3 };		// 0: Start / 1: 設定 / 2: Exit（2026-11-11 に設定を足した。設定が元の Start の位置）
 
 		std::unique_ptr<Lumina::SpriteRenderer> UISpriteRenderer_{ nullptr };
 		std::unique_ptr<Lumina::SpriteRenderer> UIGlowRenderer_{ nullptr };	// グロー専用（1 フレームに 1 回しかバッチできないので分ける）
@@ -552,7 +553,7 @@ namespace Game::Scene::Impl {
 		Lumina::DX12::GraphicsPSO PSO_UIGlow_{};		// 加算・TitleLabelGlow.PS
 		Lumina::DX12::UploadBuffer UB_UIOrtho_{};
 		Lumina::DX12::DescriptorHeap LocalHeap_UI_{};			// 0: 正射影の CBV（non-shader-visible）
-		Lumina::DX12::DescriptorTable GlobalTable_UITextures_{};	// 0: Start / 1: Exit / 2: Blank（フェード用）/ 3: Title
+		Lumina::DX12::DescriptorTable GlobalTable_UITextures_{};	// 0: Start / 1: Exit / 2: Blank（フェード用）/ 3: Title / 4: 設定
 
 		Lumina::Sprite UI_Items_[NumMenuItems]{};
 		Lumina::Sprite UI_Fade_{};
@@ -561,7 +562,7 @@ namespace Game::Scene::Impl {
 		TitleLogoStyle LogoStyle_{};
 		float LogoTimer_{ 0.0f };
 
-		static constexpr int NumGlowTargets{ 3 };		// 0: ロゴ / 1: Start / 2: Exit
+		static constexpr int NumGlowTargets{ 4 };		// 0: ロゴ / 1 + i: メニューの項目 i
 		Lumina::Sprite UI_Glows_[NumGlowTargets]{};
 		TitleGlowStyle GlowStyle_{};
 		float GlowTimer_{ 0.0f };
@@ -570,13 +571,16 @@ namespace Game::Scene::Impl {
 		MenuPhase MenuPhase_{ MenuPhase::FadeIn };
 		float MenuTimer_{ 0.0f };
 		int MenuSelected_{ 0 };
-		float MenuBlend_[NumMenuItems]{ 1.0f, 0.0f };	// 選択の度合い 0..1（見た目用に遅れて追従）
+		float MenuBlend_[NumMenuItems]{ 1.0f, 0.0f, 0.0f };	// 選択の度合い 0..1（見た目用に遅れて追従）
 		float FadeAlpha_{ 1.0f };						// 画面全体の黒の濃さ
 		float FadeOutFrom_{ 0.0f };
 		Lumina::Float3 IntroFadeColor_{ 0.0f, 0.0f, 0.0f };	// 黒のフェード（UI_Fade_）の色（リニア）。Outro から戻ったときだけ、その色から明ける
 		bool PrevKeyUp_{ false };
 		bool PrevKeyDown_{ false };
 		bool PrevKeyConfirm_{ false };
+
+		// 「設定」で開くキー割り当ての画面（メニューの上に重ねる。開いている間はメニューの入力を止める）
+		Game::KeyConfigScreen::Screen SettingsScreen_{};
 
 		//----	------	------	------	------	----//
 		// オービットカメラ（注視点のまわりを回る）

@@ -1,0 +1,35 @@
+{
+  "RS": {
+    "Parameters": [
+      {
+        "ShaderVisibility": "All",
+        "ParameterType": "CBV",
+        "ShaderRegister": 0,
+        "RegisterSpace": 0
+      },
+      {
+        "ShaderVisibility": "Vertex",
+        "ParameterType": "SRV",
+        "ShaderRegister": 0,
+        "RegisterSpace": 0
+      },
+      {
+        "ShaderVisibility": "Pixel",
+        "ParameterType": "DescriptorTable",
+        "TableName": "Depth"
+      }
+    ],
+
+    "Depth": [
+      {
+        "RangeType": "SRV",
+        "NumDescriptors": 1,
+        "BaseShaderRegister": 0,
+        "RegisterSpace": 1,
+        "OffsetInDescriptorsFromTableStart": -1
+      }
+    ],
+
+    "StaticSamplers": []
+  }
+}

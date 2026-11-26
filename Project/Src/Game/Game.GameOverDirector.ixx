@@ -33,6 +33,10 @@
 //   クリップは 5.5 秒（30fps）で、立ったまま後ろへよろめく（約 1.7 秒まで）→ 崩れ落ちる（約 3.4 秒で床）→ 横たわったまま。
 //   再生速度は DyingRate（1 = 実時間）。最後まで来たら最後のポーズのまま止まる。
 // 調整値は Assets/Configs/GameOverDirector.json に保存し、Initialize で読み込む（Release でも読む。無いキーは初期値のまま）
+//
+// 勝利演出（2026-11-17）：同じクラスの 2 台目を、別の設定ファイル・ラベル画像・エディタ窓（Paths）で使う。
+//   倒れるのはボス（Initialize に渡す骨格をボスのものに。プレイヤーと同じ骨格）、カメラは 2 台目の Rig、粉々は 2 台目の Shatter、色抜けは共用。
+//   続行は巻き戻しの代わりに暗転（BeginExit → ExitAlpha が 0 → 1。IsExitFinished で呼び出し側がタイトルへ）。暗転は巻き戻しと同じく、どちらの台でも使える
 
 export module Game.GameOverDirector;
 
@@ -93,6 +97,18 @@ export namespace Game::GameOverDirector {
 		float SpinFocus{ 0.0f };		// 回転の中心：0 = 画面の中心、1 = キャラの位置
 		float SpinIn{ 0.25f };			// 巻き戻しの長さに対する割合
 		float SpinOut{ 0.25f };
+
+		// 暗転（勝利演出の続行。SPACE でタイトルへ戻るとき）。実時間の秒。ExitFadeDuration かけて黒へ、そのあと ExitHold 秒は黒のまま
+		float ExitFadeDuration{ 1.0f };
+		float ExitHold{ 0.3f };
+	};
+
+	// 設定ファイル・ラベル画像・エディタ窓の名前（2 台目を別の名前で動かすため）
+	struct Paths {
+		char const* ConfigPath{ "Assets/Configs/GameOverDirector.json" };
+		char const* LabelImage{ "Assets/UI/Label.GameOver.png" };		// 結果のラベル（白文字・透明背景）
+		char const* PromptImage{ "Assets/UI/Label.PressSpace.png" };	// 続行の案内
+		char const* EditorTitle{ "GameOver Director" };
 	};
 
 	// エディタのプレビュー（Debug のみ）
@@ -113,7 +129,8 @@ export namespace Game::GameOverDirector {
 			Lumina::CG3D::Skeleton const& playerSkeleton_,
 			Game::GameOverGrade::Effect& grade_,
 			Game::GameOverCamera::Rig& camera_,
-			Game::GameOverShatter::Effect& shatter_
+			Game::GameOverShatter::Effect& shatter_,
+			Paths const& paths_ = Paths{}
 		);
 
 		void Start();						// 全トラックを頭から（色抜けとカメラの Start も呼ぶ）
@@ -145,6 +162,13 @@ export namespace Game::GameOverDirector {
 		auto IsRewindFinished() const -> bool;		// 巻き戻しが終わった（時計が 0 に着いた）
 		auto SpinRadians() const -> float;			// いまの回転ぼかしの振れ幅（ラジアン）。巻き戻し中でなければ 0。GradeFx_.SetSpin に渡す
 
+		// 暗転。BeginExit は演出が始まっていて（Start 済み・スクラブ中でない）暗転できるとき true。false なら呼び出し側がすぐ次へ進む。
+		// 暗転の間も演出の時計は進み続ける（カメラはゆっくり動いたまま暗くなる）
+		auto BeginExit() -> bool;
+		auto IsExiting() const -> bool { return Exiting_; }
+		auto ExitAlpha() const -> float;			// 黒の不透明度（0..1）。暗転中でなければ 0
+		auto IsExitFinished() const -> bool;		// 黒になって ExitHold 秒たった
+
 		void DrawEditor();					// ImGui「GameOver Director」（Debug のみ）
 
 		auto Load() -> bool;				// Look を設定ファイルから読む（あるキーだけ上書き）
@@ -153,9 +177,10 @@ export namespace Game::GameOverDirector {
 	public:
 		Style Look{};
 		bool ForceLabels{ false };	// デバッグ用（エディタのチェック）：フェーズや時刻に関係なく、ラベルを不透明度 1 で描く。描画そのものが映るかを切り分ける
-		static constexpr char const* ConfigPath{ "Assets/Configs/GameOverDirector.json" };
-		static constexpr char const* LabelImage{ "Assets/UI/Label.GameOver.png" };		// 「Game Over」（白文字・透明背景）
-		static constexpr char const* PromptImage{ "Assets/UI/Label.PressSpace.png" };	// 「Press Space to Continue」
+		char const* ConfigPath{ Paths{}.ConfigPath };		// Initialize の paths_ で差し替わる
+		char const* LabelImage{ Paths{}.LabelImage };
+		char const* PromptImage{ Paths{}.PromptImage };
+		char const* EditorTitle{ Paths{}.EditorTitle };
 
 	private:
 		Game::GameOverGrade::Effect* Grade_{ nullptr };
@@ -174,6 +199,8 @@ export namespace Game::GameOverDirector {
 		bool Rewinding_{ false };
 		float RewindElapsed_{ 0.0f };						// 巻き戻しを始めてからの実時間の秒
 		float RewindFromTime_{ 0.0f };						// 巻き戻しを始めたときの、演出の時計の秒
+		bool Exiting_{ false };
+		float ExitElapsed_{ 0.0f };							// 暗転を始めてからの実時間の秒
 		Lumina::Float2 LabelImageSize_{ 1337.0f, 228.0f };	// ラベルの画像の px（Initialize で PNG のヘッダから読む。読めなければこの値）
 		Lumina::Float2 PromptImageSize_{ 1062.0f, 134.0f };
 

@@ -1,0 +1,29 @@
+{
+  "RS": {
+    "Parameters": [
+      {
+        "ShaderVisibility": "Pixel",
+        "ParameterType": "CBV",
+        "ShaderRegister": 0,
+        "RegisterSpace": 0
+      },
+      {
+        "ShaderVisibility": "Pixel",
+        "ParameterType": "DescriptorTable",
+        "TableName": "GBuffer"
+      }
+    ],
+
+    "GBuffer": [
+      {
+        "RangeType": "SRV",
+        "NumDescriptors": 3,
+        "BaseShaderRegister": 0,
+        "RegisterSpace": 0,
+        "OffsetInDescriptorsFromTableStart": -1
+      }
+    ],
+
+    "StaticSamplers": []
+  }
+}

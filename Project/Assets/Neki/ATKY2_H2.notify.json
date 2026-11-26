@@ -1,5 +1,5 @@
 {
-  "_note": "Hitbox のフレームは、右手（刃側）の速さが最大になる区間からの推定（2026-10-17）。ゲームで見て直すこと",
+  "_note": "Hitbox のフレームは、右手（刃側）の速さが最大になる区間からの推定（2026-10-17）。ゲームで見て直すこと コンボの窓（Cancel / PlayRate）は 2026-11-06 に入れた仮の値。エディタで振りに合わせて直すこと",
   "clip": "ATK2",
   "curves": [],
   "frameRate": 30,
@@ -8,12 +8,43 @@
   "version": 1,
   "windows": [
     {
-      "begin": 5,
-      "damage": 200,
-      "end": 51,
+      "begin": 20,
+      "damage": 10000.0,
+      "end": 45,
       "knockback": 10,
       "slot": "RightBlade",
       "type": "Hitbox"
+    },
+    {
+      "allow": [
+        "Attack"
+      ],
+      "begin": 46,
+      "end": 73,
+      "type": "Cancel"
+    },
+    {
+      "allow": [
+        "Dodge",
+        "Jump"
+      ],
+      "begin": 52,
+      "end": 73,
+      "type": "Cancel"
+    },
+    {
+      "allow": [
+        "Move"
+      ],
+      "begin": 60,
+      "end": 73,
+      "type": "Cancel"
+    },
+    {
+      "begin": 58,
+      "end": 73,
+      "rate": 0.35,
+      "type": "PlayRate"
     }
   ]
 }

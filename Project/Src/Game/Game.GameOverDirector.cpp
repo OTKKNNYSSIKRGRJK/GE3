@@ -233,8 +233,13 @@ namespace Game::GameOverDirector {
 		Lumina::CG3D::Skeleton const& playerSkeleton_,
 		Game::GameOverGrade::Effect& grade_,
 		Game::GameOverCamera::Rig& camera_,
-		Game::GameOverShatter::Effect& shatter_
+		Game::GameOverShatter::Effect& shatter_,
+		Paths const& paths_
 	) {
+		ConfigPath = paths_.ConfigPath;
+		LabelImage = paths_.LabelImage;
+		PromptImage = paths_.PromptImage;
+		EditorTitle = paths_.EditorTitle;
 		Grade_ = &grade_;
 		Camera_ = &camera_;
 		Shatter_ = &shatter_;
@@ -291,6 +296,8 @@ namespace Game::GameOverDirector {
 		RealTime_ = 0.0f;
 		Rewinding_ = false;
 		RewindElapsed_ = 0.0f;
+		Exiting_ = false;
+		ExitElapsed_ = 0.0f;
 		if (Grade_) { Grade_->Start(); }
 		if (Camera_) { Camera_->Start(); }
 		if (Shatter_) { Shatter_->Reset(); }		// 前の粒子を消す
@@ -302,6 +309,8 @@ namespace Game::GameOverDirector {
 		RealTime_ = 0.0f;
 		Rewinding_ = false;
 		RewindElapsed_ = 0.0f;
+		Exiting_ = false;
+		ExitElapsed_ = 0.0f;
 		if (Grade_) { Grade_->Reset(); }
 		if (Camera_) { Camera_->Reset(); }
 		if (Shatter_) { Shatter_->Reset(); }
@@ -321,6 +330,7 @@ namespace Game::GameOverDirector {
 		}
 		Time_ += dt * TimeScale();
 		RealTime_ += dt;
+		if (Exiting_) { ExitElapsed_ += dt; }
 	}
 
 	auto Director::Elapsed() const -> float {
@@ -398,6 +408,24 @@ namespace Game::GameOverDirector {
 		return Look.SpinAngleDeg * (3.14159265f / 180.0f) * amount;
 	}
 
+	auto Director::BeginExit() -> bool {
+		if (!Started_ || PreviewMode_ != Preview::Off || Exiting_) { return Exiting_; }
+		if (Look.ExitFadeDuration + Look.ExitHold <= 0.0f) { return false; }
+		Exiting_ = true;
+		ExitElapsed_ = 0.0f;
+		return true;
+	}
+
+	auto Director::ExitAlpha() const -> float {
+		if (!Exiting_) { return 0.0f; }
+		float const u{ Saturate(ExitElapsed_ / std::max(Look.ExitFadeDuration, 1.0e-3f)) };
+		return u * u * (3.0f - 2.0f * u);
+	}
+
+	auto Director::IsExitFinished() const -> bool {
+		return Exiting_ && ExitElapsed_ >= std::max(Look.ExitFadeDuration, 0.0f) + std::max(Look.ExitHold, 0.0f);
+	}
+
 	auto Director::IsRewindFinished() const -> bool {
 		return Rewinding_ && RewindElapsed_ >= Look.RewindDuration;
 	}
@@ -447,6 +475,8 @@ namespace Game::GameOverDirector {
 		Read(root, "SpinFocus", style.SpinFocus);
 		Read(root, "SpinIn", style.SpinIn);
 		Read(root, "SpinOut", style.SpinOut);
+		Read(root, "ExitFadeDuration", style.ExitFadeDuration);
+		Read(root, "ExitHold", style.ExitHold);
 		Status_ = "Loaded.";
 		return true;
 	}
@@ -476,6 +506,8 @@ namespace Game::GameOverDirector {
 		root["SpinFocus"] = style.SpinFocus;
 		root["SpinIn"] = style.SpinIn;
 		root["SpinOut"] = style.SpinOut;
+		root["ExitFadeDuration"] = style.ExitFadeDuration;
+		root["ExitHold"] = style.ExitHold;
 
 		std::ofstream ofs{ ConfigPath, std::ios::out | std::ios::trunc };
 		if (!ofs.is_open()) { Status_ = "Save failed (cannot open file)."; return false; }
@@ -491,7 +523,7 @@ namespace Game::GameOverDirector {
 
 	void Director::DrawEditor() {
 #if defined(_DEBUG)
-		if (!ImGui::Begin("GameOver Director")) {
+		if (!ImGui::Begin(EditorTitle)) {
 			ImGui::End();
 			return;
 		}
@@ -649,6 +681,12 @@ namespace Game::GameOverDirector {
 		if (ImGui::Button("Rewind now (then restarts)")) { BeginRewind(); }
 		ImGui::SameLine();
 		ImGui::TextDisabled("%s  progress %.2f", Rewinding_ ? "rewinding" : "idle", RewindProgress());
+
+		ImGui::SeparatorText("Exit (fade to black, used by the victory)");
+		ImGui::SliderFloat("Fade to black (s, real time)", &style.ExitFadeDuration, 0.0f, 4.0f);
+		ImGui::SliderFloat("Hold black (s, real time)", &style.ExitHold, 0.0f, 2.0f);
+		ImGui::TextDisabled("The scene keeps playing (camera keeps moving) while it fades. Then the caller moves on (victory: back to the title).");
+		ImGui::TextDisabled("%s  black %.2f", Exiting_ ? "fading" : "idle", ExitAlpha());
 
 		ImGui::End();
 #endif

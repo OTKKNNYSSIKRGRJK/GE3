@@ -11,6 +11,9 @@
 //   Yaw          … 回り込み（度）。演出を始めた瞬間のカメラの向きからのずれ。変えると注視点のまわりを横へ回る
 //   Roll         … 画面の傾き（度）。符号は見た目で確認する
 //   Fov          … 垂直画角（度）
+//   Focus        … 注視点を「プレイヤー（0）」から「もう一人（1。SetOther で渡す点。勝利演出ではボス）」へ寄せる量。キーの間で補間する
+// Style::YawFromOther が true のとき、Yaw の 0 は「もう一人 → プレイヤー」の向きの延長（プレイヤーの背中側から、もう一人を見る位置）。
+//   先頭のキーの Yaw は、取り込んだカメラのその向きからのずれになる（Start の瞬間の位置で決める）
 // 最初のキー（Time = 0）は、演出を始めた瞬間の「いまのカメラ」を自動で取り込む（値の欄は使わない）。
 // そのため、つなぎ目が出ない。Yaw は 0、Roll は 0、TargetHeight は 0（足元）から始まる。
 // イージングは「そのキーから次のキーへ」の区間に掛かる。Hold は次のキーの時刻まで値を保って、そこで切り替わる。
@@ -63,6 +66,7 @@ export namespace Game::GameOverCamera {
 		float RollDeg{ 0.0f };
 		float FovDeg{ 25.8f };
 		Ease EaseToNext{ Ease::Linear };
+		float Focus{ 0.0f };			// 注視点：0 = プレイヤー（camera_.Target）、1 = SetOther の点
 	};
 
 	struct Style {
@@ -72,6 +76,9 @@ export namespace Game::GameOverCamera {
 		float ShakeAmount{ 0.15f };
 		float ShakeRollDeg{ 0.5f };
 		float ShakeFrequency{ 22.0f };
+
+		// true なら Yaw の基準を「もう一人 → プレイヤー」の向きにする（SetOther を呼んでいなければ false と同じ）
+		bool YawFromOther{ false };
 
 		// 先頭（Time = 0）の値の欄は使わない（実カメラを取り込む）。おすすめの初期値：
 		//   0 → 1.8 秒：ぐっと寄って、俯瞰を強め、胸〜顔へ注視点を上げ、少し回り込み、傾ける（減速しながら）
@@ -91,6 +98,7 @@ export namespace Game::GameOverCamera {
 		float YawDeg;
 		float RollDeg;
 		float FovDeg;
+		float Focus;
 	};
 
 	// エディタのプレビュー（Debug のみ）
@@ -101,7 +109,8 @@ export namespace Game::GameOverCamera {
 
 	class Rig {
 	public:
-		void Initialize();					// 設定ファイルを読む
+		// 設定ファイルを読む。configPath_ / editorTitle_ を渡すと、別の設定ファイル・別のエディタ窓で動く（勝利演出用の 2 台目など）
+		void Initialize(char const* configPath_ = nullptr, char const* editorTitle_ = nullptr);
 
 		void Start();						// 演出を頭から始める（始まった瞬間のカメラを取り込む）
 		void Reset();						// 演出なし（元のカメラ）に戻す
@@ -123,12 +132,16 @@ export namespace Game::GameOverCamera {
 		// シェークの強さ（0..1）。毎フレーム、Apply の前に呼ぶ（呼ばなければ前の値のまま）
 		void SetShake(float intensity_) { Shake_ = intensity_; }
 
+		// 「もう一人」の足元の位置（Focus と YawFromOther が使う）。毎フレーム、Apply の前に呼ぶ
+		void SetOther(Lumina::Float3 const& other_) { Other_ = other_; HasOther_ = true; }
+
 		auto Load() -> bool;				// Look を設定ファイルから読む（あるキーだけ上書き）
 		auto Save() -> bool;
 
 	public:
 		Style Look{};
-		static constexpr char const* ConfigPath{ "Assets/Configs/GameOverCamera.json" };
+		char const* ConfigPath{ "Assets/Configs/GameOverCamera.json" };
+		char const* EditorTitle{ "GameOver Camera" };
 
 	private:
 		auto Elapsed() const -> float;
@@ -145,6 +158,10 @@ export namespace Game::GameOverCamera {
 		float StartPitchDeg_{ 20.0f };
 		float StartYawRad_{ 0.0f };			// ワールドでの向き（Z+ から X+ へ測る）
 		float StartFovDeg_{ 25.8f };
+		float BaseYawRad_{ 0.0f };			// Yaw の 0 の向き（ワールド）。既定は StartYawRad_、YawFromOther なら「もう一人 → プレイヤー」
+		float StartYawOffsetDeg_{ 0.0f };	// 先頭のキーの Yaw（BaseYawRad_ からのずれ）
+		Lumina::Float3 Other_{ 0.0f, 0.0f, 0.0f };
+		bool HasOther_{ false };
 
 		bool IsFovModified_{ false };		// camera_ の FOV を変えたままか（元に戻す必要があるか）
 		float BaseFovRad_{ 0.45f };			// 変える前の FOV

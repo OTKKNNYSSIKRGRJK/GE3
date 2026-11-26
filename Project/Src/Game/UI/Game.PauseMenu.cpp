@@ -15,6 +15,8 @@ import <d3d12.h>;
 import Lumina;
 import nlohmann.json;
 
+import Game.KeyConfigScreen;
+
 #if defined(_DEBUG)
 import Lumina.Utils.ImGui;
 #endif
@@ -133,6 +135,7 @@ namespace Game::PauseMenu {
 					{ "Pause.Item0", ItemImages[0] },
 					{ "Pause.Item1", ItemImages[1] },
 					{ "Pause.Item2", ItemImages[2] },
+					{ "Pause.Item3", ItemImages[3] },
 					{ "Pause.Hint", HintImage },
 					{ "Pause.QuitHint", QuitHintImage },
 				}
@@ -176,6 +179,9 @@ namespace Game::PauseMenu {
 
 		Close();
 
+		// 「設定」の画面（キー割り当て）
+		Settings_.Initialize(dxContext_, assetMngr_, "Pause");
+
 		// 調整値（無ければ初期値のまま）
 		Load();
 	}
@@ -195,6 +201,7 @@ namespace Game::PauseMenu {
 	}
 
 	void Menu::Close() {
+		Settings_.Close();
 		IsOpen_ = false;
 		WaitRelease_ = false;
 		OpenTimer_ = 0.0f;
@@ -224,6 +231,15 @@ namespace Game::PauseMenu {
 		PrevDown_ = keyDown;
 		PrevConfirm_ = keyConfirm;
 
+		// 設定の画面を開いている間は、そちらに入力を渡すだけ（ESC・戻るで閉じたらメニューに戻る。
+		// 押した瞬間を見るための前の状態は上で更新済みなので、閉じたときの ESC でゲームに戻ったりはしない）
+		if (IsOpen_ && Settings_.IsOpen()) {
+			Settings_.Update(input_);
+			OpenTimer_ += MenuDeltaTime;
+			UpdateSprites();
+			return Action::None;
+		}
+
 		// 決定で閉じたあと、決定キーを離すまではゲームを止めたまま（SPACE がそのままジャンプ・再開に化けないように）
 		if (WaitRelease_ && !keyConfirm) { WaitRelease_ = false; }
 
@@ -240,10 +256,15 @@ namespace Game::PauseMenu {
 			if (triggeredUp) { Selected_ = (Selected_ + count - 1) % count; }
 			if (triggeredDown) { Selected_ = (Selected_ + 1) % count; }
 			if (triggeredConfirm) {
-				constexpr Action actions[NumItems]{ Action::Resume, Action::Restart, Action::ReturnToTitle };
-				action = actions[Selected_];
-				Close();
-				WaitRelease_ = true;
+				constexpr Action actions[NumItems]{ Action::Resume, Action::Restart, Action::Settings, Action::ReturnToTitle };
+				if (actions[Selected_] == Action::Settings) {
+					Settings_.Open();		// メニューは開いたまま
+				}
+				else {
+					action = actions[Selected_];
+					Close();
+					WaitRelease_ = true;
+				}
 			}
 		}
 
@@ -311,8 +332,10 @@ namespace Game::PauseMenu {
 		renderer.BatchBegin();
 		if (drawMenu) {
 			renderer.Batch(Dim_);
-			for (auto const& item : Items_) {
-				renderer.Batch(item);
+			if (!Settings_.IsOpen()) {		// 設定の画面を開いている間は、暗幕だけ（項目は設定のパネルと重なるので出さない）
+				for (auto const& item : Items_) {
+					renderer.Batch(item);
+				}
 			}
 		}
 		else {
@@ -322,6 +345,8 @@ namespace Game::PauseMenu {
 		}
 		renderer.BatchEnd();
 		IsPrepared_ = true;
+
+		Settings_.Prepare(cmdList_);		// 開いていなければ何もしない
 	}
 
 	void Menu::Render() {
@@ -331,6 +356,8 @@ namespace Game::PauseMenu {
 		auto& renderer{ *Renderer_ };
 		renderer.Render(PSO_, GlobalTable_Textures_.GPUHandle(0U), LocalHeap_.CPUHandle(0U));
 		renderer.End();
+
+		Settings_.Render();					// Prepare したフレームだけ描く（メニューの上）
 	}
 
 	//////	//////	//////	//////	//////	//////

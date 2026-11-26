@@ -12,6 +12,7 @@ import : Impl;
 
 import Lumina;
 import Game.Scene;
+import Game.KeyConfigScreen;
 
 #if defined(_DEBUG)
 import Lumina.Utils.ImGui;
@@ -21,7 +22,7 @@ import Lumina.Utils.ImGui;
 #undef min
 
 //////	//////	//////	//////	//////	//////
-//	Title のメニュー（Start / Exit）		//
+//	Title のメニュー（Start / 設定 / Exit）	//
 //////	//////	//////	//////	//////	//////
 // 本編の SpriteRenderer / Sprite2.VS.hlsl / SpriteUI.PS.hlsl をそのまま使う。
 // 本編の UI 用 PSO は加算合成だが、黒のフェードを重ねるために通常のアルファ合成の PSO を別に作る。
@@ -33,7 +34,10 @@ import Lumina.Utils.ImGui;
 // 演出：フェードイン → 選択中は不透明・等倍・少し左へ、非選択は半透明・縮小
 //       → Start：Outro を開始（ロゴ・メニューはフェードインを逆再生して消え、Outro の最後に次のシーンへ。
 //                Game.Scene.Title.Outro.cpp）
+//       → 設定：キー割り当ての画面（Game.KeyConfigScreen）を上に重ねて開く。開いている間はメニューの入力を止める。
+//              ESC か「戻る」で閉じる（ESC でタイトルが閉じないよう、Game::Scene::BlockEscapeQuit を立てる）
 //       → Exit：点滅 → 黒へフェードアウト → Flag = -1（main.cpp がウィンドウを閉じる）
+// 並び（2026-11-11）：Start を 1 つ上へ、元の Start の位置に設定、Exit はそのまま（項目 i の Y = FirstY + Spacing × (i − 1)）
 // メニューは Pause / TimeScale の影響を受けない（固定の 1/60 秒で進める）。
 
 namespace Game::Scene::Impl {
@@ -179,6 +183,7 @@ namespace Game::Scene::Impl {
 					{ "Title.Label.Exit", "Assets/UI/Label.Exit.png" },
 					{ "Title.Blank", "Assets/Img/Blank.png" },
 					{ "Title.Label.Title", "Assets/UI/Label.Title.png" },
+					{ "Title.Label.Settings", "Assets/UI/Label.Settings.png" },
 				}
 			);
 			GlobalTable_UITextures_ = dxContext_.GlobalDescriptorHeap().Allocate(8U);
@@ -202,16 +207,20 @@ namespace Game::Scene::Impl {
 		}
 
 		// * Sprites
+		constexpr uint32_t itemTextures[NumMenuItems]{ 0U, 4U, 1U };		// Start / 設定 / Exit
 		for (int idx{ 0 }; idx < NumMenuItems; ++idx) {
 			auto& item{ UI_Items_[idx] };
 			item.AnchorPoint({ 1.0f, 0.5f });	// 右端・縦中央
-			item.TextureID(static_cast<uint32_t>(idx));
+			item.TextureID(itemTextures[idx]);
 		}
 		UI_Fade_.Translate({ 0.0f, 0.0f });
 		UI_Fade_.Scale({ 1280.0f, 720.0f });
 		UI_Fade_.AnchorPoint({ 0.0f, 0.0f });
 		UI_Fade_.TextureID(2U);
 		UI_Logo_.TextureID(3U);
+
+		// 「設定」の画面（キー割り当て）
+		SettingsScreen_.Initialize(dxContext_, assetMngr_, "Title");
 
 		ResetMenu();
 	}
@@ -264,6 +273,14 @@ namespace Game::Scene::Impl {
 		PrevKeyDown_ = keyDown;
 		PrevKeyConfirm_ = keyConfirm;
 
+		// 設定の画面：開いている間はそちらに入力を渡し、メニューは動かさない（押した瞬間の前の状態は上で更新済み）。
+		// ESC でタイトルが閉じないよう、開いている間と、閉じたあと ESC を離すまでは main.cpp に知らせる
+		bool const settingsOpen{ SettingsScreen_.IsOpen() };
+		if (settingsOpen) {
+			SettingsScreen_.Update(input_);
+		}
+		Game::Scene::BlockEscapeQuit = SettingsScreen_.IsOpen() || (Game::Scene::BlockEscapeQuit && keyboard.IsPressed(KEY::ESC));
+
 		//----	------	------	------	------	----//
 		// 状態遷移
 
@@ -280,6 +297,7 @@ namespace Game::Scene::Impl {
 				}
 			}
 
+			if (settingsOpen) { break; }		// 設定の画面を開いている間は選ばない（フェードインはそのまま進む）
 			if (triggeredUp) {
 				MenuSelected_ = (MenuSelected_ + NumMenuItems - 1) % NumMenuItems;
 			}
@@ -290,8 +308,12 @@ namespace Game::Scene::Impl {
 				if (MenuSelected_ == 0) {
 					StartOutro(false);	// Start：Outro へ（MenuPhase_ も Outro になる）
 				}
+				else if (MenuSelected_ == 1) {
+					SettingsScreen_.Open();		// 設定：メニューの上に重ねて開く
+					Game::Scene::BlockEscapeQuit = true;
+				}
 				else {
-					MenuPhase_ = MenuPhase::Decided;
+					MenuPhase_ = MenuPhase::Decided;	// Exit
 					MenuTimer_ = 0.0f;
 				}
 			}
@@ -360,7 +382,7 @@ namespace Game::Scene::Impl {
 			auto& item{ UI_Items_[idx] };
 			item.Translate({
 				style.RightX + style.SelectedOffsetX * blend,
-				style.FirstY + style.Spacing * static_cast<float>(idx),
+				style.FirstY + style.Spacing * static_cast<float>(idx - 1),		// 設定（1）が FirstY。Start はその 1 つ上
 			});
 			item.Scale({ style.Width * scale, style.Height * scale });
 			item.RGBA({ 1.0f, 1.0f, 1.0f, alpha });
@@ -400,7 +422,7 @@ namespace Game::Scene::Impl {
 			float const b{ SRGBToLinear(glow.Color.z) };
 			float const margin{ std::max(glow.RadiusPx, 0.0f) };
 
-			Lumina::Sprite const* const sources[NumGlowTargets]{ &UI_Logo_, &UI_Items_[0], &UI_Items_[1] };
+			Lumina::Sprite const* const sources[NumGlowTargets]{ &UI_Logo_, &UI_Items_[0], &UI_Items_[1], &UI_Items_[2] };
 			for (int idx{ 0 }; idx < NumGlowTargets; ++idx) {
 				auto const& source{ *sources[idx] };
 				auto& target{ UI_Glows_[idx] };
@@ -489,6 +511,10 @@ namespace Game::Scene::Impl {
 			LocalHeap_UI_.CPUHandle(0U)
 		);
 		renderer.End();
+
+		// * 3. 設定の画面（開いている間だけ。一番手前。Title はレンダーパスを使っていないので、続けて写して描ける）
+		SettingsScreen_.Prepare(cmdList_);
+		SettingsScreen_.Render();
 	}
 
 	//////	//////	//////	//////	//////	//////
@@ -500,7 +526,8 @@ namespace Game::Scene::Impl {
 		ImGui::Begin("Menu");
 
 		constexpr char const* phaseNames[]{ "FadeIn", "Idle", "Decided", "FadeOut", "Done", "Outro" };
-		ImGui::Text("Phase: %s  /  Selected: %s", phaseNames[static_cast<int>(MenuPhase_)], (MenuSelected_ == 0) ? "Start" : "Exit");
+		constexpr char const* itemNames[NumMenuItems]{ "Start", "Settings", "Exit" };
+		ImGui::Text("Phase: %s  /  Selected: %s%s", phaseNames[static_cast<int>(MenuPhase_)], itemNames[MenuSelected_], SettingsScreen_.IsOpen() ? "  (settings open)" : "");
 		ImGui::BeginDisabled(IsOutroActive());	// Outro 中は「Outro」ウィンドウの Rewind で戻す
 		if (ImGui::Button("Replay (fade in)")) {
 			ResetMenu();

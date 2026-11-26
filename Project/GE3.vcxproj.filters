@@ -92,8 +92,23 @@
     <Filter Include="Assets\Effects">
       <UniqueIdentifier>{b3d1f6a8-27c4-4e95-8a6d-c0e4719f25d3}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Src\Lumina\Test\BT">
+      <UniqueIdentifier>{77e1b261-5e97-41f4-9aeb-3af728744126}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Src\Lumina\Test\Input">
+      <UniqueIdentifier>{9c4e7a21-3b58-4f6d-a2e1-7d0c5b8f4e63}</UniqueIdentifier>
+    </Filter>
     <Filter Include="Src\Lumina\Test\AnimEvent">
       <UniqueIdentifier>{bd117222-41a9-4bc7-9d63-4f536763e912}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Src\Lumina\Test\Event">
+      <UniqueIdentifier>{3a6f1c2e-8b47-4d95-9e0a-1c5d7b3e2f81}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Src\Lumina\Test\CombatVfx">
+      <UniqueIdentifier>{6d2b9e41-0f7c-4a38-b5e6-2e9c1a7d4b53}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Src\Lumina\Test\SceneLight">
+      <UniqueIdentifier>{c84e2b17-5a39-4f60-9d1e-3b7a6f2c8e45}</UniqueIdentifier>
     </Filter>
     <Filter Include="Src\Lumina\Phys">
       <UniqueIdentifier>{5f3c2a8e-7d41-4b9a-9e2c-6a1d0b4f8c37}</UniqueIdentifier>
@@ -335,13 +350,34 @@
     <ClCompile Include="Src\Lumina\DX12\DX12.Fence.ixx">
       <Filter>Src\Lumina\DX12</Filter>
     </ClCompile>
-    <ClCompile Include="Src\Game\Player.cpp">
+    <ClCompile Include="Src\Game\Game.Fighter.cpp">
+      <Filter>Src\Game</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Game\Game.Fighter.ixx">
+      <Filter>Src\Game</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Game\Game.FighterSettings.ixx">
+      <Filter>Src\Game</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Game\Game.FighterSettings.cpp">
       <Filter>Src\Game</Filter>
     </ClCompile>
     <ClCompile Include="Src\Game\Player.ixx">
       <Filter>Src\Game</Filter>
     </ClCompile>
     <ClCompile Include="Src\Game\PlayerCamera.ixx">
+      <Filter>Src\Game</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Game\Game.PlayerInput.ixx">
+      <Filter>Src\Game</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Game\Game.PlayerInput.cpp">
+      <Filter>Src\Game</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Game\Game.PlayerCombo.ixx">
+      <Filter>Src\Game</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Game\Game.PlayerCombo.cpp">
       <Filter>Src\Game</Filter>
     </ClCompile>
     <ClCompile Include="Src\Game\Game.GameOverCamera.ixx">
@@ -392,11 +428,29 @@
     <ClCompile Include="Src\Game\Scene\Game.Scene.InGame.InBattle.cpp">
       <Filter>Src\Game\Scene\InGame</Filter>
     </ClCompile>
-    <ClCompile Include="Src\Game\Enemies\Boss.Kinoko.cpp">
-      <Filter>Src\Game\Enemies\Boss.Kinoko</Filter>
+    <ClCompile Include="Src\Game\Enemies\Game.Boss.ixx">
+      <Filter>Src\Game\Enemies</Filter>
     </ClCompile>
-    <ClCompile Include="Src\Game\Enemies\Boss.Kinoko.ixx">
-      <Filter>Src\Game\Enemies\Boss.Kinoko</Filter>
+    <ClCompile Include="Src\Game\Enemies\Game.Boss.cpp">
+      <Filter>Src\Game\Enemies</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Game\Enemies\Game.Boss.Editor.cpp">
+      <Filter>Src\Game\Enemies</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Game\Enemies\Game.Boss.Settings.cpp">
+      <Filter>Src\Game\Enemies</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Game\Enemies\Game.BossBrain.ixx">
+      <Filter>Src\Game\Enemies</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Game\Enemies\Game.BossBrain.cpp">
+      <Filter>Src\Game\Enemies</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Game\Enemies\Game.BossSkills.ixx">
+      <Filter>Src\Game\Enemies</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Game\Enemies\Game.BossSkills.cpp">
+      <Filter>Src\Game\Enemies</Filter>
     </ClCompile>
     <ClCompile Include="Src\CG4\CG3D.Animation.cpp">
       <Filter>Src</Filter>
@@ -536,6 +590,42 @@
     <ClCompile Include="Src\Test\AnimEvent\AnimEvent.Tests.cpp">
       <Filter>Src\Lumina\Test\AnimEvent</Filter>
     </ClCompile>
+    <ClCompile Include="Src\Test\Input\Input.ixx">
+      <Filter>Src\Lumina\Test\Input</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Test\Input\Input.Map.ixx">
+      <Filter>Src\Lumina\Test\Input</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Test\Input\Input.Map.cpp">
+      <Filter>Src\Lumina\Test\Input</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Test\Input\Input.Buffer.ixx">
+      <Filter>Src\Lumina\Test\Input</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Test\Input\Input.Buffer.cpp">
+      <Filter>Src\Lumina\Test\Input</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Test\Input\Input.Adapter.ixx">
+      <Filter>Src\Lumina\Test\Input</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Test\Input\Input.Adapter.cpp">
+      <Filter>Src\Lumina\Test\Input</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Test\Input\Input.Tests.ixx">
+      <Filter>Src\Lumina\Test\Input</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Test\Input\Input.Tests.cpp">
+      <Filter>Src\Lumina\Test\Input</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Test\BT\BT.ixx">
+      <Filter>Src\Lumina\Test\BT</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Test\BT\BT.Tests.ixx">
+      <Filter>Src\Lumina\Test\BT</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Test\BT\BT.Tests.cpp">
+      <Filter>Src\Lumina\Test\BT</Filter>
+    </ClCompile>
     <ClCompile Include="Src\Test\AnimEventDemo\Game.AnimEventDemo.ixx">
       <Filter>Src\Lumina\Test\AnimEventDemo</Filter>
     </ClCompile>
@@ -562,6 +652,27 @@
     </ClCompile>
     <ClCompile Include="Src\Test\VsBanner\VsBanner.cpp">
       <Filter>Src\Lumina\Test\VsBanner</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Test\Event\EventSystem.cpp">
+      <Filter>Src\Lumina\Test\Event</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Test\Event\Game.CombatEvents.ixx">
+      <Filter>Src\Lumina\Test\Event</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Test\Event\Game.CombatEvents.cpp">
+      <Filter>Src\Lumina\Test\Event</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Test\CombatVfx\FxMesh.ixx">
+      <Filter>Src\Lumina\Test\CombatVfx</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Test\CombatVfx\FxMesh.cpp">
+      <Filter>Src\Lumina\Test\CombatVfx</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Test\CombatVfx\Game.CombatVfx.ixx">
+      <Filter>Src\Lumina\Test\CombatVfx</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Test\CombatVfx\Game.CombatVfx.cpp">
+      <Filter>Src\Lumina\Test\CombatVfx</Filter>
     </ClCompile>
     <ClCompile Include="Src\Test\SDF\SDF.ixx">
       <Filter>Src\Lumina\Test\SDF</Filter>
@@ -612,6 +723,36 @@
       <Filter>Src\Game\UI</Filter>
     </ClCompile>
     <ClCompile Include="Src\Game\UI\Game.PauseMenu.cpp">
+      <Filter>Src\Game\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Game\Game.KeyConfig.ixx">
+      <Filter>Src\Game</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Game\Game.KeyConfig.cpp">
+      <Filter>Src\Game</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Game\UI\Game.UIFont.ixx">
+      <Filter>Src\Game\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Game\UI\Game.UIFont.cpp">
+      <Filter>Src\Game\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Game\UI\Game.KeyConfigScreen.ixx">
+      <Filter>Src\Game\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Game\UI\Game.KeyConfigScreen.cpp">
+      <Filter>Src\Game\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Test\SceneLight\SceneLight.ixx">
+      <Filter>Src\Lumina\Test\SceneLight</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Test\SceneLight\SceneLight.cpp">
+      <Filter>Src\Lumina\Test\SceneLight</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Game\UI\Game.DebugDock.ixx">
+      <Filter>Src\Game\UI</Filter>
+    </ClCompile>
+    <ClCompile Include="Src\Game\UI\Game.DebugDock.cpp">
       <Filter>Src\Game\UI</Filter>
     </ClCompile>
     <ClCompile Include="Src\Game\UI\Game.GameOverGrade.ixx">
@@ -681,6 +822,18 @@
     <None Include="Assets\Effects\VsBanner.json">
       <Filter>Assets\Effects</Filter>
     </None>
+    <None Include="Assets\Effects\FxMesh.hlsl">
+      <Filter>Assets\Effects</Filter>
+    </None>
+    <None Include="Assets\Effects\FxMesh.json">
+      <Filter>Assets\Effects</Filter>
+    </None>
+    <None Include="Assets\Effects\SceneLight.hlsl">
+      <Filter>Assets\Effects</Filter>
+    </None>
+    <None Include="Assets\Effects\SceneLight.json">
+      <Filter>Assets\Effects</Filter>
+    </None>
     <None Include="Assets\Effects\GameOverGrade.hlsl">
       <Filter>Assets\Effects</Filter>
     </None>
@@ -732,6 +885,12 @@
     </ClInclude>
     <ClInclude Include="External\ImGui\imstb_truetype.h">
       <Filter>External\ImGui</Filter>
+    </ClInclude>
+    <ClInclude Include="Src\Test\Event\EventSystem.h">
+      <Filter>Src\Lumina\Test\Event</Filter>
+    </ClInclude>
+    <ClInclude Include="Src\Test\Event\Singleton.h">
+      <Filter>Src\Lumina\Test\Event</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

@@ -3,6 +3,8 @@ module Game.Scene.InGame;
 import : Impl;
 
 import Lumina;
+import Lumina.Input;
+import Game.PlayerInput;
 
 namespace Game::Scene::Impl {
 	namespace {
@@ -25,8 +27,27 @@ namespace Game::Scene::Impl {
 			return (b_.Life > 0.0f);
 		}
 
-		constexpr float Inv_0xFFFFFFFF{ 1.0f / static_cast<float>(0xFFFFFFFFU) };
 		Lumina::Mat4 const Mat4_I{};
+	}
+
+	// プレイヤーの脳: カメラ基準の入力をワールド基準の Intent に直し、先行入力とアニメの状態と一緒に渡す。
+	// 前 = PlayerMoveFrame_（カメラの GroundForward）、右 = 前を右へ 90° 回した向き（XZ で (f.y, -f.x)。Angle の測り方では右へ回すと角度が減る）
+	auto InGame::PlayerFrame(bool controlEnabled_) -> Game::FighterFrame {
+		using Game::PlayerInput::Act;
+		auto const& input{ PlayerInput_.State() };
+		Lumina::Input::Axis2 const move{ input.Axis(Act::Move) };	// 長さ 1 以下（InputMap で収めてある）
+		Lumina::Vec2 const f{ PlayerMoveFrame_ };
+		return Game::FighterFrame{
+			.Intent = Game::FighterIntent{
+				.Move = Lumina::Vec2{ f.x * move.Y + f.y * move.X, f.y * move.Y - f.x * move.X },
+				.GuardHeld = input.Down(Act::Guard),
+			},
+			.Buffer = &PlayerInput_.Buffer(),
+			.WindowAllow = PlayerAnimEvents_.CancelAllowMask(),
+			.ClipFinished = PlayerAnimEvents_.IsLiveFinished(),
+			.ControlEnabled = controlEnabled_,
+			.CanAttack = !PlayerAnimEvents_.IsPreviewing(),	// エディタのプレビュー中は攻撃しない（歩くのはよい）
+		};
 	}
 
 	template<>
@@ -35,105 +56,17 @@ namespace Game::Scene::Impl {
 		[[maybe_unused]] Lumina::DX12::CommandList const& cmdList_,
 		[[maybe_unused]] Lumina::WinApp::RawInput const& input_
 	) {
-		bool canMove = 1;
-		Player_->Update(input_, canMove);
+		// プレイヤーの体（Game.Fighter）。コンボ・回避・ジャンプ・アビリティを受け付けるかは、体が自分の状態で決める。
+		// 次の段へ移れるのは、今の振りのクリップの Cancel 窓（Allow に Attack）が開いている間だけ。窓の状態は前のフレームの終わりのもの
+		// （当たり判定の Hitbox と同じ時刻）。窓より前に押した攻撃は先行入力に残っていて、窓が開いた瞬間に出る
+		Player_->Update(PlayerFrame(!Boss_Kinoko_->Debug.Possess));	// ボスを操作している間（Debug）は動かない
+		if (Player_->ComboStepStarted() || Player_->AbilityStarted() || Player_->IsTriggered_Dash()) {
+			PlayerAnimEvents_.RestartLive();			// 同じクリップでも頭から（3 段目 → 1 段目、終端で始め直し、回避の連続）
+		}
+		playerATKFlag = Player_->ComboStep();		// アニメの選択と、旧方式の当たり判定・体当たりの分岐はこれを見る
 
-		Lumina::Vec3 const dPos{ Player_->WorldPosition() - Boss_Kinoko_->WorldPosition() };
-
-		auto& rndEngine{ Lumina::Random::Generator() };
-
-		auto playerATK{
-			[&, this] (float k_, float k2_, float k3_) -> void {
-				/*auto dPos_Normalized{ dPos.Unit() };
-				if (
-					!std::isfinite(dPos_Normalized.x) ||
-					!std::isfinite(dPos_Normalized.y) ||
-					!std::isfinite(dPos_Normalized.z)
-				) {
-					dPos_Normalized = dPos;
-				}*/
-				constexpr int fan = 15;
-				for (int i = 0; i < fan; ++i) {
-					PlayerBullet b{};
-					{
-						b.Translate = {
-							Player_->WorldPosition().x,
-							Player_->WorldPosition().y + 2.0f,
-							Player_->WorldPosition().z,
-						};
-
-						float const angle{ Player_->Angle() + (i - (fan >> 1)) * 0.05f + k2_ };
-
-						b.Velocity.x = std::cos(angle + k3_) * k_;
-						b.Velocity.y = 0.0f;
-						b.Velocity.z = std::sin(angle + k3_) * k_;
-
-						b.Translate.x += b.Velocity.x * 0.5f;
-						b.Translate.y += b.Velocity.y * 0.5f;
-						b.Translate.z += b.Velocity.z * 0.5f;
-
-						b.Scale.x = 4.0f;
-						b.Scale.y = 2.0f;
-
-						b.Rotate.x = std::numbers::pi_v<float> * 0.5f + b.Velocity.y;
-						b.Rotate.y = rndEngine() * Inv_0xFFFFFFFF * std::numbers::pi_v<float> * 2.0f;
-
-						b.Life = 24.0f - b.Velocity.y * 12.0f;
-
-						b.ATK = 5.0f;
-
-						auto const rgb_Base = Lumina::Utils::Color::Convert(
-							Lumina::Utils::Color::HSV{
-								rndEngine() * Inv_0xFFFFFFFF * 120.0f + 60.0f,
-								rndEngine() * Inv_0xFFFFFFFF * 0.7f + 0.3f,
-								0.75f
-							}
-						);
-						b.RenderData.RGBA = {
-							rgb_Base.R,
-							rgb_Base.G,
-							rgb_Base.B,
-							1.0f
-						};
-						b.RenderData.DiffuseID = 0U;
-						b.RenderData.DiffuseAtlasID = 5U;
-					}
-					PlayerBullets_->Emit(std::move(b));
-				}
-			}
-		};
 		auto const& keyboard{ input_.Keyboard() };
 		using Lumina::WinApp::KEY;
-		static int atkCD = 0;
-		static int atkCD2 = 0;
-		if (atkCD == 15) {
-			atkCD = 0;
-		}
-		if (atkCD > 0) {
-			atkCD += 1;
-		}
-		if (!Player_->IsBeingKnockedBack() && !Player_->IsInputLocked() && keyboard.IsPressed(KEY::Z) && atkCD == 0) {
-			playerATK(1.0f, 0.0f, 0.0f);
-			playerATK(0.8f, -0.1f, 0.2f);
-			playerATK(0.9f, 0.1f, -0.2f);
-			atkCD = 1;
-		}
-
-		if (atkCD2 == 45) {
-			atkCD2 = 0;
-			playerATKFlag = 0;
-		}
-		if (atkCD2 > 0) {
-			atkCD2 += 1;
-		}
-		if (playerATKFlag != 3) {
-			if (!Player_->IsBeingKnockedBack() && !Player_->IsInputLocked() && keyboard.IsPressed(KEY::Z) && (atkCD2 == 0 || atkCD2 > 30)) {
-				atkCD2 = 1;
-				if (playerATKFlag == 0) { playerATKFlag = 1; }
-				else if (playerATKFlag == 1) { playerATKFlag = 2; }
-				else if (playerATKFlag == 2) { playerATKFlag = 3; }
-			}
-		}
 
 		// Q: 自害（公開デモ用。HP を 0 にするだけで、あとは本当に死んだときと同じ流れ = LOSE → ゲームオーバー演出 → SPACE で再開）
 		if (keyboard.IsPressed(KEY::Q) && !Player_->IsInputLocked() && Player_->HP_ > 0.0f) {
@@ -151,6 +84,7 @@ namespace Game::Scene::Impl {
 		if (NextPhaseCountDown_ < 0) {
 			if (Boss_Kinoko_->HP_ <= 0.0f) {
 				CurrentPhase_ = PHASE_WIN;
+				if (!Victory_.IsActive()) { Victory_.Start(); }		// 通常は Update.cpp が HP 0 になった瞬間に開始済み
 			}
 			else if (Player_->HP_ <= 0.0f) {
 				CurrentPhase_ = PHASE_LOSE;

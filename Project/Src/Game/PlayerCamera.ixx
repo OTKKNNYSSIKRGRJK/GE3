@@ -26,6 +26,24 @@ namespace Game {
 
 		float FovY{ 0.45f };		// 垂直 FOV（ラジアン）。Projection はこの値で作る（SetFov で変える）
 
+		// 視点の左右の向き（ラジアン）。Player::Angle と同じ測り方（前方 = (cos, sin)、右へ回すと減る）。
+		// マウス・右スティックで回す（InGame の Update）。以前はプレイヤーの向きをそのまま使っていた
+		float Yaw{ 0.0f };
+
+		// カメラが地面の上で見ている向き（XZ、長さ 1）。プレイヤーの移動の基準に使う。
+		// OffsetFromTarget の横ずれ（右へ 5）も含めた「画面の奥」の向きで、UpdatePlayerCamera の回し方
+		// （OffsetFromTarget × RotateAround(Up, -Yaw + π/2)、行ベクトル）と同じ式。揺れ（Sway）と追従の遅れは含めない
+		Lumina::Vec2 GroundForward() const noexcept {
+			float const theta{ -Yaw + std::numbers::pi_v<float> * 0.5f };
+			float const c{ std::cos(theta) };
+			float const s{ std::sin(theta) };
+			float const offX{ OffsetFromTarget.x * c + OffsetFromTarget.z * s };
+			float const offZ{ -OffsetFromTarget.x * s + OffsetFromTarget.z * c };
+			float const len{ std::sqrt(offX * offX + offZ * offZ) };
+			if (!(len > 0.0f)) { return Lumina::Vec2{ std::cos(Yaw), std::sin(Yaw) }; }
+			return Lumina::Vec2{ -offX / len, -offZ / len };
+		}
+
 		TrackingCamera(
 			Lumina::DX12::GraphicsDevice const& device_
 		) {

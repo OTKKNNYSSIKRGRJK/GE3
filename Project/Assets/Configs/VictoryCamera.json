@@ -1,0 +1,63 @@
+{
+  "Keys": [
+    {
+      "Distance": 43.0,
+      "Ease": "OutCubic",
+      "Focus": 0.0,
+      "Fov": 25.799999237060547,
+      "Pitch": 20.0,
+      "Roll": 0.0,
+      "TargetHeight": 0.0,
+      "Time": 0.0,
+      "Yaw": 0.0
+    },
+    {
+      "Distance": 9.0,
+      "Ease": "Linear",
+      "Focus": 0.3499999940395355,
+      "Fov": 34.0,
+      "Pitch": 6.0,
+      "Roll": 0.0,
+      "TargetHeight": 4.0,
+      "Time": 0.07999999821186066,
+      "Yaw": 18.0
+    },
+    {
+      "Distance": 8.0,
+      "Ease": "InOutCubic",
+      "Focus": 0.4000000059604645,
+      "Fov": 32.0,
+      "Pitch": 4.0,
+      "Roll": 1.5,
+      "TargetHeight": 3.799999952316284,
+      "Time": 0.44999998807907104,
+      "Yaw": 24.0
+    },
+    {
+      "Distance": 26.0,
+      "Ease": "Linear",
+      "Focus": 0.8500000238418579,
+      "Fov": 26.0,
+      "Pitch": 38.0,
+      "Roll": -2.0,
+      "TargetHeight": 1.5,
+      "Time": 1.5964912176132202,
+      "Yaw": 70.0
+    },
+    {
+      "Distance": 41.84600067138672,
+      "Ease": "Linear",
+      "Focus": 0.1679999977350235,
+      "Fov": 12.317999839782715,
+      "Pitch": 22.81100082397461,
+      "Roll": -2.5,
+      "TargetHeight": 3.4040000438690186,
+      "Time": 6.548999786376953,
+      "Yaw": 57.21900177001953
+    }
+  ],
+  "ShakeAmount": 0.41100001335144043,
+  "ShakeFrequency": 30.0,
+  "ShakeRollDeg": 0.9259999990463257,
+  "YawFromOther": true
+}

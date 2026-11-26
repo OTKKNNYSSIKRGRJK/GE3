@@ -21,6 +21,8 @@ import : Impl;
 
 import Game.AnimEventDemo;
 import Game.AnimEventVfx;
+import Game.CombatVfx;
+import Game.SceneLight;
 
 import Lumina.CG3D;
 import Lumina.CG3D.Animation;
@@ -95,10 +97,11 @@ namespace Game::Scene::Impl {
 			PlayerCamera_->SwayAmpFactor = 0.02f;
 			PlayerCamera_->SwayFreqFactor = 0.01f;
 			PlayerCamera_->SwayTimeFactor = 0.0f;
+			PlayerCamera_->Yaw = Player_->Angle();		// 最初はプレイヤーの後ろから
 		}
 
 		{
-			Boss_Kinoko_.reset(new Boss_Kinoko{});
+			Boss_Kinoko_.reset(new Game::Boss{});
 			Boss_Kinoko_->Initialize(Lumina::Vec3{ -10.0f, 0.0f, 0.0f });
 		}
 
@@ -107,6 +110,11 @@ namespace Game::Scene::Impl {
 			CollisionWorld_.Add(Player_->BodyCollider());
 			CollisionWorld_.Add(Player_->WeaponCollider());
 			CollisionWorld_.Add(Boss_Kinoko_->BodyCollider());
+			CollisionWorld_.Add(Boss_Kinoko_->WeaponCollider());
+
+			// 調整値（ImGui「Player」「Boss AI」で Save したもの）。無ければコードの既定値のまま。戦闘をやり直すたびには読まない
+			Game::FighterSettings::LoadPlayer(*Player_, PlayerSettingsStatus_);
+			Boss_Kinoko_->Load();
 
 			// UI パス（バックバッファ SRGB・深度なし）に重ねて描く
 			CollisionDebug_.Initialize(dxContext_, DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, DXGI_FORMAT_UNKNOWN);
@@ -126,6 +134,10 @@ namespace Game::Scene::Impl {
 					{ "Lose", "Assets/Img/YouLose.png" },
 					{ "GameOverLabel", "Assets/UI/Label.GameOver.png" },			// 6：「Game Over」
 					{ "GameOverPrompt", "Assets/UI/Label.PressSpace.png" },		// 7：「Press Space to Continue」
+					{ "HPLabelPlayer", "Assets/UI/Label.HP.Player.png" },			// 8：「Player」（HP バーの左上）
+					{ "HPLabelBoss", "Assets/UI/Label.HP.Boss.png" },				// 9：「Boss」（HP バーの左下）
+					{ "VictoryLabel", "Assets/UI/Label.Victory.png" },				// 10：「Victory」
+					{ "VictoryPrompt", "Assets/UI/Label.PressSpaceTitle.png" },	// 11：「Press Space to Return to Title」
 				}
 			);
 
@@ -345,7 +357,7 @@ namespace Game::Scene::Impl {
 			PlayerEffects_->Initialize(dxContext_, 512U);
 
 			KnockEffects_.reset(new ParticleSystem<Particle>{});
-			KnockEffects_->Initialize(dxContext_, 256U);
+			KnockEffects_->Initialize(dxContext_, 1024U);		// 茨の波の仮の見た目にも使うので増やした（以前は 256）
 		}
 
 		{
@@ -353,7 +365,6 @@ namespace Game::Scene::Impl {
 			PlayerBullets_->Initialize(dxContext_, 512U);
 			BossBullets_.reset(new ParticleSystem<Particle>{});
 			BossBullets_->Initialize(dxContext_, 2048U);
-			Boss_Kinoko_->BuildBT(BossBullets_.get());
 		}
 
 		// DeferredLighting
@@ -698,6 +709,23 @@ namespace Game::Scene::Impl {
 
 				MaxWidth_UI_BossHPBar_ = 1280.0f - 20.0f * 2;
 			}
+			// HP バーのラベル（Kaisei Decol Bold、白・透明背景。画像は文字の周りに 12px の余白があるので、その分ずらして文字の端をバーにそろえる）
+			{
+				constexpr float scale{ 0.22f };
+				constexpr float pad{ 12.0f * scale };
+				// 「Player」：バー（左下 (40, 680)、高さ 40）の左上の上
+				UI_PlayerHPLabel_.AnchorPoint({ 0.0f, 1.0f });
+				UI_PlayerHPLabel_.Translate({ 40.0f - pad, 680.0f - 40.0f - 4.0f + pad });
+				UI_PlayerHPLabel_.Scale({ 319.0f * scale, 118.0f * scale });
+				UI_PlayerHPLabel_.TextureID(8U);
+				UI_PlayerHPLabel_.RGBA({ 1.0f, 1.0f, 1.0f, 0.8f });
+				// 「Boss」：バー（左上 (20, 20)、高さ 20）の左下の下
+				UI_BossHPLabel_.AnchorPoint({ 0.0f, 0.0f });
+				UI_BossHPLabel_.Translate({ 20.0f - pad, 20.0f + 20.0f + 4.0f - pad });
+				UI_BossHPLabel_.Scale({ 232.0f * scale, 95.0f * scale });
+				UI_BossHPLabel_.TextureID(9U);
+				UI_BossHPLabel_.RGBA({ 1.0f, 1.0f, 1.0f, 0.8f });
+			}
 
 			//// Caption
 			//{
@@ -725,6 +753,23 @@ namespace Game::Scene::Impl {
 				UI_GAMEOVER_PROMPT_.AnchorPoint({ 0.5f, 0.5f });
 				UI_GAMEOVER_PROMPT_.TextureID(7U);
 				UI_GAMEOVER_PROMPT_.RGBA({ 1.0f, 1.0f, 1.0f, 1.0f });
+				// 勝利演出の「Victory」と「Press Space to Return to Title」。位置と大きさは毎フレーム Victory_ の値で決める（Render.cpp）
+				UI_VICTORY_.Translate({ 640.0f, 290.0f });
+				UI_VICTORY_.Scale({ 464.0f, 141.0f });
+				UI_VICTORY_.AnchorPoint({ 0.5f, 0.5f });
+				UI_VICTORY_.TextureID(10U);
+				UI_VICTORY_.RGBA({ 1.0f, 1.0f, 1.0f, 1.0f });
+				UI_VICTORY_PROMPT_.Translate({ 640.0f, 430.0f });
+				UI_VICTORY_PROMPT_.Scale({ 646.0f, 67.0f });
+				UI_VICTORY_PROMPT_.AnchorPoint({ 0.5f, 0.5f });
+				UI_VICTORY_PROMPT_.TextureID(11U);
+				UI_VICTORY_PROMPT_.RGBA({ 1.0f, 1.0f, 1.0f, 1.0f });
+				// 暗転：全画面の黒（Blank は白 2x2。色で黒に、不透明度は毎フレーム）
+				UI_EXIT_FADE_.Translate({ 0.0f, 0.0f });
+				UI_EXIT_FADE_.Scale({ 1280.0f, 720.0f });
+				UI_EXIT_FADE_.AnchorPoint({ 0.0f, 0.0f });
+				UI_EXIT_FADE_.TextureID(3U);
+				UI_EXIT_FADE_.RGBA({ 0.0f, 0.0f, 0.0f, 0.0f });
 			}
 
 			//// Manual Button
@@ -821,12 +866,47 @@ namespace Game::Scene::Impl {
 			auto animation_atk1{ Lumina::CG3D::LoadAnimationFile("ATKY1_H2.gltf", "Assets/Neki") };
 			auto animation_atk2{ Lumina::CG3D::LoadAnimationFile("ATKY2_H2.gltf", "Assets/Neki") };
 			auto animation_atk3{ Lumina::CG3D::LoadAnimationFile("ATKY3_H3.gltf", "Assets/Neki") };
+			auto animation_guard{ Lumina::CG3D::LoadAnimationFile("Idle_Drawn_Open_H.gltf", "Assets/Neki") };
+			auto animation_dodge{ Lumina::CG3D::LoadAnimationFile("Forward_Flip.gltf", "Assets/Neki") };
+			// ボスのスキル（Game.BossSkills）
+			auto animation_skillCharge{ Lumina::CG3D::LoadAnimationFile("ReverseCharge.gltf", "Assets/Neki") };
+			auto animation_skillSlam{ Lumina::CG3D::LoadAnimationFile("ReverseChargeAttack.gltf", "Assets/Neki") };
+			auto animation_skillDrag{ Lumina::CG3D::LoadAnimationFile("Swinging.gltf", "Assets/Neki") };
+			auto animation_skillWave{ Lumina::CG3D::LoadAnimationFile("AirDiveAttack.gltf", "Assets/Neki") };
 			
 			animDatabase_["Idle"] = animation_idle[0];
 			animDatabase_["Run"] = animation_run[0];
 			animDatabase_["ATK1"] = animation_atk1[0];
 			animDatabase_["ATK2"] = animation_atk2[0];
 			animDatabase_["ATK3"] = animation_atk3[0];
+			// Mixamo から Blender を通したファイルにはテイクが 3 本ある（Layer0 = 動かない、Layer0 Retarget = 本体、ArmatureAction = T ポーズの残り）。
+			// 本体のテイクを名前で選ぶ（無ければ先頭）
+			auto pickTake{
+				[] (auto const& takes_) -> std::size_t {
+					for (std::size_t i = 0; i < takes_.size(); ++i) {
+						if (takes_[i].Name == "Armature.001|mixamo.com|Layer0 Retarget") { return i; }
+					}
+					return 0U;
+				}
+			};
+			// ガード: 剣を前に構えて立つ（2 秒のループ）。以前は guard.gltf（1 キーの静止ポーズ）
+			if (!animation_guard.empty()) { animDatabase_["Guard"] = animation_guard[pickTake(animation_guard)]; }
+			// 回避（前へのダッシュ）: 前方宙返り（1.13 秒。4 倍速で約 17 フレーム ≒ ダッシュの 16 フレーム）。その場で回る（ルートは動かない）
+			if (!animation_dodge.empty()) { animDatabase_["Dodge"] = animation_dodge[pickTake(animation_dodge)]; }
+
+			// ボスのスキルのクリップ。これらのファイルはテイクが多い（動かないもの・別の切り出し・T ポーズの残りが混ざる）ので、使うテイクを名前で決める。
+			// 見つからなければ登録しない（スキルのクリップが無いと、アニメは前のクリップのまま。スキルの中身は Cue の代わりのフレーム数で進む）
+			auto addTake{
+				[this] (char const* name_, auto const& takes_, char const* take_) {
+					for (auto const& a : takes_) {
+						if (a.Name == take_) { animDatabase_[name_] = a; return; }
+					}
+				}
+			};
+			addTake("SkillCharge", animation_skillCharge, "Armature.004|mixamo.com|Layer0.001 Retarget");		// 剣を前に掛けた構え（0.38 秒、ほぼ静止）
+			addTake("SkillSlam", animation_skillSlam, "Armature.004|mixamo.com|Layer0.001 Retarget.001");		// 振りかぶって振り下ろし、沈んで溜める（3.54 秒）
+			addTake("SkillDrag", animation_skillDrag, "Armature.001|mixamo.com|Layer0.001 Retarget");			// 低く剣を揺らす（2 秒、ループ）
+			addTake("SkillWave", animation_skillWave, "Armature.003|mixamo.com|Layer0 Retarget");				// 振り上げた剣を斜めに振り下ろす（0.53 秒）
 
 			// アニメーションイベントのサイドカー（無いファイルは、エディタの Create で作れる）
 			{
@@ -836,17 +916,32 @@ namespace Game::Scene::Impl {
 					{ "ATK1", "Assets/Neki/ATKY1_H2.notify.json" },
 					{ "ATK2", "Assets/Neki/ATKY2_H2.notify.json" },
 					{ "ATK3", "Assets/Neki/ATKY3_H3.notify.json" },
+					{ "Guard", "Assets/Neki/Idle_Drawn_Open_H.notify.json" },
+					{ "Dodge", "Assets/Neki/Forward_Flip.notify.json" },
+					{ "SkillCharge", "Assets/Neki/ReverseCharge.notify.json" },
+					{ "SkillSlam", "Assets/Neki/ReverseChargeAttack.notify.json" },		// Hitbox の窓と Cue "Lunge"
+					{ "SkillDrag", "Assets/Neki/Swinging.notify.json" },
+					{ "SkillWave", "Assets/Neki/AirDiveAttack.notify.json" },			// Cue "ThornWave"
 				};
 				PlayerAnimEvents_.Initialize(animDatabase_, bindings, 4.0f);
+				BossAnimEvents_.EditorTitle = "AnimEvent Hitbox (Boss)";
+				BossAnimEvents_.Initialize(animDatabase_, bindings, 4.0f);	// 同じサイドカーを別に読む（片方のエディタで保存したら、もう片方は Reload from file）
 			}
 			// VfxLoop の窓のエフェクト。MergePass（SRGB 1 枚・深度なし）に描く。DSV はパーティクルの PSO に合わせて既定値
 			AnimEventVfx_.Initialize(dxContext_, DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, Lumina::DX12::GraphicsPSO::DefaultDSVFormat);
+			// 戦闘の仮エフェクト。MergePass（SRGB 1 枚・深度なし）に描く。命中の出来事（Game.CombatEvents）にここで登録する
+			CombatVfx_.Initialize(dxContext_, DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, Lumina::DX12::GraphicsPSO::DefaultDSVFormat);
+			// 平行光 1 本。MergePass（SRGB 1 枚・深度なし）に加算で描く
+			SceneLight_.Initialize(dxContext_, DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, Lumina::DX12::GraphicsPSO::DefaultDSVFormat);
 			// バトル開始の VS バナー。UIPass（バックバッファ SRGB 1 枚・深度なし）に描く。DSV は SpriteUI の PSO に合わせて既定値
 			VsBanner_.Initialize(dxContext_, assetMngr, DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, Lumina::DX12::GraphicsPSO::DefaultDSVFormat, { 1280.0f, 720.0f });
 			// ポーズメニュー。UIPass（バックバッファ SRGB 1 枚・深度なし）に描く
 			PauseMenu_.Initialize(dxContext_, assetMngr);
+			// プレイヤーとカメラの操作（既定のバインド）
+			PlayerInput_.Initialize();
 			// ゲームオーバーの色抜け。UIPass の描画先を中間 RT（SRGB 1 枚・深度なし）に切り替えて掛ける
 			GradeFx_.Initialize(dxContext_);
+			VictoryGradeFx_.Initialize(dxContext_, "Assets/Configs/VictoryGrade.json", "Victory Grade");	// 勝利演出の色抜け（2 台目）
 			CameraFx_.Initialize();
 			// ゲームオーバーの時計と倒れるモーション（Dying.gltf は 11 本入り。使うのは設定の ClipName。見つからなければ最後の 1 本）
 			{
@@ -857,6 +952,21 @@ namespace Game::Scene::Impl {
 				// 粉々の演出。体のメッシュと影響（CPU で粒子の出る位置を求める）を渡す。Director がこれを時間に合わせて動かす
 				Shatter_.Initialize(dxContext_, PlayerSkinnedModel_->Collection_.Meshes[0], PlayerSkinnedInstance_->SkinCluster_);
 				GameOver_.Initialize(animation_dying, dyingSkeleton, PlayerSkinnedInstance_->Skeleton_, GradeFx_, CameraFx_, Shatter_);
+
+				// 勝利演出：同じ仕組みの 2 台目。倒れるのはボス（プレイヤーと同じ骨格・メッシュ）。クリップは Initialize が持っていくので読み直す。
+				// 色抜け・カメラ・Director は別の設定ファイル、粉々は同じ設定（GameOverShatter.json）を読む
+				VictoryCameraFx_.Initialize("Assets/Configs/VictoryCamera.json", "Victory Camera");
+				BossShatter_.Initialize(dxContext_, PlayerSkinnedModel_->Collection_.Meshes[0], BossSkinnedInstance_->SkinCluster_);
+				auto animation_dyingBoss{ Lumina::CG3D::LoadAnimationFile("Dying.gltf", "Assets/Neki") };
+				Victory_.Initialize(
+					animation_dyingBoss, dyingSkeleton, BossSkinnedInstance_->Skeleton_, VictoryGradeFx_, VictoryCameraFx_, BossShatter_,
+					Game::GameOverDirector::Paths{
+						.ConfigPath = "Assets/Configs/VictoryDirector.json",
+						.LabelImage = "Assets/UI/Label.Victory.png",
+						.PromptImage = "Assets/UI/Label.PressSpaceTitle.png",
+						.EditorTitle = "Victory Director",
+					}
+				);
 			}
 			PlayAnimation(currentAnim_, currentAnimName_, animTimer_, IsAnimationLoop_, "Idle", true);
 			PlayAnimation(currentAnim_Boss_, currentAnimName_Boss_, animTimer_Boss_, IsAnimationLoop_Boss_, "Idle", true);

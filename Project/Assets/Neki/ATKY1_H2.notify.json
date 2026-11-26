@@ -1,39 +1,8 @@
 {
-  "_note": "Hitbox のフレームは、右手（刃側）の速さが最大になる区間からの推定（2026-10-17）。ゲームで見て直すこと。Hitbox 以外（Swing / Trail / SuperArmor / TurnRate）はまだ使っていない仮の値",
-  "version": 1,
+  "_note": "Hitbox のフレームは、右手（刃側）の速さが最大になる区間からの推定（2026-10-17）。ゲームで見て直すこと。Hitbox 以外（Swing / Trail / SuperArmor / TurnRate）はまだ使っていない仮の値 コンボの窓（Cancel / PlayRate）は 2026-11-06 に入れた仮の値。エディタで振りに合わせて直すこと",
   "clip": "ATK1",
-  "take": "Armature.001|mixamo.com|Layer0 Retarget",
-  "frameRate": 30,
-  "instants": [
-    {
-      "type": "Swing",
-      "frame": 32
-    }
-  ],
-  "windows": [
-    {
-      "type": "SuperArmor",
-      "begin": 20,
-      "end": 42
-    },
-    {
-      "type": "Hitbox",
-      "begin": 32,
-      "end": 42,
-      "slot": "RightBlade",
-      "damage": 100,
-      "knockback": 5
-    },
-    {
-      "type": "Trail",
-      "begin": 31,
-      "end": 43,
-      "minWeight": 0.5
-    }
-  ],
   "curves": [
     {
-      "name": "TurnRate",
       "keys": [
         [
           0,
@@ -47,7 +16,69 @@
           32,
           0.0
         ]
-      ]
+      ],
+      "name": "TurnRate"
+    }
+  ],
+  "frameRate": 30,
+  "instants": [
+    {
+      "frame": 32,
+      "type": "Swing"
+    }
+  ],
+  "take": "Armature.001|mixamo.com|Layer0 Retarget",
+  "version": 1,
+  "windows": [
+    {
+      "begin": 20,
+      "end": 42,
+      "type": "SuperArmor"
+    },
+    {
+      "begin": 28,
+      "damage": 10000.0,
+      "end": 38,
+      "knockback": 5,
+      "slot": "RightBlade",
+      "type": "Hitbox"
+    },
+    {
+      "begin": 31,
+      "end": 43,
+      "minWeight": 0.5,
+      "type": "Trail"
+    },
+    {
+      "allow": [
+        "Attack"
+      ],
+      "begin": 38,
+      "end": 67,
+      "type": "Cancel"
+    },
+    {
+      "allow": [
+        "Dodge",
+        "Jump"
+      ],
+      "begin": 46,
+      "end": 67,
+      "type": "Cancel"
+    },
+    {
+      "allow": [
+        "Move"
+      ],
+      "begin": 54,
+      "end": 67,
+      "type": "Cancel"
+    },
+    {
+      "begin": 52,
+      "end": 67,
+      "rate": 0.35,
+      "type": "PlayRate"
     }
   ]
 }

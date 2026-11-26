@@ -315,7 +315,9 @@ namespace Game::GameOverGrade {
 	//	Initialize								//
 	//////	//////	//////	//////	//////	//////
 
-	void Effect::Initialize(Lumina::DX12::Context const& dxContext_) {
+	void Effect::Initialize(Lumina::DX12::Context const& dxContext_, char const* configPath_, char const* editorTitle_) {
+		if (configPath_) { ConfigPath = configPath_; }
+		if (editorTitle_) { EditorTitle = editorTitle_; }
 		auto const& device{ dxContext_.Device() };
 
 		// * Canvas：UI まで描いた画面を受ける中間 RT（SRGB、深度なし）。初期化後は PIXEL_SHADER_RESOURCE 状態
@@ -702,7 +704,7 @@ namespace Game::GameOverGrade {
 
 	void Effect::DrawEditor() {
 #if defined(_DEBUG)
-		if (!ImGui::Begin("GameOver Grade")) {
+		if (!ImGui::Begin(EditorTitle)) {
 			ImGui::End();
 			return;
 		}

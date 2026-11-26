@@ -98,7 +98,8 @@ export namespace Game::GameOverGrade {
 	class Effect {
 	public:
 		// Canvas（中間 RT）・シェーダ・PSO を作り、設定ファイルを読む
-		void Initialize(Lumina::DX12::Context const& dxContext_);
+		// configPath_ / editorTitle_ を渡すと、別の設定ファイル・別のエディタ窓で動く（勝利演出用の 2 台目など）
+		void Initialize(Lumina::DX12::Context const& dxContext_, char const* configPath_ = nullptr, char const* editorTitle_ = nullptr);
 
 		void Start();					// 演出を頭から始める（すでに始まっていても頭から）
 		void Reset();					// 演出なし（元の絵）に戻す
@@ -145,7 +146,8 @@ export namespace Game::GameOverGrade {
 
 	public:
 		Style Look{};
-		static constexpr char const* ConfigPath{ "Assets/Configs/GameOverGrade.json" };
+		char const* ConfigPath{ "Assets/Configs/GameOverGrade.json" };
+		char const* EditorTitle{ "GameOver Grade" };
 
 	private:
 		auto Elapsed() const -> float;	// 演出の経過秒（プレビューを含む）

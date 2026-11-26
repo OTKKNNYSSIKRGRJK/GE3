@@ -1,0 +1,35 @@
+{
+  "Walls": {
+    "BaseGlow": 0.25,
+    "BaseGlowHeight": 1.0,
+    "Damping": 0.9850000143051147,
+    "Darken": 1.0,
+    "Enabled": true,
+    "GlowColor": [
+      0.3396770656108856,
+      0.5265961289405823,
+      0.5588235259056091
+    ],
+    "GridSpacing": 2.5,
+    "GridStrength": 0.05000000074505806,
+    "Height": 5.0,
+    "HitAmplitude": 1.0,
+    "Margin": 0.5,
+    "RefractPixels": 15.0,
+    "RevealRadius": 16.0,
+    "RevealStrength": 4.0,
+    "RippleGlow": 0.3499999940395355,
+    "RippleScale": 1.0,
+    "SourceFrames": 24,
+    "SourceFrequency": 0.3499999940395355,
+    "SourcePhase": 1.5,
+    "SourceRadius": 2.5,
+    "Tint": [
+      1.0,
+      1.0,
+      1.0
+    ],
+    "TintStrength": 0.0,
+    "WaveSpeed": 0.25
+  }
+}

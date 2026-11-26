@@ -1,7 +1,8 @@
 //////	//////	//////	//////	//////	//////
 //	PauseMenu								//
 //////	//////	//////	//////	//////	//////
-// InGame のポーズメニュー（仮）。ESC で開閉し、Resume / Restart / Return to Title を選ぶ。
+// InGame のポーズメニュー（仮）。ESC で開閉し、Resume / Restart / 設定 / Return to Title を選ぶ。
+// 「設定」はキー割り当ての画面（Game.KeyConfigScreen）を、メニューを開いたまま上に重ねて開く（ESC か「戻る」でメニューへ戻る）。
 //
 // 見た目: 画面全体に黒の半透明スプライトを重ねて薄暗くし、その上にラベル画像を縦に並べる（どれも中央揃え）。
 //         ラベルの表示サイズ = 画像の大きさ（PNG のヘッダから読む）× LabelScale。画像を差し替えても位置は崩れない。
@@ -32,16 +33,19 @@ import <d3d12.h>;
 
 import Lumina;
 
+import Game.KeyConfigScreen;
+
 export namespace Game::PauseMenu {
 	enum class Action : uint8_t {
 		None,
 		Resume,
 		Restart,
+		Settings,		// 設定の画面を開く（メニューの中で処理する。Update からは返さない）
 		ReturnToTitle,
 	};
 
 	// 並び順 = 項目の順（上から）
-	inline constexpr uint32_t NumItems{ 3U };
+	inline constexpr uint32_t NumItems{ 4U };
 
 	struct Style {
 		// 薄暗くする全画面の黒
@@ -83,6 +87,8 @@ export namespace Game::PauseMenu {
 
 		void Close();								// すぐ閉じる（キーの待ちも解く）
 		auto IsOpen() const -> bool { return IsOpen_; }
+		// 設定の画面を開いているか
+		auto IsSettingsOpen() const -> bool { return Settings_.IsOpen(); }
 		// ゲームの Update を止めるべきか（開いている間 ＋ 決定で閉じたあと決定キーを離すまで）
 		auto IsBlockingGame() const -> bool { return IsOpen_ || WaitRelease_; }
 
@@ -101,13 +107,14 @@ export namespace Game::PauseMenu {
 	public:
 		Style Look{};
 
-		// ラベル画像（[0] = Resume、[1] = Restart、[2] = Return to Title）
+		// ラベル画像（[0] = Resume、[1] = Restart、[2] = 設定、[3] = Return to Title）
 		static constexpr char const* ItemImages[NumItems]{
 			"Assets/UI/Label.Resume.png",
 			"Assets/UI/Label.Restart.png",
+			"Assets/UI/Label.Settings.Pause.png",
 			"Assets/UI/Label.ReturnToTitle.png",
 		};
-		static constexpr char const* ItemNames[NumItems]{ "Resume", "Restart", "Return to Title" };
+		static constexpr char const* ItemNames[NumItems]{ "Resume", "Restart", "Settings", "Return to Title" };
 		static constexpr char const* HintImage{ "Assets/UI/Label.PauseHint.png" };
 		static constexpr char const* QuitHintImage{ "Assets/UI/Label.QuitHint.png" };
 		static constexpr char const* ConfigPath{ "Assets/Configs/PauseMenu.json" };
@@ -148,5 +155,7 @@ export namespace Game::PauseMenu {
 		bool PrevConfirm_{ true };
 
 		std::string Status_{};									// エディタに出す保存・読み込みの結果
+
+		Game::KeyConfigScreen::Screen Settings_{};				// 「設定」で開く画面（メニューの上に重ねる）
 	};
 }

@@ -14,6 +14,7 @@ import <algorithm>;
 import <cmath>;
 import <cstddef>;
 import <cstdint>;
+import <cstring>;
 import <format>;
 import <fstream>;
 import <memory>;
@@ -29,6 +30,8 @@ import nlohmann.json;
 import Lumina.AnimEvent;
 import Lumina.AnimEvent.Adapter;
 import Lumina.CG3D.Struct;
+
+import Game.PlayerInput;
 
 //////	//////	//////	//////	//////	//////
 
@@ -87,6 +90,32 @@ namespace Game::AnimEventDemo {
 					Adapter::ReadNameId(e_, "socket", p_.Socket) &&
 					Adapter::ReadNumber(e_, "scale", p_.Scale);
 			});
+		// 行動の受付（コンボ）。"allow" は Game.PlayerInput の行動名の配列（知らない名前は綴りの間違いとしてエラー）
+		Registry_.Register<CancelPayload>(AE::EventCategory::Gameplay, 0.0f,
+			[](Adapter::JSON const& e_, CancelPayload& p_) {
+				auto const itr{ e_.find("allow") };
+				if (itr == e_.end() || !itr->is_array()) { return false; }
+				for (Adapter::JSON const& name : *itr) {
+					if (!name.is_string()) { return false; }
+					auto const act{ Game::PlayerInput::ActFromName(name.get<std::string>()) };
+					if (!act) { return false; }
+					p_.Allow |= std::uint64_t{ 1U } << static_cast<std::uint32_t>(*act);
+				}
+				return true;
+			});
+		// 再生速度。"rate" は必須で 0 より大きいこと（0 だと時刻が進まず、窓から出られなくなる）
+		Registry_.Register<PlayRatePayload>(AE::EventCategory::Gameplay, 0.0f,
+			[](Adapter::JSON const& e_, PlayRatePayload& p_) {
+				return
+					e_.contains("rate") &&
+					Adapter::ReadNumber(e_, "rate", p_.Rate) &&
+					std::isfinite(p_.Rate) && p_.Rate > 0.0f;
+			});
+		// 合図（瞬間イベント）。"name" は必須
+		Registry_.Register<CuePayload>(AE::EventCategory::Gameplay, 0.0f,
+			[](Adapter::JSON const& e_, CuePayload& p_) {
+				return e_.contains("name") && Adapter::ReadNameId(e_, "name", p_.Name);
+			});
 		Registry_.RegisterTag("SuperArmor", AE::EventCategory::Gameplay, 0.0f);
 		Registry_.RegisterTag("Swing", AE::EventCategory::Presentation, 0.5f);
 		Registry_.RegisterTag("Trail", AE::EventCategory::Presentation, 0.5f);
@@ -132,6 +161,7 @@ namespace Game::AnimEventDemo {
 
 	void PlayerAnimEvents::Update(std::string const& clipName_, bool loop_, float dt_) {
 		Events_.clear();
+		FiredCues_.clear();
 
 		// 1. エディタでの編集を反映する（ステップの境目なので Rebind してよい）
 		for (auto& slot : Slots_) {
@@ -139,11 +169,13 @@ namespace Game::AnimEventDemo {
 		}
 
 		// 2. 再生するクリップを決める
+		bool played{ false };
 		if (Mode_ == Mode::Live) {
 			if (Live_ == nullptr || Live_->Name != clipName_ || RestartLive_) {
 				if (ClipSlot* const slot{ Find(clipName_) }) {
 					Live_ = slot;
 					LiveId_ = Play(*slot, 0.0f, Rate_, loop_);
+					played = true;
 				}
 				RestartLive_ = false;
 			}
@@ -154,6 +186,18 @@ namespace Game::AnimEventDemo {
 			float const rate{ PreviewPlaying_ ? (PreviewFullRate_ ? Rate_ : 1.0f) : 0.0f };
 			PreviewId_ = Play(*Slots_[PreviewIndex_], PreviewTime_, rate, PreviewLoop_);
 			RestartPreview_ = false;
+			played = true;
+		}
+
+		// 2.5 再生速度（PlayRate の窓）。窓の状態は前のステップのもの（1 フレーム遅れて効く）。
+		//     このフレームで再生し直したクリップには掛けない（前のクリップの窓の値が残っているため）。止めたプレビューも触らない
+		if (!played) {
+			bool const live{ Mode_ == Mode::Live };
+			AE::InstanceId const id{ live ? LiveId_ : PreviewId_ };
+			float const base{ live ? Rate_ : (PreviewPlaying_ ? (PreviewFullRate_ ? Rate_ : 1.0f) : 0.0f) };
+			if (id != AE::InvalidInstance && base > 0.0f) {
+				Player_.SetRate(id, base * PlayRateScale());
+			}
 		}
 
 		// 3. 進める
@@ -188,6 +232,9 @@ namespace Game::AnimEventDemo {
 	void PlayerAnimEvents::HandleEvents() {
 		for (AE::AnimEvent const& e : Events_) {
 			if (AE::Is<VfxPayload>(e)) { HandleVfx(e); }
+			if (AE::Is<CuePayload>(e) && e.Edge == AE::EventEdge::Instant && Mode_ == Mode::Live) {
+				FiredCues_.push_back(AE::PayloadAs<CuePayload>(e).Name);
+			}
 
 			if (AE::Is<HitboxPayload>(e)) {
 				if (e.Edge == AE::EventEdge::Begin) {
@@ -302,6 +349,36 @@ namespace Game::AnimEventDemo {
 
 	auto PlayerAnimEvents::IsHitboxOpen() const -> bool {
 		return Player_.IsOpen<HitboxPayload>();
+	}
+
+	auto PlayerAnimEvents::CancelAllowMask() const -> std::uint64_t {
+		std::uint64_t mask{ 0U };
+		Player_.ForEachOpenWindow([&](AE::OpenWindowInfo const& w_) {
+			if (w_.Window == nullptr || w_.Window->Type != AE::TypeIdOf<CancelPayload>()) { return; }
+			if (w_.Payload == nullptr || w_.Window->PayloadSize != sizeof(CancelPayload)) { return; }
+			CancelPayload p{};
+			std::memcpy(&p, w_.Payload, sizeof(p));
+			mask |= p.Allow;
+		});
+		return mask;
+	}
+
+	auto PlayerAnimEvents::PlayRateScale() const -> float {
+		float scale{ 1.0f };
+		bool any{ false };
+		Player_.ForEachOpenWindow([&](AE::OpenWindowInfo const& w_) {
+			if (w_.Window == nullptr || w_.Window->Type != AE::TypeIdOf<PlayRatePayload>()) { return; }
+			if (w_.Payload == nullptr || w_.Window->PayloadSize != sizeof(PlayRatePayload)) { return; }
+			PlayRatePayload p{};
+			std::memcpy(&p, w_.Payload, sizeof(p));
+			scale = any ? std::min(scale, p.Rate) : p.Rate;
+			any = true;
+		});
+		return scale;
+	}
+
+	auto PlayerAnimEvents::IsLiveFinished() const -> bool {
+		return Player_.IsFinished(LiveId_);
 	}
 
 	auto PlayerAnimEvents::TryHit(std::uint32_t targetId_) -> std::optional<HitboxPayload> {

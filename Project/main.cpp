@@ -272,7 +272,8 @@ int32_t WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		}
 
 		// ESC で閉じるのはタイトルだけ（InGame の ESC はポーズメニュー）
-		if (Game::Scene::Flag == 0 && keyboard.IsPressed(Lumina::WinApp::KEY::ESC)) {
+		// （タイトルで設定の画面を開いている間は、ESC は「戻る」なので閉じない）
+		if (Game::Scene::Flag == 0 && !Game::Scene::BlockEscapeQuit && keyboard.IsPressed(Lumina::WinApp::KEY::ESC)) {
 			::SendMessage(mainWindow.Handle(), WM_CLOSE, 0, 0);
 		}
 	}

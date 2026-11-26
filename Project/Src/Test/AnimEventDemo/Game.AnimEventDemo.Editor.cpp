@@ -21,6 +21,8 @@ import Lumina.AnimEvent;
 import Lumina.AnimEvent.Adapter;
 import Lumina.CG3D.Struct;
 
+import Game.PlayerInput;
+
 #if defined(_DEBUG)
 import Lumina.Utils.ImGui;
 #endif
@@ -49,6 +51,8 @@ namespace Game::AnimEventDemo {
 		constexpr ImU32 ColHitbox{ 0xFF4848E0U };
 		constexpr ImU32 ColWindow{ 0xFFA87840U };
 		constexpr ImU32 ColVfx{ 0xFF30B8E8U };
+		constexpr ImU32 ColCancel{ 0xFF58B058U };
+		constexpr ImU32 ColPlayRate{ 0xFFB060B0U };
 		constexpr ImU32 ColInstant{ 0xFF40D0F0U };
 		constexpr ImU32 ColCursor{ 0xFFFFFFFFU };
 
@@ -92,11 +96,67 @@ namespace Game::AnimEventDemo {
 		auto LastFrameOf(float length_, float fps_) -> int {
 			return std::max(0, static_cast<int>(std::lround(length_ * fps_)));
 		}
+
+		// Cancel の窓で選べる行動（エディタのチェックボックスの並び）
+		constexpr Game::PlayerInput::Act CancelChoices[]{
+			Game::PlayerInput::Act::Attack,
+			Game::PlayerInput::Act::Dodge,
+			Game::PlayerInput::Act::Jump,
+			Game::PlayerInput::Act::Guard,
+			Game::PlayerInput::Act::Move,
+			Game::PlayerInput::Act::Tool,
+			Game::PlayerInput::Act::UseItem,
+		};
+
+		// サイドカーの "allow" を "Attack,Dodge" のように並べる（タイムラインの表示用）
+		auto AllowText(JSON const& w_) -> std::string {
+			std::string out{};
+			if (auto const itr{ w_.find("allow") }; itr != w_.end() && itr->is_array()) {
+				for (JSON const& n : *itr) {
+					if (!n.is_string()) { continue; }
+					if (!out.empty()) { out += ','; }
+					out += n.get<std::string>();
+				}
+			}
+			return out;
+		}
+
+		// 開いている窓の Allow（ビット）を "Attack|Dodge" のように並べる（状態の表示用）
+		auto MaskText(std::uint64_t mask_) -> std::string {
+			std::string out{};
+			for (std::uint32_t i = 0; i < static_cast<std::uint32_t>(Game::PlayerInput::Act::Count); ++i) {
+				if (((mask_ >> i) & 1U) == 0U) { continue; }
+				if (!out.empty()) { out += '|'; }
+				out += Game::PlayerInput::Name(static_cast<Game::PlayerInput::Act>(i));
+			}
+			return out.empty() ? std::string{ "-" } : out;
+		}
+
+		// "allow" に name_ があるか
+		auto AllowHas(JSON const& w_, std::string_view name_) -> bool {
+			if (auto const itr{ w_.find("allow") }; itr != w_.end() && itr->is_array()) {
+				for (JSON const& n : *itr) {
+					if (n.is_string() && n.get<std::string>() == name_) { return true; }
+				}
+			}
+			return false;
+		}
+
+		// "allow" を CancelChoices の並びで作り直す（on_ の行動を足す／外す）
+		void AllowSet(JSON& w_, std::string_view name_, bool on_) {
+			JSON next = JSON::array();
+			for (Game::PlayerInput::Act const a : CancelChoices) {
+				std::string_view const n{ Game::PlayerInput::Name(a) };
+				bool const has{ (n == name_) ? on_ : AllowHas(w_, n) };
+				if (has) { next.push_back(std::string{ n }); }
+			}
+			w_["allow"] = std::move(next);
+		}
 	}
 
 	void PlayerAnimEvents::DrawEditor() {
 		ImGui::SetNextWindowSize(ImVec2{ 620.0f, 680.0f }, ImGuiCond_FirstUseEver);
-		if (!ImGui::Begin("AnimEvent Hitbox")) {
+		if (!ImGui::Begin(EditorTitle.c_str())) {
 			ImGui::End();
 			return;
 		}
@@ -187,6 +247,7 @@ namespace Game::AnimEventDemo {
 			"time %.3f / %.3f s   frame %d / %d (%.0f fps)   Hitbox %s",
 			time, length, frame, lastFrame, fps, IsHitboxOpen() ? "OPEN" : "-"
 		);
+		ImGui::Text("Cancel %s   PlayRate x%.2f", MaskText(CancelAllowMask()).c_str(), PlayRateScale());
 
 		DrawTimeline(*shown, time);
 		DrawSidecarEditor(*shown, std::clamp(frame, 0, lastFrame));
@@ -272,9 +333,18 @@ namespace Game::AnimEventDemo {
 			if (e > b) {
 				float const x0{ xOfFrame(b) };
 				float const x1{ xOfFrame(e) };
-				dl->AddRectFilled(ImVec2{ x0, y + 2.0f }, ImVec2{ x1, y + RowHeight - 2.0f }, (type == "Hitbox") ? ColHitbox : (type == "VfxLoop") ? ColVfx : ColWindow);
+				ImU32 const col{
+					(type == "Hitbox") ? ColHitbox :
+					(type == "VfxLoop") ? ColVfx :
+					(type == "Cancel") ? ColCancel :
+					(type == "PlayRate") ? ColPlayRate : ColWindow
+				};
+				dl->AddRectFilled(ImVec2{ x0, y + 2.0f }, ImVec2{ x1, y + RowHeight - 2.0f }, col);
 			}
-			std::string const label{ std::format("{} [{}, {})", type, b, e) };
+			std::string detail{};
+			if (type == "Cancel") { detail = std::format("({})", AllowText(w)); }
+			else if (type == "PlayRate") { detail = std::format(" x{:.2f}", FloatOr(w, "rate", 1.0f)); }
+			std::string const label{ std::format("{}{} [{}, {})", type, detail, b, e) };
 			dl->AddText(ImVec2{ xOfFrame(std::max(b, 0)) + 3.0f, y + 2.0f }, ColText, label.c_str());
 		}
 
@@ -395,6 +465,22 @@ namespace Game::AnimEventDemo {
 						ImGui::SetNextItemWidth(60.0f);
 						if (ImGui::DragFloat("scale", &scale, 0.01f, 0.0f, 10.0f, "%.2f")) { w["scale"] = scale; changed = true; }
 					}
+					else if (type == "Cancel") {
+						// 移れる行動（チェックした順ではなく、CancelChoices の並びで書き戻す）
+						bool first{ true };
+						for (Game::PlayerInput::Act const a : CancelChoices) {
+							std::string const name{ Game::PlayerInput::Name(a) };
+							bool on{ AllowHas(w, name) };
+							if (!first) { ImGui::SameLine(); }
+							first = false;
+							if (ImGui::Checkbox(name.c_str(), &on)) { AllowSet(w, name, on); changed = true; }
+						}
+					}
+					else if (type == "PlayRate") {
+						float rate{ FloatOr(w, "rate", 1.0f) };
+						ImGui::SetNextItemWidth(80.0f);
+						if (ImGui::DragFloat("rate", &rate, 0.01f, 0.05f, 4.0f, "x%.2f")) { w["rate"] = std::max(rate, 0.05f); changed = true; }
+					}
 
 					ImGui::TableNextColumn();
 					if (ImGui::SmallButton("x")) { removeAt = idx; }
@@ -430,7 +516,29 @@ namespace Game::AnimEventDemo {
 				windows->push_back(std::move(w));
 				changed = true;
 			}
+			if (ImGui::Button("+ Cancel (Attack) at cursor")) {
+				JSON w = JSON::object();
+				w["type"] = std::string{ "Cancel" };
+				w["begin"] = currentFrame_;
+				w["end"] = std::max(lastFrame, currentFrame_ + 1);		// クリップの終わりまで
+				JSON allow = JSON::array();
+				allow.push_back(std::string{ "Attack" });
+				w["allow"] = std::move(allow);
+				windows->push_back(std::move(w));
+				changed = true;
+			}
+			ImGui::SameLine();
+			if (ImGui::Button("+ PlayRate at cursor")) {
+				JSON w = JSON::object();
+				w["type"] = std::string{ "PlayRate" };
+				w["begin"] = currentFrame_;
+				w["end"] = std::max(lastFrame, currentFrame_ + 1);
+				w["rate"] = 0.35f;
+				windows->push_back(std::move(w));
+				changed = true;
+			}
 			ImGui::TextDisabled("Begin = first frame inside, Last = last frame inside (end is exclusive).");
+			ImGui::TextDisabled("Cancel: actions allowed while open (Attack = next combo step). PlayRate: playback speed x rate while open.");
 		}
 		else {
 			ImGui::TextColored(ColError, "\"windows\" is missing or not an array.");
@@ -446,7 +554,9 @@ namespace Game::AnimEventDemo {
 					ImGui::PushID(static_cast<int>(idx));
 					int f{ IntOr(i, "frame", 0) };
 					ImGui::SetNextItemWidth(60.0f);
-					if (ImGui::DragInt(StringOr(i, "type", "?").c_str(), &f, 0.2f, 0, lastFrame)) { i["frame"] = f; changed = true; }
+					std::string label{ StringOr(i, "type", "?") };
+					if (i.contains("name")) { label += " " + StringOr(i, "name", "?"); }		// Cue は名前も出す
+					if (ImGui::DragInt(label.c_str(), &f, 0.2f, 0, lastFrame)) { i["frame"] = f; changed = true; }
 					ImGui::SameLine();
 					if (ImGui::SmallButton("At cursor")) { i["frame"] = currentFrame_; changed = true; }
 					ImGui::SameLine();

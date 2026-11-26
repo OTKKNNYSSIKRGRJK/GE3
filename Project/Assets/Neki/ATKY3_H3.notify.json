@@ -1,27 +1,52 @@
 {
-  "_note": "Hitbox のフレームは、右手（刃側）の速さが最大になる区間からの推定（2026-10-17）。ゲームで見て直すこと。10〜18F にも速い動き（1 振り目？）があるが、窓は最後の振りだけにしている",
-  "version": 1,
+  "_note": "Hitbox のフレームは、右手（刃側）の速さが最大になる区間からの推定（2026-10-17）。ゲームで見て直すこと。10〜18F にも速い動き（1 振り目？）があるが、窓は最後の振りだけにしている コンボの窓（Cancel / PlayRate）は 2026-11-06 に入れた仮の値。エディタで振りに合わせて直すこと",
   "clip": "ATK3",
-  "take": "Armature.004|mixamo.com|Layer0.001 Retarget",
+  "curves": [],
   "frameRate": 30,
   "instants": [],
+  "take": "Armature.004|mixamo.com|Layer0.001 Retarget",
+  "version": 1,
   "windows": [
     {
-      "type": "Hitbox",
-      "begin": 62,
-      "end": 74,
+      "begin": 57,
+      "damage": 10000.0,
+      "end": 79,
+      "knockback": 15,
       "slot": "RightBlade",
-      "damage": 300,
-      "knockback": 15
+      "type": "Hitbox"
     },
     {
-      "type": "VfxLoop",
       "begin": 54,
-      "end": 78,
       "effect": "TipRays",
+      "end": 78,
+      "scale": 1.0,
       "socket": "WeaponTip",
-      "scale": 1.0
+      "type": "VfxLoop"
+    },
+    {
+      "allow": [
+        "Dodge",
+        "Jump"
+      ],
+      "begin": 80,
+      "end": 145,
+      "type": "Cancel"
+    },
+    {
+      "allow": [
+        "Attack"
+      ],
+      "begin": 88,
+      "end": 145,
+      "type": "Cancel"
+    },
+    {
+      "allow": [
+        "Move"
+      ],
+      "begin": 96,
+      "end": 145,
+      "type": "Cancel"
     }
-  ],
-  "curves": []
+  ]
 }

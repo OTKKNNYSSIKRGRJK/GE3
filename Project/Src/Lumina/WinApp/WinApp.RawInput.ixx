@@ -253,6 +253,12 @@ namespace Lumina::WinApp {
 		constexpr int32_t DeltaX() const noexcept;
 		constexpr int32_t DeltaY() const noexcept;
 
+		// Raw Input の相対移動量を起動からずっと足し続けた値（0 に戻さない）。前のフレームとの差が、そのフレームに動いた量。
+		// DeltaX / DeltaY は最後の 1 メッセージ分で、止めても 0 に戻らないため、移動量はこちらで取る。
+		// OS のポインタの加速が掛からず、カーソルが画面の端に着いても止まらない
+		constexpr int64_t TotalDeltaX() const noexcept;
+		constexpr int64_t TotalDeltaY() const noexcept;
+
 		constexpr int32_t LeftButton() const noexcept;
 		constexpr int32_t RightButton() const noexcept;
 		constexpr int32_t Wheel() const noexcept;
@@ -282,6 +288,8 @@ namespace Lumina::WinApp {
 		int32_t PosY_{ 0 };
 		int32_t DeltaX_{ 0 };
 		int32_t DeltaY_{ 0 };
+		int64_t TotalDeltaX_{ 0 };
+		int64_t TotalDeltaY_{ 0 };
 
 		RawMouse::State CurrentState_{ .LeftButton{ 0 }, .RightButton{ 0 }, .Wheel{ 0 } };
 		RawMouse::State PreviousState_{ .LeftButton{ 0 }, .RightButton{ 0 }, .Wheel{ 0 } };
@@ -295,6 +303,8 @@ namespace Lumina::WinApp {
 	constexpr int32_t RawMouse::PosY() const noexcept { return PosY_; }
 	constexpr int32_t RawMouse::DeltaX() const noexcept { return DeltaX_; }
 	constexpr int32_t RawMouse::DeltaY() const noexcept { return DeltaY_; }
+	constexpr int64_t RawMouse::TotalDeltaX() const noexcept { return TotalDeltaX_; }
+	constexpr int64_t RawMouse::TotalDeltaY() const noexcept { return TotalDeltaY_; }
 
 	constexpr int32_t RawMouse::LeftButton() const noexcept { return CurrentState_.LeftButton; }
 	constexpr int32_t RawMouse::RightButton() const noexcept { return CurrentState_.RightButton; }
@@ -317,6 +327,8 @@ namespace Lumina::WinApp {
 		if ((mouse.usFlags & 0x01U) == MOUSE_MOVE_RELATIVE) {
 			DeltaX_ = mouse.lLastX;
 			DeltaY_ = mouse.lLastY;
+			TotalDeltaX_ += mouse.lLastX;
+			TotalDeltaY_ += mouse.lLastY;
 		}
 		if (mouse.ulButtons & RI_MOUSE_LEFT_BUTTON_DOWN) { CurrentState_.LeftButton = 1; }
 		else if (mouse.ulButtons & RI_MOUSE_LEFT_BUTTON_UP) { CurrentState_.LeftButton = 0; }

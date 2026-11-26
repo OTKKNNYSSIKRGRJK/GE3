@@ -1,0 +1,41 @@
+{
+  "RS": {
+    "Parameters": [
+      {
+        "ShaderVisibility": "All",
+        "ParameterType": "CBV",
+        "ShaderRegister": 0,
+        "RegisterSpace": 0
+      },
+      {
+        "ShaderVisibility": "All",
+        "ParameterType": "CBV",
+        "ShaderRegister": 1,
+        "RegisterSpace": 0
+      },
+      {
+        "ShaderVisibility": "Pixel",
+        "ParameterType": "SRV",
+        "ShaderRegister": 0,
+        "RegisterSpace": 0
+      },
+      {
+        "ShaderVisibility": "Pixel",
+        "ParameterType": "DescriptorTable",
+        "TableName": "Scene"
+      }
+    ],
+
+    "Scene": [
+      {
+        "RangeType": "SRV",
+        "NumDescriptors": 2,
+        "BaseShaderRegister": 0,
+        "RegisterSpace": 1,
+        "OffsetInDescriptorsFromTableStart": -1
+      }
+    ],
+
+    "StaticSamplers": []
+  }
+}

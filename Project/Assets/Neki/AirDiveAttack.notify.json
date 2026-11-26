@@ -1,0 +1,16 @@
+{
+  "_note": "ボスのスキル『茨の波』の振り（SkillWave）。2026-11-11 の仮の値。振り下ろしの速さの山は 5〜8、9 で剣が下に着く。Cue ThornWave = 茨を走らせる時刻",
+  "clip": "SkillWave",
+  "curves": [],
+  "frameRate": 30,
+  "instants": [
+    {
+      "frame": 9,
+      "name": "ThornWave",
+      "type": "Cue"
+    }
+  ],
+  "take": "Armature.003|mixamo.com|Layer0 Retarget",
+  "version": 1,
+  "windows": []
+}

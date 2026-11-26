@@ -1,0 +1,39 @@
+{
+  "Body": {
+    "BodyCenter": [
+      0.0,
+      1.33,
+      -0.05
+    ],
+    "BodyHalf": [
+      0.4,
+      1.51,
+      0.27
+    ],
+    "DashDecay": 0.85,
+    "DashFrames": 15,
+    "DashSpeed": 2.0,
+    "DeflectFrames": 10,
+    "DeflectRepressLockout": 20,
+    "DeflectedKnockback": 4.0,
+    "DeflectedStunFrames": 30,
+    "DodgeInvincibleFrames": 10,
+    "DodgeInvincibleStart": 0,
+    "Gravity": 0.02,
+    "GuardDamageScale": 0.2,
+    "GuardHalfAngle": 1.22173,
+    "GuardKnockbackScale": 0.5,
+    "GuardMoveScale": 1.0,
+    "GuardStunFrames": 8,
+    "HitStunFrames": 60,
+    "JumpInitialSpeed": 0.25,
+    "KnockbackDecay": 0.75,
+    "KnockbackScale": 0.075,
+    "MaxHP": 1000.0,
+    "MoveSpeed": 0.25,
+    "PushRadius": 1.0,
+    "SecondJumpDelay": 15,
+    "TurnRate": 0.0
+  },
+  "version": 1
+}

@@ -235,11 +235,40 @@ namespace Lumina::CG3D {
 	}
 
 	namespace {
+		// 回転（クォータニオン）の補間とブレンドの注意（2026-11-06）
+		// - q と -q は同じ回転を表す。glTF のキーには、隣り合うキーで符号がほぼ逆のもの（内積 ≒ -1）が入っていることがある
+		//   （Neki の上腕 Bone.020：ATKY2_H2 に 2 か所、ATKY3_H3 に 4 か所）。
+		// - そのまま成分ごとに混ぜると 0 付近を通り、QuaternionToMatrix の行列が |q|² 倍に縮む（骨が潰れ、その先の手と武器の向きが飛ぶ）。
+		// - なので、混ぜる前に相手の符号をこちらの側（内積が正）にそろえ、混ぜた後に長さを 1 に戻す（nlerp）。
+		auto Dot(Float4 const& a_, Float4 const& b_) noexcept -> float {
+			return a_.x * b_.x + a_.y * b_.y + a_.z * b_.z + a_.w * b_.w;
+		}
+		auto SameHemisphere(Float4 const& ref_, Float4 const& q_) noexcept -> Float4 {
+			return (Dot(ref_, q_) < 0.0f) ? Float4{ -q_.x, -q_.y, -q_.z, -q_.w } : q_;
+		}
+		auto Normalized(Float4 const& q_) noexcept -> Float4 {
+			float const len{ std::sqrt(Dot(q_, q_)) };
+			if (!(len > 1.0e-8f)) { return Float4{ 0.0f, 0.0f, 0.0f, 1.0f }; }
+			float const inv{ 1.0f / len };
+			return Float4{ q_.x * inv, q_.y * inv, q_.z * inv, q_.w * inv };
+		}
+		// a_ → b_ を t_ で補間（同じ側にそろえてから成分ごとに混ぜ、正規化する）
+		auto NLerp(Float4 const& a_, Float4 const& b_, float t_) noexcept -> Float4 {
+			Float4 const b{ SameHemisphere(a_, b_) };
+			return Normalized(Float4{
+				std::lerp(a_.x, b.x, t_),
+				std::lerp(a_.y, b.y, t_),
+				std::lerp(a_.z, b.z, t_),
+				std::lerp(a_.w, b.w, t_),
+			});
+		}
+
 		void Calculate(
 			Float3& out_,
 			Animation::Curve<Float3> const& in_,
 			float time_
 		) {
+			if (in_.Keyframes.empty()) { return; }		// キーの無いチャンネルは今の値のまま
 			if (in_.Keyframes.size() == 1 || time_ <= in_.Keyframes[0].TimepointInSecond) {
 				out_ = in_.Keyframes[0].Value;
 			}
@@ -261,6 +290,9 @@ namespace Lumina::CG3D {
 						return;
 					}
 				}
+				// 最後のキーより後（クリップの長さとキーの時刻の丸めの差など）は最後のキーの値。
+				// 以前は何も書かずに抜けていたので、前に処理した骨の値が残っていた
+				out_ = in_.Keyframes.back().Value;
 			}
 		}
 		void Calculate(
@@ -268,8 +300,9 @@ namespace Lumina::CG3D {
 			Animation::Curve<Float4> const& in_,
 			float time_
 		) {
+			if (in_.Keyframes.empty()) { return; }
 			if (in_.Keyframes.size() == 1 || time_ <= in_.Keyframes[0].TimepointInSecond) {
-				out_ = in_.Keyframes[0].Value;
+				out_ = Normalized(in_.Keyframes[0].Value);
 			}
 			else {
 				for (auto it{ in_.Keyframes.cbegin() }; it != in_.Keyframes.cend() - 1; ++it) {
@@ -285,15 +318,11 @@ namespace Lumina::CG3D {
 							Math::Quaternion{ next.Value.X, next.Value.Y, next.Value.Z, next.Value.W }
 						}(t);*/
 
-						out_ = {
-							std::lerp(cur.Value.x, next.Value.x, t),
-							std::lerp(cur.Value.y, next.Value.y, t),
-							std::lerp(cur.Value.z, next.Value.z, t),
-							std::lerp(cur.Value.w, next.Value.w, t),
-						};
+						out_ = NLerp(cur.Value, next.Value, t);		// 以前は符号をそろえず、正規化もしない成分ごとの lerp
 						return;
 					}
 				}
+				out_ = Normalized(in_.Keyframes.back().Value);	// 最後のキーより後
 			}
 		}
 		void Calculate(
@@ -309,10 +338,9 @@ namespace Lumina::CG3D {
 			TRANSFORM& current_,
 			TRANSFORM const& clip_
 		) {
-			current_.Rotate.x = current_.Rotate.x * 0.75f + clip_.Rotate.x * 0.25f;
-			current_.Rotate.y = current_.Rotate.y * 0.75f + clip_.Rotate.y * 0.25f;
-			current_.Rotate.z = current_.Rotate.z * 0.75f + clip_.Rotate.z * 0.25f;
-			current_.Rotate.w = current_.Rotate.w * 0.75f + clip_.Rotate.w * 0.25f;
+			// 毎フレーム、今の姿勢をクリップの姿勢へ 25% ずつ寄せる。回転は符号をそろえてから寄せ、長さを 1 に戻す。
+			// （クリップのキーの符号が途中で逆になると、そろえないと 0 付近を通って骨が潰れ、1 フレームで 100°以上回っていた）
+			current_.Rotate = NLerp(current_.Rotate, clip_.Rotate, 0.25f);
 			
 			current_.Translate.x = current_.Translate.x * 0.75f + clip_.Translate.x * 0.25f;
 			current_.Translate.y = current_.Translate.y * 0.75f + clip_.Translate.y * 0.25f;
@@ -321,11 +349,11 @@ namespace Lumina::CG3D {
 	}
 
 	void ApplyAnimation(Skeleton& skeleton_, MyAnimation const& anim_, float time_) {
-		TRANSFORM transform{};
 		for (auto& joint : skeleton_.ARR_Joint) {
 			auto it{ anim_.Nodes.find(joint.Name) };
 			if (it != anim_.Nodes.cend()) {
 				auto const& animNode_Root{ it->second };
+				TRANSFORM transform{ joint.Transform };		// キーの無いチャンネルは今の値のまま（以前は前の骨の値が残ることがあった）
 				Calculate(transform, animNode_Root, time_);
 				Blend(joint.Transform, transform);
 			}
