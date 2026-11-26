@@ -174,7 +174,7 @@ namespace Game::Scene::Impl {
 		LoadSettings();
 	}
 
-	Title::Title() = default;
+	Title::Title(Lumina::SceneManager& sceneManager_) : SceneManager_{ &sceneManager_ } {}
 	Title::~Title() = default;
 }
 
@@ -184,10 +184,15 @@ namespace Game::Scene {
 		Lumina::DX12::Context const& dxContext_,
 		Lumina::AssetManager const& assetMngr_
 	) {
-		Impl_.reset(new Impl::Title{});
+		Impl_.reset(new Impl::Title{ Manager() });
 		Impl_->Initialize(dxContext_, assetMngr_);
 	}
 
-	Title::Title() = default;
+	Title::Title(Lumina::SceneManager& manager_, FrameResources const& frame_)
+		: Lumina::Scene{ manager_ }, Frame_(frame_) {}
 	Title::~Title() = default;
+
+	void Title::OnEnter() {
+		if (Impl_) { Impl_->OnEnter(); }
+	}
 }

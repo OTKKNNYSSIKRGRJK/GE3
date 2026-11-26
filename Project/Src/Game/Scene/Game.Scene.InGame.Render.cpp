@@ -691,11 +691,7 @@ namespace Game::Scene::Impl {
 }
 
 namespace Game::Scene {
-	template<>
-	void InGame::Render(
-		Lumina::DX12::Context const& dxContext_,
-		Lumina::DX12::CommandList const& cmdList_
-	) {
-		Impl_->Render(dxContext_, cmdList_);
+	void InGame::Render() {
+		Impl_->Render(Frame_.DX12, Frame_.CmdList);
 	}
 }

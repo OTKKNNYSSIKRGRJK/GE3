@@ -3,6 +3,7 @@ module Game.Scene.Title;
 import <cmath>;
 import <numbers>;
 import <algorithm>;
+import <memory>;
 import <vector>;
 import <string>;
 import <string_view>;
@@ -122,14 +123,13 @@ namespace Game::Scene::Impl {
 		OutroStartYaw_ = CameraYaw_;
 		OutroStartAnimation_ = Character_.CurrentAnimationName();
 
-		OutroState_ = OutroState::Playing;
+		ChangeOutroState(std::make_unique<OutroPlaying>());
 		OutroTime_ = 0.0f;
 		OutroIsPreview_ = isPreview_;
 
-		// メニューは Start を選んだ状態で Outro へ（ImGui から再生したときも同じ見た目にする）
+		// メニューは Start を選んだ状態で Outro へ（ImGui から再生したときも同じ見た目にする。時計は MenuOutro の Enter で 0 に）
 		MenuSelected_ = 0;
-		MenuPhase_ = MenuPhase::Outro;
-		MenuTimer_ = 0.0f;
+		ChangeMenuState(std::make_unique<MenuOutro>());
 	}
 
 	void Title::RewindOutro() {
@@ -147,13 +147,12 @@ namespace Game::Scene::Impl {
 			Character_.Play(OutroStartAnimation_, true);
 		}
 
-		OutroState_ = OutroState::None;
+		ChangeOutroState(std::make_unique<OutroNone>());
 		OutroTime_ = 0.0f;
 		OutroIsPreview_ = false;
 
-		// メニューは「表示し終わった」状態に戻す（黒からのフェードインはやり直さない）
-		MenuPhase_ = MenuPhase::Idle;
-		MenuTimer_ = 0.0f;
+		// メニューは「表示し終わった」状態に戻す（黒からのフェードインはやり直さない。時計は MenuIdle の Enter で 0 に）
+		ChangeMenuState(std::make_unique<MenuIdle>());
 		FadeAlpha_ = 0.0f;
 		LogoTimer_ = std::max(LogoTimer_, LogoStyle_.Delay + LogoStyle_.FadeDuration);
 		PrevKeyConfirm_ = true;		// 押しっぱなしのキーで即再生しない
@@ -173,9 +172,9 @@ namespace Game::Scene::Impl {
 			return;
 		}*/
 
-		// 次のシーンへ渡す。遷移シーンを作ったら、渡す先はここだけ変える
-		HasLeftScene_ = true;
-		Game::Scene::Flag = 1;
+		// 次のシーンへ渡す（SceneManager に頼む）。遷移シーンを作ったら、渡す先はここだけ変える。
+		// 戻ってきたときのやり直しは OnEnter（UI.cpp）
+		RequestStartGame();
 	}
 
 	auto Title::AdvanceOutro() -> float {
@@ -185,20 +184,35 @@ namespace Game::Scene::Impl {
 		#endif
 		float const deltaTime{ OutroDeltaTime * rate };
 
-		if (OutroState_ == OutroState::Playing) {
-			float const end{ Sanitized(Outro_.Timeline).WhiteEnd };
-			OutroTime_ += deltaTime;
-			if (OutroTime_ >= end) {
-				OutroTime_ = end;
-				OutroState_ = OutroState::Finished;
-				if (!OutroIsPreview_ || OutroSwitchSceneInPreview_) {
-					FinishOutro();
-				}
-			}
-		}
+		// 時計の進め方と次の状態は、今の状態が決める（Playing だけが進め、終わりで Finished へ）
+		OutroStates_.Run(*this, [&](OutroState& state_) { state_.Advance(*this, deltaTime); });
 
 		// Finished でもシーン（パーティクル等）は動かし続ける
 		return deltaTime;
+	}
+
+	//////	//////	//////	//////	//////	//////
+	//	Outro の状態（State パターン）			//
+	//////	//////	//////	//////	//////	//////
+
+	void Title::ChangeOutroState(std::unique_ptr<OutroState> next_) {
+		OutroStates_.Change(*this, std::move(next_));
+	}
+
+	void Title::OutroPlaying::Advance(Title& self_, float deltaTime_) {
+		float const end{ Sanitized(self_.Outro_.Timeline).WhiteEnd };
+		self_.OutroTime_ += deltaTime_;
+		if (self_.OutroTime_ >= end) {
+			self_.OutroTime_ = end;
+			self_.ChangeOutroState(std::make_unique<OutroFinished>());	// Advance が終わってから切り替わる
+		}
+	}
+
+	void Title::OutroFinished::Enter(Title& self_) {
+		// 本番（とプレビューで「Finish at end」のとき）は次のシーンへ渡す。プレビューは最後の状態で止めておく
+		if (!self_.OutroIsPreview_ || self_.OutroSwitchSceneInPreview_) {
+			self_.FinishOutro();
+		}
 	}
 
 	//////	//////	//////	//////	//////	//////
@@ -536,10 +550,9 @@ namespace Game::Scene::Impl {
 		ImGui::Checkbox("Return to title intro at end (demo, saved)", &Outro_.ReturnToTitle);
 		ImGui::SliderFloat("Playback rate (debug)", &OutroDebugRate_, 0.0f, 2.0f);
 
-		constexpr char const* stateNames[]{ "None", "Playing", "Finished" };
 		ImGui::Text(
 			"%s%s  t = %.3f / %.3f s  [%s]",
-			stateNames[static_cast<int>(OutroState_)],
+			OutroStates_.Current().Name(),
 			OutroIsPreview_ ? " (preview)" : "",
 			OutroTime_, tl.WhiteEnd,
 			IsOutroActive() ? SectionName(tl, OutroTime_) : "-"
@@ -547,7 +560,7 @@ namespace Game::Scene::Impl {
 		ImGui::BeginDisabled(!IsOutroActive());
 		if (ImGui::SliderFloat("Scrub", &OutroTime_, 0.0f, tl.WhiteEnd, "%.3f s")) {
 			// 最後まで動かしたら、次の更新で通常どおり終わらせる
-			OutroState_ = OutroState::Playing;
+			ChangeOutroState(std::make_unique<OutroPlaying>());
 		}
 		ImGui::EndDisabled();
 		ImGui::TextDisabled("Pause / TimeScale are ignored during the Outro (fixed 1/60 s).");

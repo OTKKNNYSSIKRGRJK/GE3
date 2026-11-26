@@ -395,6 +395,46 @@ namespace Game::Scene::Impl {
 		OutroCrackStyle Crack{};
 	};
 
+	// 小さな状態機械（State パターンのコンテキスト側の入れ物。Title のメニューと Outro で使う）。
+	//   状態は Enter(Owner&) を持つクラス。次の状態は状態自身が決めて Change で頼む。
+	//   状態の処理（Run の中）で Change されたら、その処理が終わってから切り替える（実行中の状態を消さないため）。
+	//   それ以外（巻き戻し・ImGui など、外から）の Change はすぐ切り替わる。切り替えのたびに新しい状態の Enter を呼ぶ
+	template<typename Owner, typename State>
+	class StateMachine {
+	public:
+		explicit StateMachine(std::unique_ptr<State> initial_) noexcept : Current_{ std::move(initial_) } {}
+
+		void Change(Owner& owner_, std::unique_ptr<State> next_) {
+			Pending_ = std::move(next_);
+			if (Depth_ == 0) { Flush(owner_); }
+		}
+
+		// func_(State&) を今の状態に対して呼ぶ
+		template<typename Func>
+		void Run(Owner& owner_, Func&& func_) {
+			++Depth_;
+			func_(*Current_);
+			--Depth_;
+			if (Depth_ == 0) { Flush(owner_); }
+		}
+
+		auto Current() const noexcept -> State const& { return *Current_; }
+
+	private:
+		void Flush(Owner& owner_) {
+			++Depth_;		// Enter の中の Change も後回し（このループで続けて切り替える）
+			while (Pending_) {
+				Current_ = std::move(Pending_);
+				Current_->Enter(owner_);
+			}
+			--Depth_;
+		}
+
+		std::unique_ptr<State> Current_{ nullptr };
+		std::unique_ptr<State> Pending_{ nullptr };
+		int Depth_{ 0 };
+	};
+
 	export class Title {
 	private:
 		template<typename...ArgTypes>
@@ -416,8 +456,18 @@ namespace Game::Scene::Impl {
 		template<typename...ArgTypes>
 		void Initialize(typename ArgTypes const&...args_);
 
-		Title();
+		explicit Title(Lumina::SceneManager& sceneManager_);
 		virtual ~Title();
+
+		// タイトルに入ったとき（SceneManager が切り替えるとき。外側の Game::Scene::Title::OnEnter から）。
+		// InGame から戻ってきたら Outro を巻き戻し、メニューを黒からのフェードインでやり直す
+		void OnEnter();
+
+	private:
+		// シーンの持ち主（コンテキスト）。次のシーン・終了はこれに頼む（2026-11-26：グローバル変数 Game::Scene::Flag の代わり。実装は UI.cpp）
+		Lumina::SceneManager* SceneManager_{ nullptr };
+		void RequestStartGame();		// InGame へ
+		void RequestQuit();				// アプリの終了（main.cpp がウィンドウを閉じる）
 
 	private:
 		//----	------	------	------	------	----//
@@ -534,14 +584,67 @@ namespace Game::Scene::Impl {
 		void RenderUI(Lumina::DX12::CommandList const& cmdList_);
 		void EditUI();		// ImGui（Release では何もしない）
 
-		enum class MenuPhase : int {
-			FadeIn,		// 黒から明ける（この間も選択・決定は受け付ける）
-			Idle,
-			Decided,	// 選んだ項目が点滅
-			FadeOut,	// 黒へ
-			Done,		// シーン切り替え / 終了を要求済み
-			Outro,		// Start 決定後の演出中（入力は受け付けない）
+		// メニューの状態（State パターン。2026-11-26 に enum class MenuPhase と switch から置き換えた。実装は UI.cpp）
+		//   FadeIn  … 黒から明ける（この間も選択・決定は受け付ける）→ Idle
+		//   Idle    … 選択・決定 → Start：Outro / 設定：画面を開く / Exit：Decided
+		//   Decided … 選んだ項目が点滅 → FadeOut
+		//   FadeOut … 黒へ → 終了を頼んで Done
+		//   Done    … シーン切り替え / 終了を要求済み
+		//   Outro   … Start 決定後の演出中（入力は受け付けない。巻き戻しで Idle へ）
+		// 各状態は Title の入れ子クラスなので Title の private を直接読み書きでき、次の状態は自分で ChangeMenuState に頼む
+		struct MenuInput {
+			bool Up{ false };			// 押した瞬間（ImGui がキーボードを掴んでいる間は false）
+			bool Down{ false };
+			bool Confirm{ false };
+			bool SettingsOpen{ false };	// このフレームの頭で設定の画面が開いていた（開いている間は選ばない）
 		};
+
+		class MenuState {
+		public:
+			virtual ~MenuState() = default;
+			virtual auto Name() const noexcept -> char const* = 0;		// ImGui の表示用
+			virtual void Enter(Title& self_);							// 既定：メニューの時計（MenuTimer_）を 0 に戻す
+			virtual void Update(Title& self_, MenuInput const& input_) = 0;
+			virtual auto IsBlinking() const noexcept -> bool { return false; }	// 選んだ項目を点滅させる
+			virtual auto IsOutro() const noexcept -> bool { return false; }		// Outro 中（選んだ項目のグローを強める）
+		};
+		class MenuFadeIn final : public MenuState {
+		public:
+			auto Name() const noexcept -> char const* override { return "FadeIn"; }
+			void Update(Title& self_, MenuInput const& input_) override;
+		};
+		class MenuIdle final : public MenuState {
+		public:
+			auto Name() const noexcept -> char const* override { return "Idle"; }
+			void Update(Title& self_, MenuInput const& input_) override;
+		};
+		class MenuDecided final : public MenuState {
+		public:
+			auto Name() const noexcept -> char const* override { return "Decided"; }
+			void Update(Title& self_, MenuInput const& input_) override;
+			auto IsBlinking() const noexcept -> bool override { return true; }
+		};
+		class MenuFadeOut final : public MenuState {
+		public:
+			auto Name() const noexcept -> char const* override { return "FadeOut"; }
+			void Enter(Title& self_) override;
+			void Update(Title& self_, MenuInput const& input_) override;
+		};
+		class MenuDone final : public MenuState {
+		public:
+			auto Name() const noexcept -> char const* override { return "Done"; }
+			void Update(Title&, MenuInput const&) override {}
+		};
+		class MenuOutro final : public MenuState {
+		public:
+			auto Name() const noexcept -> char const* override { return "Outro"; }
+			void Update(Title& self_, MenuInput const& input_) override;
+			auto IsOutro() const noexcept -> bool override { return true; }
+		};
+
+		void ChangeMenuState(std::unique_ptr<MenuState> next_);
+		void HandleMenuSelection(MenuInput const& input_);		// FadeIn / Idle の選択・決定
+		void FadeInBehindMenu();								// 決めた後も、フェードイン途中の黒はそのまま明けていく
 		static constexpr int NumMenuItems{ 3 };		// 0: Start / 1: 設定 / 2: Exit（2026-11-11 に設定を足した。設定が元の Start の位置）
 
 		std::unique_ptr<Lumina::SpriteRenderer> UISpriteRenderer_{ nullptr };
@@ -568,7 +671,7 @@ namespace Game::Scene::Impl {
 		float GlowTimer_{ 0.0f };
 
 		TitleMenuStyle MenuStyle_{};
-		MenuPhase MenuPhase_{ MenuPhase::FadeIn };
+		StateMachine<Title, MenuState> MenuStates_{ std::make_unique<MenuFadeIn>() };
 		float MenuTimer_{ 0.0f };
 		int MenuSelected_{ 0 };
 		float MenuBlend_[NumMenuItems]{ 1.0f, 0.0f, 0.0f };	// 選択の度合い 0..1（見た目用に遅れて追従）
@@ -581,6 +684,9 @@ namespace Game::Scene::Impl {
 
 		// 「設定」で開くキー割り当ての画面（メニューの上に重ねる。開いている間はメニューの入力を止める）
 		Game::KeyConfigScreen::Screen SettingsScreen_{};
+		// true の間、ESC でタイトル（アプリ）を閉じない。設定の画面を開いている間と、そこを ESC で閉じたあと ESC を離すまで
+		// （2026-11-26：グローバル変数 Game::Scene::BlockEscapeQuit から移した。ESC で閉じる判定も main.cpp から UpdateUI へ）
+		bool BlockEscapeQuit_{ false };
 
 		//----	------	------	------	------	----//
 		// オービットカメラ（注視点のまわりを回る）
@@ -601,11 +707,35 @@ namespace Game::Scene::Impl {
 		//----	------	------	------	------	----//
 		// Outro（実装は Game.Scene.Title.Outro.cpp）
 
-		enum class OutroState : int {
-			None,		// タイトル表示中
-			Playing,
-			Finished,	// 最後まで再生した（本番は次のシーンへ渡し済み / プレビューは最後の状態で止めている）
+		// Outro の状態（State パターン。2026-11-26 に enum class OutroState と if から置き換えた。実装は Outro.cpp）
+		//   None     … タイトル表示中
+		//   Playing  … 時計（OutroTime_）を進め、終わりに着いたら自分で Finished へ
+		//   Finished … 最後まで再生した（入ったときに、本番なら次のシーンへ渡す / プレビューは最後の状態で止めている）
+		class OutroState {
+		public:
+			virtual ~OutroState() = default;
+			virtual auto Name() const noexcept -> char const* = 0;		// ImGui の表示用
+			virtual auto IsActive() const noexcept -> bool { return true; }	// None 以外
+			virtual void Enter(Title&) {}
+			virtual void Advance(Title&, float) {}						// 毎フレーム（Outro の deltaTime）
 		};
+		class OutroNone final : public OutroState {
+		public:
+			auto Name() const noexcept -> char const* override { return "None"; }
+			auto IsActive() const noexcept -> bool override { return false; }
+		};
+		class OutroPlaying final : public OutroState {
+		public:
+			auto Name() const noexcept -> char const* override { return "Playing"; }
+			void Advance(Title& self_, float deltaTime_) override;
+		};
+		class OutroFinished final : public OutroState {
+		public:
+			auto Name() const noexcept -> char const* override { return "Finished"; }
+			void Enter(Title& self_) override;
+		};
+
+		void ChangeOutroState(std::unique_ptr<OutroState> next_);
 
 		void StartOutro(bool isPreview_);	// isPreview_ = ImGui から再生（最後に次のシーンへ渡さない）
 		void RewindOutro();					// タイトルの状態に戻す
@@ -630,15 +760,14 @@ namespace Game::Scene::Impl {
 		auto OutroCrackRaysIntensity() const -> float;
 		auto OutroCrackRaysLength() const -> float;
 		void EditOutro();					// ImGui（Release では何もしない）
-		bool IsOutroActive() const noexcept { return OutroState_ != OutroState::None; }
+		bool IsOutroActive() const noexcept { return OutroStates_.Current().IsActive(); }
 
 		OutroSettings Outro_{};
-		OutroState OutroState_{ OutroState::None };
+		StateMachine<Title, OutroState> OutroStates_{ std::make_unique<OutroNone>() };
 		float OutroTime_{ 0.0f };
 		bool OutroIsPreview_{ false };
 		bool OutroSwitchSceneInPreview_{ false };	// Debug：プレビューでも最後に次のシーンへ渡す（保存しない）
 		float OutroDebugRate_{ 1.0f };				// Debug：再生速度（保存しない）
-		bool HasLeftScene_{ false };				// FinishOutro で次のシーンへ渡した。次に Update が呼ばれたら戻ってきたので、タイトルをやり直す
 
 		// 開始時のカメラ（ここから補間する。巻き戻しでも使う）
 		CameraPose OutroStartPose_{};

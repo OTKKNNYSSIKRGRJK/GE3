@@ -101,12 +101,22 @@ namespace Game::Scene::Impl {
 		template<typename...ArgTypes>
 		void Initialize(typename ArgTypes const&...args_);
 
-		InGame();
+		explicit InGame(Lumina::SceneManager& sceneManager_);
 		virtual ~InGame();
+
+		// InGame を離れるとき（SceneManager が切り替えるとき。外側の Game::Scene::InGame::OnExit から）
+		void OnExit();
+
+	private:
+		// シーンの持ち主（コンテキスト）。タイトルへ戻るときはこれに頼む（2026-11-26：グローバル変数 Game::Scene::Flag の代わり）
+		Lumina::SceneManager* SceneManager_{ nullptr };
+		// 戦闘を最初の状態に戻して、タイトルへの切り替えを頼む（ポーズメニューの Return to Title・勝利演出の暗転のあと）
+		void ReturnToTitle();
 
 	private:
 		std::unique_ptr<Player> Player_{ nullptr };
 		std::unique_ptr<TrackingCamera> PlayerCamera_{ nullptr };
+		float HitCameraShake_{ 0.0f };		// ボスに当てたときのカメラの揺れ（当てた瞬間 1 / 弾かれ 0.6 → 毎フレーム 0.9 倍）。以前は Update.cpp のファイルスコープ変数 hitBoss
 
 		std::unique_ptr<Game::Boss> Boss_Kinoko_{ nullptr };		// ボス（体＝Game.Fighter、脳＝Game.BossBrain）。名前は旧 Boss_Kinoko のまま（InGame を見直すときに変える）
 

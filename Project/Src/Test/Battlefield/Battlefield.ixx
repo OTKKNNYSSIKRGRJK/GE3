@@ -45,9 +45,8 @@ namespace Game {
 
 	class Battlefield {
 	public:
-		auto Borders() noexcept -> Lumina::Rect&;
+		// 境界は Initialize で決める。外からは読むだけ（2026-11-26：非 const 参照を返す版を削除）
 		auto Borders() const noexcept -> Lumina::Rect const&;
-		auto VisualBorders() noexcept -> Lumina::Rect&;
 		auto VisualBorders() const noexcept -> Lumina::Rect const&;
 
 	public:

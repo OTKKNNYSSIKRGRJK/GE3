@@ -75,12 +75,11 @@ namespace Lumina {
 
 			// Creates non-shader-visible SRVs.
 			// Obtains texture IDs which serve as the keys to the SRVs.
+			// ResourceManager から画像テクスチャだけを受け取り、DescriptorManager に渡す（2 つのマネージャは互いの中を知らない）
 			for (DX12::ResourceID const texResID : texResIDs) {
+				auto const* const tex{ DX12ResourceManager_.FindImageTexture(texResID) };
 				texIDs_.emplace_back(
-					DX12DescriptorManager_.CreateSRV<void>(
-						DX12ResourceManager_,
-						texResID
-					)
+					(tex != nullptr) ? DX12DescriptorManager_.CreateSRV<void>(*tex) : DX12::InvalidViewID
 				);
 			}
 		}

@@ -1,0 +1,131 @@
+export module Game.Boss.Kinoko;
+
+import <memory>;
+import BehaviorTree;
+
+import Lumina.DX12;
+
+import Lumina.Math;
+import Lumina.Phys.Collider;
+
+namespace Game {
+	struct BoingBoingAnimationArgument {
+		float Timer{ 0.0f };
+	};
+
+	export class Boss_Kinoko {
+	public:
+		constexpr Lumina::Vec3 const& ModelScale() const noexcept { return ModelScale_; }
+		constexpr Lumina::Vec3 const& ModelRotate() const noexcept { return ModelRotate_; }
+		constexpr Lumina::Vec3 const& ModelTranslate() const noexcept { return ModelTranslate_; }
+		constexpr Lumina::Vec3 const& ModelShearOnXZPlane() const noexcept { return ModelShearOnXZPlane_; }
+
+		constexpr float Angle() const noexcept { return Angle_; }
+		constexpr Lumina::Vec3 const& WorldPosition() const noexcept { return Position_; }
+
+		constexpr int32_t IsTriggered_Jump() const noexcept { return Trigger_Jump_; }
+		constexpr int32_t IsTriggered_Dash() const noexcept { return Trigger_Dash_; }
+
+		constexpr int32_t IsBeingKnockedBack() const noexcept { return IsBeingKnockedBack_; }
+
+		constexpr int32_t IsMoving() const noexcept { return IsMoving_; }
+
+		void Reset(Lumina::Vec3 const& initPos_);
+
+		// 巻き戻し（ゲームオーバーのあと、再開の前）：水平の位置と向き（ModelRotate の Y）を直接決める。Update を止めている間に呼ぶ
+		void SetRewindPose(float x_, float z_, float rotateY_) noexcept {
+			Position_.x = x_;
+			Position_.z = z_;
+			ModelTranslate_.x = x_;
+			ModelTranslate_.z = z_;
+			ModelRotate_.y = rotateY_;
+		}
+
+	public:
+		void KnockedBack(float power_, Lumina::Vec2 const& dir_);
+
+	private:
+		void Idle();
+		void Move();
+		void Dash();
+		void KnockedBack();
+		void ReturnToCenter();
+
+		using State = void(Boss_Kinoko::*)();
+
+	public:
+		template<typename...ArgTypes>
+		void Update(typename ArgTypes const&...args);
+
+	public:
+		template<typename...ArgTypes>
+		void Initialize(typename ArgTypes const&...args);
+
+	private:
+		Lumina::Vec3 Position_{};
+		Lumina::Vec3 Velocity_{};
+
+		Lumina::Vec3 ModelScale_{};
+		Lumina::Vec3 ModelRotate_{};
+		Lumina::Vec3 ModelTranslate_{};
+		Lumina::Vec3 ModelShearOnXZPlane_{};
+
+		Lumina::Vec3 RelPos_SelfToPlayer_{};
+
+		float Angle_{};
+		float SpeedByMove_{};
+		float SpeedByMove_Default_{};
+		float SpeedByDash_{};
+
+		int32_t State_{};
+
+		int32_t Trigger_Jump_{};
+		int32_t Flag_Jump_{};
+		int32_t SecondJumpInputInterval_{};
+		int32_t SecondJumpInputIntervalThreshold_{};
+		float JumpSpeed_{};
+		float JumpInitialSpeed_{};
+
+		int32_t Trigger_Dash_{};
+		int32_t DashStatus_{};
+		int32_t DashTimer_{};
+		int32_t DashMaxDuration_{};
+		int32_t DashInputInterval_{};
+		int32_t DashInputIntervalThreshold_{};
+
+		BoingBoingAnimationArgument Boing_{};
+
+		float SpeedByKnockBack_{};
+		Lumina::Vec2 KnockBackDir_{};
+		int32_t IsBeingKnockedBack_{};
+
+		State CurrentState_{ nullptr };
+		int32_t FrameCountDown_ToNextState_{};
+		int32_t IsMoving_{ 0 };
+
+	public:
+		float MaxHP_{};
+		float Inv_MaxHP_{};
+		float HP_{};
+
+	public:
+		// コライダ（形状はメッシュ空間で持つ。World の更新は親行列を知っている InGame が行う）
+		Lumina::Phys::Collider& BodyCollider() noexcept { return BodyCollider_; }
+		Lumina::Phys::Collider const& BodyCollider() const noexcept { return BodyCollider_; }
+	private:
+		Lumina::Phys::Collider BodyCollider_{};
+
+	public:
+		auto BuildBT(void* bossParticleSystem_) -> void;
+	private:
+		std::unique_ptr<Lumina::Behavior::Composite> BTRoot_;
+
+	public:
+		// デバッグ用のスイッチ（ヒット判定の確認用）。UI は InGame の「Collision」ウィンドウ（Debug のみ）。既定はどちらも off
+		struct DebugSwitches {
+			bool FreezeAI{ true };		// BT と Idle / Move の遷移を止めて、その場に立たせる。ノックバックによる移動は止めない
+			bool NoKnockBack{ true };	// KnockedBack(power, dir) を無視する（HP は呼び出し側で減らすので、ダメージは入る）
+		};
+		DebugSwitches Debug{};
+	};
+}

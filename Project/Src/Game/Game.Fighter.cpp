@@ -298,6 +298,15 @@ namespace Game {
 		if (HP_ < 0.0f) { HP_ = 0.0f; }
 	}
 
+	void Fighter::ApplyDamage(float damage_) noexcept {
+		HP_ = std::clamp(HP_ - damage_, 0.0f, MaxHP_);
+	}
+
+	void Fighter::RegisterColliders(Lumina::Phys::CollisionWorld& world_) {
+		world_.Add(BodyCollider_);
+		world_.Add(WeaponCollider_);
+	}
+
 	void Fighter::SetMaxHP(float maxHP_) noexcept {
 		float const next{ std::max(maxHP_, 1.0f) };
 		float const ratio{ (MaxHP_ > 0.0f) ? (HP_ / MaxHP_) : 1.0f };
@@ -496,13 +505,13 @@ namespace Game {
 
 		if (front) {
 			if (CanDeflectNow()) { return HitResult::Deflected; }
-			HP_ -= std::max(0.0f, hit_.Damage) * std::max(0.0f, Setup_.GuardDamageScale);
+			ApplyDamage(std::max(0.0f, hit_.Damage) * std::max(0.0f, Setup_.GuardDamageScale));
 			KnockedBack(hit_.Knockback * std::max(0.0f, Setup_.GuardKnockbackScale), push, Setup_.GuardStunFrames);
 			GuardStun_ = (IsBeingKnockedBack_ != 0);
 			return HitResult::Guarded;
 		}
 
-		HP_ -= std::max(0.0f, hit_.Damage);
+		ApplyDamage(std::max(0.0f, hit_.Damage));
 		if (Active_ == nullptr || !Active_->SuperArmor()) { KnockedBack(hit_.Knockback, push); }	// スーパーアーマー中は押されない
 		return HitResult::Hit;
 	}

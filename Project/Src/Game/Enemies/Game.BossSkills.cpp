@@ -180,7 +180,7 @@ namespace Game {
 	//====	======	======	======	======	====//
 
 	auto ChargeSlash::CanStart(Fighter const& self_) const -> bool {
-		return CooldownLeft_ <= 0 && !self_.IsAirborne() && InRange(self_, Tuning_->MinRange, Tuning_->MaxRange);
+		return IsCooldownReady() && !self_.IsAirborne() && InRange(self_, Tuning_->MinRange, Tuning_->MaxRange);
 	}
 
 	auto ChargeSlash::Start([[maybe_unused]] AbilityContext& ctx_) -> bool {
@@ -189,7 +189,7 @@ namespace Game {
 		Lunged_ = false;
 		LungeLeft_ = 0;
 		LungeSpeed_ = 0.0f;
-		CooldownLeft_ = std::max(Tuning_->Cooldown, 0);
+		StartCooldown(Tuning_->Cooldown);
 		return true;
 	}
 
@@ -271,14 +271,14 @@ namespace Game {
 	//====	======	======	======	======	====//
 
 	auto ThornWave::CanStart(Fighter const& self_) const -> bool {
-		return CooldownLeft_ <= 0 && Waves_ != nullptr && !self_.IsAirborne() && InRange(self_, Tuning_->MinRange, Tuning_->MaxRange);
+		return IsCooldownReady() && Waves_ != nullptr && !self_.IsAirborne() && InRange(self_, Tuning_->MinRange, Tuning_->MaxRange);
 	}
 
 	auto ThornWave::Start([[maybe_unused]] AbilityContext& ctx_) -> bool {
 		Phase_ = Phase::Windup;
 		Frame_ = 0;
 		Fired_ = false;
-		CooldownLeft_ = std::max(Tuning_->Cooldown, 0);
+		StartCooldown(Tuning_->Cooldown);
 		return true;
 	}
 

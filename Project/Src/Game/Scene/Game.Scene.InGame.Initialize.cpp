@@ -107,10 +107,8 @@ namespace Game::Scene::Impl {
 
 		// Collision
 		{
-			CollisionWorld_.Add(Player_->BodyCollider());
-			CollisionWorld_.Add(Player_->WeaponCollider());
-			CollisionWorld_.Add(Boss_Kinoko_->BodyCollider());
-			CollisionWorld_.Add(Boss_Kinoko_->WeaponCollider());
+			Player_->RegisterColliders(CollisionWorld_);
+			Boss_Kinoko_->RegisterColliders(CollisionWorld_);
 
 			// 調整値（ImGui「Player」「Boss AI」で Save したもの）。無ければコードの既定値のまま。戦闘をやり直すたびには読まない
 			Game::FighterSettings::LoadPlayer(*Player_, PlayerSettingsStatus_);
@@ -697,7 +695,7 @@ namespace Game::Scene::Impl {
 				UI_PlayerHPBar_.RGBA({ 1.0f, 1.0f, 1.0f, 0.25f });
 
 				MaxWidth_UI_PlayerHPBar_ = 480.0f;
-				UI_PlayerHPValue_ = Player_->HP_;
+				UI_PlayerHPValue_ = Player_->HP();
 			}
 			// BossHPBar
 			{
@@ -1049,8 +1047,13 @@ namespace Game::Scene::Impl {
 		}
 	}
 
-	InGame::InGame() = default;
+	InGame::InGame(Lumina::SceneManager& sceneManager_) : SceneManager_{ &sceneManager_ } {}
 	InGame::~InGame() = default;
+
+	void InGame::OnExit() {
+		// 次に InGame に入ったときは Sync から（タイトルで押していたキーで行動が出ないように）。カーソルも解放する
+		PlayerInput_.RequestSync();
+	}
 }
 
 namespace Game::Scene {
@@ -1059,10 +1062,15 @@ namespace Game::Scene {
 		Lumina::DX12::Context const& dxContext_,
 		Lumina::AssetManager const& assetMngr_
 	) {
-		Impl_.reset(new Impl::InGame{});
+		Impl_.reset(new Impl::InGame{ Manager() });
 		Impl_->Initialize(dxContext_, assetMngr_);
 	}
 
-	InGame::InGame() = default;
+	InGame::InGame(Lumina::SceneManager& manager_, FrameResources const& frame_)
+		: Lumina::Scene{ manager_ }, Frame_(frame_) {}
 	InGame::~InGame() = default;
+
+	void InGame::OnExit() {
+		if (Impl_) { Impl_->OnExit(); }
+	}
 }

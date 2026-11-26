@@ -5,7 +5,8 @@ import : Impl;
 import Lumina;
 import Lumina.VsBanner;
 import Game.CombatVfx;
-import Game.Scene;		// Game::Scene::Flag（勝利演出の暗転のあと、タイトルへ）
+import Game.Scene;
+import Game.Scene.Title;	// 勝利演出の暗転のあと・ポーズメニューの Return to Title で、タイトルへの切り替えを頼む（ReturnToTitle）
 
 namespace {
 	// 戦闘開始時の初期配置（RestartBattle と、LOSE の巻き戻しの行き先）
@@ -20,13 +21,18 @@ namespace {
 }
 
 namespace Game::Scene::Impl {
+	void InGame::ReturnToTitle() {
+		RestartBattle();		// 次に InGame に入ったときは最初から
+		SceneManager_->RequestChange<Game::Scene::Title>();	// 切り替えはこのフレームの描画の後（SceneManager::ApplyChange）
+	}
+
 	void InGame::RestartBattle() {
 		CurrentPhase_ = PHASE_STARTUP;
 		NextPhaseCountDown_ = 90;
 		Player_->Initialize(Lumina::Vec3{ PlayerStartX, 0.25f, PlayerStartZ });
 		PlayerCamera_->Yaw = Player_->Angle();		// 視点もプレイヤーの後ろへ戻す
 		Boss_Kinoko_->Initialize(Lumina::Vec3{ BossStartX, 0.0f, BossStartZ });
-		UI_PlayerHPValue_ = Player_->HP_;	// HP バーの追従を満タンから始める（LOSE からだと 0 から伸び直していた）
+		UI_PlayerHPValue_ = Player_->HP();	// HP バーの追従を満タンから始める（LOSE からだと 0 から伸び直していた）
 		playerATKFlag = 0;					// コンボ・アビリティは Player_->Initialize でやめている
 		// 飛んでいる弾は消す（弾の更新は IN_BATTLE だけなので、残すと STARTUP の間その場に止まって見え、当たり判定も残る）
 		PlayerBullets_->Clear();
@@ -101,12 +107,11 @@ namespace Game::Scene::Impl {
 		Player_->LockInput(true);
 		Player_->Update(PlayerFrame(false));
 
-		UI_PlayerHPValue_ = UI_PlayerHPValue_ * 0.9f + Player_->HP_ * 0.1f;
-		if (std::abs(UI_PlayerHPValue_ - Player_->HP_) < 1.0E-2) { UI_PlayerHPValue_ = Player_->HP_; }
+		UI_PlayerHPValue_ = UI_PlayerHPValue_ * 0.9f + Player_->HP() * 0.1f;
+		if (std::abs(UI_PlayerHPValue_ - Player_->HP()) < 1.0E-2) { UI_PlayerHPValue_ = Player_->HP(); }
 		UI_PlayerHPValue_ = std::max<float>(0.0f, UI_PlayerHPValue_);
-		Boss_Kinoko_->HP_ = std::max<float>(0.0f, Boss_Kinoko_->HP_);
-		UI_PlayerHPBar_.Scale_.x = MaxWidth_UI_PlayerHPBar_ * (UI_PlayerHPValue_ * Player_->Inv_MaxHP_);
-		UI_BossHPBar_.Scale_.x = MaxWidth_UI_BossHPBar_ * (Boss_Kinoko_->HP_ * Boss_Kinoko_->Inv_MaxHP_);
+		UI_PlayerHPBar_.Scale_.x = MaxWidth_UI_PlayerHPBar_ * (UI_PlayerHPValue_ / Player_->MaxHP());
+		UI_BossHPBar_.Scale_.x = MaxWidth_UI_BossHPBar_ * Boss_Kinoko_->HPRatio();
 
 		auto const& keyboard{ input_.Keyboard() };
 
@@ -140,12 +145,11 @@ namespace Game::Scene::Impl {
 		[[maybe_unused]] Lumina::DX12::CommandList const& cmdList_,
 		[[maybe_unused]] Lumina::WinApp::RawInput const& input_
 	) {
-		UI_PlayerHPValue_ = UI_PlayerHPValue_ * 0.9f + Player_->HP_ * 0.1f;
-		if (std::abs(UI_PlayerHPValue_ - Player_->HP_) < 1.0E-2) { UI_PlayerHPValue_ = Player_->HP_; }
+		UI_PlayerHPValue_ = UI_PlayerHPValue_ * 0.9f + Player_->HP() * 0.1f;
+		if (std::abs(UI_PlayerHPValue_ - Player_->HP()) < 1.0E-2) { UI_PlayerHPValue_ = Player_->HP(); }
 		UI_PlayerHPValue_ = std::max<float>(0.0f, UI_PlayerHPValue_);
-		Boss_Kinoko_->HP_ = std::max<float>(0.0f, Boss_Kinoko_->HP_);
-		UI_PlayerHPBar_.Scale_.x = MaxWidth_UI_PlayerHPBar_ * (UI_PlayerHPValue_ * Player_->Inv_MaxHP_);
-		UI_BossHPBar_.Scale_.x = MaxWidth_UI_BossHPBar_ * (Boss_Kinoko_->HP_ * Boss_Kinoko_->Inv_MaxHP_);
+		UI_PlayerHPBar_.Scale_.x = MaxWidth_UI_PlayerHPBar_ * (UI_PlayerHPValue_ / Player_->MaxHP());
+		UI_BossHPBar_.Scale_.x = MaxWidth_UI_BossHPBar_ * Boss_Kinoko_->HPRatio();
 
 		// プレイヤーは入力なしで重力だけ（勝った瞬間に空中でも落ちて着地する）。ロックは RestartBattle の Player_->Initialize で解ける
 		Player_->LockInput(true);
@@ -157,15 +161,13 @@ namespace Game::Scene::Impl {
 		if (Victory_.IsExiting()) {
 			// 暗転しきったらタイトルへ。次に InGame に入ったときは最初から（ポーズメニューの Return to Title と同じ）
 			if (Victory_.IsExitFinished()) {
-				RestartBattle();
-				Game::Scene::Flag = 0;
+				ReturnToTitle();
 			}
 		}
 		else if (NextPhaseCountDown_ < 0 && Victory_.CanRestart() && keyboard.IsPressed(KEY::SPACE)) {
 			// SPACE：暗転してからタイトルへ（暗転の間も演出の時計とカメラは進む）。演出が始まっていなければすぐ
 			if (!Victory_.BeginExit()) {
-				RestartBattle();
-				Game::Scene::Flag = 0;
+				ReturnToTitle();
 			}
 		}
 		else {

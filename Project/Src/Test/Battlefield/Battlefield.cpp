@@ -30,9 +30,7 @@ namespace Game {
 		};
 	}
 
-	auto Battlefield::Borders() noexcept -> Lumina::Rect& { return Borders_; }
 	auto Battlefield::Borders() const noexcept -> Lumina::Rect const& { return Borders_; }
-	auto Battlefield::VisualBorders() noexcept -> Lumina::Rect& { return VisualBorders_; }
 	auto Battlefield::VisualBorders() const noexcept -> Lumina::Rect const& { return VisualBorders_; }
 
 	void Battlefield::OnHitWall(

@@ -82,25 +82,24 @@ namespace Game::Scene::Impl {
 				0.0f, 0.0f, 0.0f, 1.0f,
 			};
 		}
-
-		float hitBoss = 0.0f;
 	}
 
 	namespace {
 		constexpr float Inv_0xFFFFFFFF{ 1.0f / static_cast<float>(0xFFFFFFFFU) };
 		constexpr float Inv_900{ 1.0f / 900.0f };
 
-		void UpdatePlayerCamera(TrackingCamera& camera_, Player const& player_) {
+		// hitShake_ = ボスに当てたときの揺れ（InGame の HitCameraShake_。0 で揺れなし）
+		void UpdatePlayerCamera(TrackingCamera& camera_, Player const& player_, float hitShake_) {
 			camera_.Target = player_.WorldPosition();
 			camera_.Position =
 				camera_.Position * (1.0f - camera_.DelayFactor) +
 				camera_.Target * camera_.DelayFactor;
 			camera_.Position.y += camera_.Target.y * 0.175f;
 
-			if (hitBoss > 0.05f) {
-				camera_.Position.x += std::cos(hitBoss * 15.0f) * hitBoss * 3.0f;
-				camera_.Position.y += std::cos(hitBoss * 20.0f) * hitBoss * 3.0f;
-				camera_.Position.z += std::cos(hitBoss * 25.0f) * hitBoss * 3.0f;
+			if (hitShake_ > 0.05f) {
+				camera_.Position.x += std::cos(hitShake_ * 15.0f) * hitShake_ * 3.0f;
+				camera_.Position.y += std::cos(hitShake_ * 20.0f) * hitShake_ * 3.0f;
+				camera_.Position.z += std::cos(hitShake_ * 25.0f) * hitShake_ * 3.0f;
 			}
 
 			Lumina::Vec4 cameraTranslateSwayingOffset{
@@ -233,7 +232,7 @@ namespace Game::Scene::Impl {
 				Player_->ModelTranslate()
 			)
 		};
-		Player_->BodyCollider().UpdateWorld(playerMeshWorld);
+		Player_->UpdateBodyCollider(playerMeshWorld);
 
 		// 武器 = 武器メッシュの SRT × 右手ボーン（Render.cpp の weaponWorld と同じ）
 		Lumina::Mat4 const weaponWorld{
@@ -242,8 +241,8 @@ namespace Game::Scene::Impl {
 		};
 		// 新方式: Hitbox の窓が開いている間だけ有効（窓の状態は、ボーン行列と同じ前フレーム終わりの時刻のもの）
 		// 旧方式: 攻撃中ずっと有効
-		Player_->WeaponCollider().Enabled = !GameOver_.IsActive() && !Victory_.IsActive() && (PlayerAnimEvents_.UseAnimEvent ? PlayerAnimEvents_.IsHitboxOpen() : (playerATKFlag != 0));	// 倒れている間は攻撃判定なし
-		Player_->WeaponCollider().UpdateWorld(weaponWorld);
+		bool const playerWeaponEnabled{ !GameOver_.IsActive() && !Victory_.IsActive() && (PlayerAnimEvents_.UseAnimEvent ? PlayerAnimEvents_.IsHitboxOpen() : (playerATKFlag != 0)) };	// 倒れている間は攻撃判定なし
+		Player_->UpdateWeaponCollider(weaponWorld, playerWeaponEnabled);
 
 		Lumina::Mat4 const bossMeshWorld{
 			Lumina::Mat4::SRT(
@@ -252,7 +251,7 @@ namespace Game::Scene::Impl {
 				Boss_Kinoko_->ModelTranslate()
 			)
 		};
-		Boss_Kinoko_->BodyCollider().UpdateWorld(bossMeshWorld);
+		Boss_Kinoko_->UpdateBodyCollider(bossMeshWorld);
 
 		// ボスの武器（プレイヤーと同じ武器メッシュの SRT × ボスの右手）。Hitbox の窓が開いている間だけ有効
 		Update(Tag_HoldBossWeapon{});
@@ -260,8 +259,8 @@ namespace Game::Scene::Impl {
 			Lumina::Mat4::SRT({ 0.125f, 0.5f, 0.125f }, { -std::numbers::pi_v<float> * 0.5f, 0.0f, 0.0f }, { 0.0f, 0.0f, 0.0f }) *
 			World_BossHand_
 		};
-		Boss_Kinoko_->WeaponCollider().Enabled = !GameOver_.IsActive() && !Victory_.IsActive() && BossAnimEvents_.IsHitboxOpen();	// 勝利演出で倒れている間も判定なし
-		Boss_Kinoko_->WeaponCollider().UpdateWorld(bossWeaponWorld);
+		bool const bossWeaponEnabled{ !GameOver_.IsActive() && !Victory_.IsActive() && BossAnimEvents_.IsHitboxOpen() };	// 勝利演出で倒れている間も判定なし
+		Boss_Kinoko_->UpdateWeaponCollider(bossWeaponWorld, bossWeaponEnabled);
 	}
 
 #if defined(_DEBUG)
@@ -271,16 +270,20 @@ namespace Game::Scene::Impl {
 	void InGame::Update(
 		Tag_CollisionDebugUI&&
 	) {
+		// コライダは const で受け取り、OBB のコピーを編集する。変わったときだけ持ち主の操作（SetBodyColliderShape など）で戻す
 		auto const editOBB{
-			[](char const* label_, Lumina::Phys::Collider& collider_) {
-				auto* const obb{ std::get_if<Lumina::Phys::OBB>(&collider_.Local) };
-				if (!obb) { return; }
+			[](char const* label_, Lumina::Phys::Collider const& collider_, auto&& apply_) {
+				auto const* const src{ std::get_if<Lumina::Phys::OBB>(&collider_.Local) };
+				if (!src) { return; }
+				Lumina::Phys::OBB obb{ *src };
+				bool changed{ false };
 				ImGui::PushID(label_);
 				ImGui::SeparatorText(label_);
 				ImGui::Text("ID %u / %s", collider_.ID(), collider_.Enabled ? "Enabled" : "Disabled");
-				ImGui::DragFloat3("Center", &obb->Center.x, 0.01f);
-				ImGui::DragFloat3("HalfExtent", &obb->HalfExtent.x, 0.01f, 0.0f, 100.0f);
+				changed |= ImGui::DragFloat3("Center", &obb.Center.x, 0.01f);
+				changed |= ImGui::DragFloat3("HalfExtent", &obb.HalfExtent.x, 0.01f, 0.0f, 100.0f);
 				ImGui::PopID();
+				if (changed) { apply_(Lumina::Phys::Shape{ obb }); }
 			}
 		};
 
@@ -295,9 +298,9 @@ namespace Game::Scene::Impl {
 			static_cast<uint32_t>(CollisionWorld_.Contacts().size())
 		);
 		// 形状はメッシュ空間の値（Player / Boss の Initialize で入れている値を上書きする）
-		editOBB("Player Body", Player_->BodyCollider());
-		editOBB("Player Weapon", Player_->WeaponCollider());
-		editOBB("Boss Body", Boss_Kinoko_->BodyCollider());
+		editOBB("Player Body", Player_->BodyCollider(), [this](Lumina::Phys::Shape const& s_) { Player_->SetBodyColliderShape(s_); });
+		editOBB("Player Weapon", Player_->WeaponCollider(), [this](Lumina::Phys::Shape const& s_) { Player_->SetWeaponColliderShape(s_); });
+		editOBB("Boss Body", Boss_Kinoko_->BodyCollider(), [this](Lumina::Phys::Shape const& s_) { Boss_Kinoko_->SetBodyColliderShape(s_); });
 
 		// ボスのデバッグ用スイッチ（ヒット判定の確認用。「Boss AI」と同じもの）
 		ImGui::SeparatorText("Boss Debug");
@@ -324,10 +327,10 @@ namespace Game::Scene::Impl {
 		ImGui::SameLine();
 		ImGui::TextDisabled("%s  (%s)", PlayerSettingsStatus_.c_str(), Game::FighterSettings::PlayerConfigPath);
 
-		ImGui::Text("HP: %.0f / %.0f", Player_->HP_, Player_->MaxHP_);
-		float maxHP{ Player_->MaxHP_ };
+		ImGui::Text("HP: %.0f / %.0f", Player_->HP(), Player_->MaxHP());
+		float maxHP{ Player_->MaxHP() };
 		if (ImGui::DragFloat("Max HP", &maxHP, 1.0f, 1.0f, 100000.0f, "%.0f")) { Player_->SetMaxHP(maxHP); }
-		if (ImGui::Button("Refill HP")) { Player_->HP_ = Player_->MaxHP_; }
+		if (ImGui::Button("Refill HP")) { Player_->RefillHP(); }
 
 		// のけぞり（押される距離 = ボスのサイドカーの knockback × scale。ATK1〜3 は 5 / 10 / 15）
 		ImGui::SeparatorText("Hit reaction (hit by boss)");
@@ -384,8 +387,7 @@ namespace Game::Scene::Impl {
 				RestartBattle();
 				break;
 			case Game::PauseMenu::Action::ReturnToTitle:
-				RestartBattle();			// 次に InGame に入ったときは最初から
-				Game::Scene::Flag = 0;
+				ReturnToTitle();			// 次に InGame に入ったときは最初から。切り替えはこのフレームの描画の後
 				break;
 			default:
 				break;
@@ -409,7 +411,6 @@ namespace Game::Scene::Impl {
 		bool const gameBlocked{ PauseMenu_.IsBlockingGame() };
 		bool const cameraControl{ CurrentPhase_ == PHASE_IN_BATTLE && !GameOver_.IsActive() && !Victory_.IsActive() };
 		PlayerInput_.Update(input_, gameBlocked, cameraControl);
-		if (Game::Scene::Flag != 1) { PlayerInput_.RequestSync(); }	// タイトルへ戻った。次に InGame に入ったときは Sync から
 		if (gameBlocked) { return; }
 
 		// 視点の左右（Look の X が正 = 右へ回す = Yaw が減る）。移動の基準は回した後の向き（プレイヤーの Update より前に渡す）
@@ -466,9 +467,9 @@ namespace Game::Scene::Impl {
 			PlayerDashEffectEmitFrameCount = 15;
 		}
 
-		hitBoss *= 0.9f;
+		HitCameraShake_ *= 0.9f;
 		// カメラはプレイヤーを追う（ボスを操作している間（Debug）はボスを追う）
-		UpdatePlayerCamera(*PlayerCamera_, Boss_Kinoko_->Debug.Possess ? static_cast<Player const&>(*Boss_Kinoko_) : static_cast<Player const&>(*Player_));
+		UpdatePlayerCamera(*PlayerCamera_, Boss_Kinoko_->Debug.Possess ? static_cast<Player const&>(*Boss_Kinoko_) : static_cast<Player const&>(*Player_), HitCameraShake_);
 		CameraFx_.SetShake(GradeFx_.SplitIntensity());		// カメラシェークは、チャンネルスプリットの脈動に合わせる（包絡 × 鼓動。演出中でなければ 0）
 		CameraFx_.Apply(*PlayerCamera_);		// ゲームオーバーの演出中だけ View / VP / FOV を上書き（以降の viewToWorld などはこの結果を使う）
 		// 勝利演出のカメラ。「もう一人」= ボスの足元（Focus でボスへ注視点を寄せる。YawFromOther ならプレイヤーの背中側が Yaw 0）
@@ -619,7 +620,7 @@ namespace Game::Scene::Impl {
 					switch (bossResult) {
 					case Game::HitResult::Hit:
 						emitKnockEffectParticles(contactPoint, 195.0f);
-						hitBoss = 1.0f;
+						HitCameraShake_ = 1.0f;
 						break;
 					case Game::HitResult::Guarded:
 						emitKnockEffectParticles(contactPoint, 35.0f);		// 橙の火花
@@ -627,7 +628,7 @@ namespace Game::Scene::Impl {
 					case Game::HitResult::Deflected:
 						Player_->Deflected(Lumina::Vec2{ dPos.x, dPos.z });		// 弾かれた: プレイヤーがのけぞる
 						emitKnockEffectParticles(contactPoint, 50.0f);		// 黄色の火花
-						hitBoss = 0.6f;
+						HitCameraShake_ = 0.6f;
 						break;
 					case Game::HitResult::Dodged:
 						break;
@@ -639,10 +640,10 @@ namespace Game::Scene::Impl {
 			if (weaponHit) {
 				Lumina::Vec3 const contactPoint{ weaponHit->Info.Point };
 				Boss_Kinoko_->KnockedBack(5.0f * playerATKFlag, { -dPos.x, -dPos.z });
-				Boss_Kinoko_->HP_ -= 100.0f * playerATKFlag;
+				Boss_Kinoko_->ApplyDamage(100.0f * playerATKFlag);
 				publishHit(Side::Boss, Game::HitResult::Hit, Source::Weapon, contactPoint, Lumina::Vec2{ -dPos.x, -dPos.z }, 100.0f * playerATKFlag);
 				emitKnockEffectParticles(contactPoint, 195.0f);
-				hitBoss = 1.0f;
+				HitCameraShake_ = 1.0f;
 			}
 		}
 		// 体当たり（プレイヤーの体がボスの体に触れると、プレイヤーが吹き飛んで HP が減る）は外した（2026-11-10。近接で戦いづらいため）。
@@ -676,7 +677,7 @@ namespace Game::Scene::Impl {
 				case Game::HitResult::Deflected:
 					Boss_Kinoko_->Deflected(Lumina::Vec2{ -dPos.x, -dPos.z });	// 弾いた: ボスがのけぞる
 					emitKnockEffectParticles(contactPoint, 50.0f);
-					hitBoss = 0.6f;
+					HitCameraShake_ = 0.6f;
 					break;
 				case Game::HitResult::Dodged:
 					break;
@@ -1081,7 +1082,7 @@ namespace Game::Scene::Impl {
 				};
 				if (Lumina::Vec3::Dot(d_XYZ, d_XYZ) < 9.0f) {
 					if (!Boss_Kinoko_->IsBeingKnockedBack()) {
-						Boss_Kinoko_->HP_ -= (b.ATK - b.Velocity.y * 3.0f);
+						Boss_Kinoko_->ApplyDamage(b.ATK - b.Velocity.y * 3.0f);
 					}
 					b.Life = 0.0f;
 				}
@@ -1206,7 +1207,7 @@ namespace Game::Scene::Impl {
 				if (Lumina::Vec3::Dot(d_XYZ, d_XYZ) < 9.0f) {
 					if (!Player_->IsBeingKnockedBack()) {
 						Player_->KnockedBack(1.0f, { d_XYZ.x, d_XYZ.z });
-						Player_->HP_ -= 0.1f;
+						Player_->ApplyDamage(0.1f);
 					}
 					atk.Life = 0.0f;
 				}
@@ -1292,9 +1293,9 @@ namespace Game::Scene::Impl {
 				Lumina::Utils::Color::HSV{
 					rndEngine() * Inv_0xFFFFFFFF * 3.0f + std::sin(playerHPBarColorHueFactor) * 5.0f + 195.0f,
 					rndEngine() * Inv_0xFFFFFFFF * 0.05f + 0.5f +
-					(1.0f - (Boss_Kinoko_->HP_ * Boss_Kinoko_->Inv_MaxHP_)) * 0.4f,
+					(1.0f - Boss_Kinoko_->HPRatio()) * 0.4f,
 					0.5f +
-					(1.0f - (Boss_Kinoko_->HP_ * Boss_Kinoko_->Inv_MaxHP_)) * 0.4f
+					(1.0f - Boss_Kinoko_->HPRatio()) * 0.4f
 				}
 			);
 			UI_PlayerHPBar_.RGBA_.x = rgb_Base.R;
@@ -1336,9 +1337,9 @@ namespace Game::Scene::Impl {
 				Lumina::Utils::Color::HSV{
 					rndEngine() * Inv_0xFFFFFFFF * 3.0f + std::sin(bossHPBarColorHueFactor) * 5.0f,
 					rndEngine() * Inv_0xFFFFFFFF * 0.05f + 0.5f +
-					(1.0f - (Boss_Kinoko_->HP_ * Boss_Kinoko_->Inv_MaxHP_)) * 0.4f,
+					(1.0f - Boss_Kinoko_->HPRatio()) * 0.4f,
 					0.5f +
-					(1.0f - (Boss_Kinoko_->HP_ * Boss_Kinoko_->Inv_MaxHP_)) * 0.4f
+					(1.0f - Boss_Kinoko_->HPRatio()) * 0.4f
 				}
 			);
 			UI_BossHPBar_.RGBA_.x = rgb_Base.R;
@@ -1411,13 +1412,13 @@ namespace Game::Scene::Impl {
 
 		// HP が 0 になったその瞬間にゲームオーバー演出を始める（InBattle の判定は 91 フレームごとで、最大 1.5 秒ほど遅れる）。
 		// ボスが先に倒れている場合は勝ち（InBattle の判定に任せる）
-		if (CurrentPhase_ == PHASE_IN_BATTLE && Player_->HP_ <= 0.0f && Boss_Kinoko_->HP_ > 0.0f) {
+		if (CurrentPhase_ == PHASE_IN_BATTLE && Player_->IsDefeated() && !Boss_Kinoko_->IsDefeated()) {
 			CurrentPhase_ = PHASE_LOSE;
 			NextPhaseCountDown_ = 90;
 			GameOver_.Start();
 		}
 		// ボスの HP が 0 になったその瞬間に勝利演出を始める（両方 0 なら勝ち。InBattle の判定は予備）
-		if (CurrentPhase_ == PHASE_IN_BATTLE && Boss_Kinoko_->HP_ <= 0.0f) {
+		if (CurrentPhase_ == PHASE_IN_BATTLE && Boss_Kinoko_->IsDefeated()) {
 			CurrentPhase_ = PHASE_WIN;
 			NextPhaseCountDown_ = 90;
 			Victory_.Start();
@@ -1638,12 +1639,7 @@ namespace Game::Scene::Impl {
 }
 
 namespace Game::Scene {
-	template<>
-	void InGame::Update(
-		Lumina::DX12::Context const& dxContext_,
-		Lumina::DX12::CommandList const& cmdList_,
-		Lumina::WinApp::RawInput const& input_
-	) {
-		Impl_->Update(dxContext_, cmdList_, input_);
+	void InGame::Update() {
+		Impl_->Update(Frame_.DX12, Frame_.CmdList, Frame_.Input);
 	}
 }

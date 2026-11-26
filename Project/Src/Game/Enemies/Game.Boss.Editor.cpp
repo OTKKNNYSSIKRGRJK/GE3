@@ -102,7 +102,7 @@ namespace Game {
 
 		ImGui::SeparatorText("State");
 		BossBlackboard const& bb{ Brain_.Blackboard() };
-		ImGui::Text("Action: %s   Combo step: %d   HP: %.0f / %.0f", NameOf(Action()), ComboStep(), HP_, MaxHP_);
+		ImGui::Text("Action: %s   Combo step: %d   HP: %.0f / %.0f", NameOf(Action()), ComboStep(), HP(), MaxHP());
 		ImGui::Text("Distance: %.2f   (close < %.1f, mid < %.1f)", bb.Distance, Tuning_.CloseRange, Tuning_.MidRange);
 		FighterIntent const& intent{ Brain_.Intent() };
 		ImGui::Text("Intent move: (%.2f, %.2f)   face: %s", intent.Move.x, intent.Move.y, intent.Face ? "target" : "-");
@@ -127,7 +127,7 @@ namespace Game {
 			changed |= ImGui::DragInt("Dash invincible frames", &s.DodgeInvincibleFrames, 0.2f, 0, 60);
 			if (changed) { SetSetup(s); }
 
-			float maxHP{ MaxHP_ };
+			float maxHP{ MaxHP() };
 			if (ImGui::DragFloat("Max HP", &maxHP, 10.0f, 1.0f, 1000000.0f, "%.0f")) { SetMaxHP(maxHP); s.MaxHP = Setup().MaxHP; }
 
 			// やられ判定（メッシュ空間。ワールドでは × 3）。Collision の窓の Boss Body と違い、戦闘をやり直しても残る

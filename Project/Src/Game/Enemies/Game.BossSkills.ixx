@@ -155,6 +155,12 @@ export namespace Game {
 		auto InRange(Fighter const& self_, float min_, float max_) const noexcept -> bool;
 		static auto HasCue(AbilityContext const& ctx_, std::uint32_t cue_) noexcept -> bool;
 
+		// 派生クラスはメンバを直接触らず、ここから読む・頼む（2026-11-26：Target_ / CooldownLeft_ を private へ）
+		auto Target() const noexcept -> Fighter const* { return Target_; }
+		auto IsCooldownReady() const noexcept -> bool { return CooldownLeft_ <= 0; }
+		void StartCooldown(std::int32_t frames_) noexcept { CooldownLeft_ = (frames_ > 0) ? frames_ : 0; }
+
+	private:
 		Fighter const* Target_{ nullptr };
 		std::int32_t CooldownLeft_{ 0 };
 	};

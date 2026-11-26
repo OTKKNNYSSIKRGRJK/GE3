@@ -31,6 +31,8 @@ namespace Lumina::DX12 {
 	using ResourceID = uint32_t;
 	using ViewID = uint32_t;
 
+	inline constexpr ViewID InvalidViewID{ 0xFFFFFFFFU };
+
 	enum class RESOURCE_TYPE {
 		DEFAULT_BUFFER = 0x00U,
 		UPLOAD_BUFFER = 0x01U,
@@ -50,9 +52,8 @@ namespace Lumina::DX12 {
 }
 
 namespace Lumina::DX12 {
+	// 2026-11-26：friend DescriptorManager をやめた。DescriptorManager には ImageTexture そのものを渡す（FindImageTexture）
 	class ResourceManager final {
-		friend DescriptorManager;
-
 	private:
 		static constexpr RESOURCE_TYPE GetResourceType(ResourceID resID_) noexcept {
 			return static_cast<RESOURCE_TYPE>(resID_ >> BitOffset_Index_ResourceType_);
@@ -71,6 +72,15 @@ namespace Lumina::DX12 {
 			}
 
 			return nullptr;
+		}
+
+	public:
+		// resID_ が画像テクスチャならそれを返す（違う種類・範囲外なら nullptr）。ビューを作る側にはこれで中身だけを渡す
+		auto FindImageTexture(ResourceID resID_) const noexcept -> ImageTexture const* {
+			if (GetResourceType(resID_) != RESOURCE_TYPE::IMAGE_TEXTURE2D) { return nullptr; }
+			uint32_t const resIdx{ GetResourceIndex(resID_) };
+			if (resIdx >= Arr_ImageTextures_.size()) { return nullptr; }
+			return Arr_ImageTextures_[resIdx].get();
 		}
 
 	public:
@@ -229,20 +239,6 @@ namespace Lumina::DX12 {
 			UnorderedAccessView<ElementType>::Create(Context_->Device(), viewCPUHandle, res_);
 
 			return viewID;
-		}
-
-		template<typename ElementType>
-		ViewID CreateSRV(
-			ResourceManager const& resMngr_,
-			ResourceID resID_
-		) {
-			auto const* res{ resMngr_.GetResource(resID_) };
-			RESOURCE_TYPE const resType{ ResourceManager::GetResourceType(resID_) };
-			if (resType == RESOURCE_TYPE::IMAGE_TEXTURE2D) {
-				return CreateSRV<ElementType>(*reinterpret_cast<ImageTexture const*>(res));
-			}
-
-			return 0xFFFFFFFFU;
 		}
 
 	public:

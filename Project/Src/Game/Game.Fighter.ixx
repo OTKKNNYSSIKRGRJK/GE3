@@ -289,6 +289,18 @@ export namespace Game {
 		// HP の上限を変える（Setup().MaxHP も変えるので、戦闘をやり直しても残る）。今の HP は割合を保つ
 		void SetMaxHP(float maxHP_) noexcept;
 
+		//==== HP（2026-11-26：メンバを private にし、増減はここに集める）====//
+
+		constexpr float HP() const noexcept { return HP_; }
+		constexpr float MaxHP() const noexcept { return MaxHP_; }
+		constexpr float HPRatio() const noexcept { return HP_ * Inv_MaxHP_; }	// 0..1（HP バーなど）
+		constexpr bool IsDefeated() const noexcept { return HP_ <= 0.0f; }
+
+		// ガード・弾き・無敵を見ずに、そのままダメージを受ける（弾・旧来の当たりなど ReceiveHit を通さない攻撃）。HP は 0..MaxHP に収める
+		void ApplyDamage(float damage_) noexcept;
+		void RefillHP() noexcept { HP_ = MaxHP_; }	// デバッグ（ImGui「Player」の Refill HP）
+		void Kill() noexcept { HP_ = 0.0f; }			// デバッグ（Q で自滅）
+
 		// 入力を受け付けない状態にする（ゲームオーバー中）。横の移動・ダッシュ・吹き飛ばしは止まり、空中なら落ちて着地する
 		// （Update は呼び続けること）。Initialize で解除される
 		void LockInput(bool locked_) noexcept { InputLocked_ = locked_; }
@@ -334,11 +346,22 @@ export namespace Game {
 		void FaceToward(Lumina::Vec2 const& dir_, float maxStep_) noexcept;
 
 		//==== コライダ（形状はメッシュ空間で持つ。World の更新は親行列を知っている InGame が行う）====//
+		// 2026-11-26：中のコライダへの非 const 参照は返さない。外から変えるのは下の操作だけ
 
-		Lumina::Phys::Collider& BodyCollider() noexcept { return BodyCollider_; }
 		Lumina::Phys::Collider const& BodyCollider() const noexcept { return BodyCollider_; }
-		Lumina::Phys::Collider& WeaponCollider() noexcept { return WeaponCollider_; }
 		Lumina::Phys::Collider const& WeaponCollider() const noexcept { return WeaponCollider_; }
+
+		// 体と武器のコライダを world_ に登録する（world_ はコライダへのポインタを握るので、この Fighter と同じ寿命で持つこと）
+		void RegisterColliders(Lumina::Phys::CollisionWorld& world_);
+		// World を親行列から作り直す（毎フレーム、Detect の前）
+		void UpdateBodyCollider(Lumina::Mat4 const& parent_) noexcept { BodyCollider_.UpdateWorld(parent_); }
+		void UpdateWeaponCollider(Lumina::Mat4 const& parent_, bool enabled_) noexcept {
+			WeaponCollider_.Enabled = enabled_;
+			WeaponCollider_.UpdateWorld(parent_);
+		}
+		// ローカル形状を差し替える（ImGui「Collision」での調整用。Setup().BodyCenter / BodyHalf は変えない）
+		void SetBodyColliderShape(Lumina::Phys::Shape const& local_) noexcept { BodyCollider_.Local = local_; }
+		void SetWeaponColliderShape(Lumina::Phys::Shape const& local_) noexcept { WeaponCollider_.Local = local_; }
 
 	private:
 		void InitializeColliders();
@@ -404,7 +427,6 @@ export namespace Game {
 		Lumina::Phys::Collider BodyCollider_{};
 		Lumina::Phys::Collider WeaponCollider_{};
 
-	public:
 		float MaxHP_{};
 		float Inv_MaxHP_{};
 		float HP_{};

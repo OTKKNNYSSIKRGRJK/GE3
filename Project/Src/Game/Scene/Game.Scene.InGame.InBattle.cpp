@@ -69,24 +69,24 @@ namespace Game::Scene::Impl {
 		using Lumina::WinApp::KEY;
 
 		// Q: 自害（公開デモ用。HP を 0 にするだけで、あとは本当に死んだときと同じ流れ = LOSE → ゲームオーバー演出 → SPACE で再開）
-		if (keyboard.IsPressed(KEY::Q) && !Player_->IsInputLocked() && Player_->HP_ > 0.0f) {
-			Player_->HP_ = 0.0f;
+		if (keyboard.IsPressed(KEY::Q) && !Player_->IsInputLocked() && !Player_->IsDefeated()) {
+			Player_->Kill();
 		}
 
 		PlayerBullets_->Update(cmdList_, Mat4_I, UpdatePlayerBullet);
 		BossBullets_->Update(cmdList_, Mat4_I, UpdateBossBullet);
 
-		UI_PlayerHPValue_ = UI_PlayerHPValue_ * 0.9f + Player_->HP_ * 0.1f;
-		if (std::abs(UI_PlayerHPValue_ - Player_->HP_) < 1.0E-2) { UI_PlayerHPValue_ = Player_->HP_; }
-		UI_PlayerHPBar_.Scale_.x = MaxWidth_UI_PlayerHPBar_ * (UI_PlayerHPValue_ * Player_->Inv_MaxHP_);
-		UI_BossHPBar_.Scale_.x = MaxWidth_UI_BossHPBar_ * (Boss_Kinoko_->HP_ * Boss_Kinoko_->Inv_MaxHP_);
+		UI_PlayerHPValue_ = UI_PlayerHPValue_ * 0.9f + Player_->HP() * 0.1f;
+		if (std::abs(UI_PlayerHPValue_ - Player_->HP()) < 1.0E-2) { UI_PlayerHPValue_ = Player_->HP(); }
+		UI_PlayerHPBar_.Scale_.x = MaxWidth_UI_PlayerHPBar_ * (UI_PlayerHPValue_ / Player_->MaxHP());
+		UI_BossHPBar_.Scale_.x = MaxWidth_UI_BossHPBar_ * Boss_Kinoko_->HPRatio();
 
 		if (NextPhaseCountDown_ < 0) {
-			if (Boss_Kinoko_->HP_ <= 0.0f) {
+			if (Boss_Kinoko_->IsDefeated()) {
 				CurrentPhase_ = PHASE_WIN;
 				if (!Victory_.IsActive()) { Victory_.Start(); }		// 通常は Update.cpp が HP 0 になった瞬間に開始済み
 			}
-			else if (Player_->HP_ <= 0.0f) {
+			else if (Player_->IsDefeated()) {
 				CurrentPhase_ = PHASE_LOSE;
 				GameOver_.Start();			// 色抜け・カメラ・倒れるモーション・結果表示を同じ時刻から（通常は Update.cpp が HP 0 になった瞬間に開始済み）
 			}

@@ -38,6 +38,8 @@ import Lumina.EditorTest;
 
 import Lumina.Utils.Time;
 
+import Lumina.Scene;
+
 import Game.Scene;
 import Game.Scene.Title;
 import Game.Scene.InGame;
@@ -182,10 +184,18 @@ int32_t WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 	//----	------	------	------	------	----//
 
-	std::unique_ptr<Game::Scene::Title> scene_Title{ new Game::Scene::Title{} };
-	scene_Title->Initialize(dx12Context, assetMngr);
-	std::unique_ptr<Game::Scene::InGame> scene_InGame{ new Game::Scene::InGame{} };
-	scene_InGame->Initialize(dx12Context, assetMngr);
+	// シーン（State パターン：SceneManager = コンテキスト、各シーン = 状態）。
+	// 起動時に両方作って Initialize し、今のシーンだけ Update / Render する。次のシーン・終了はシーン自身が SceneManager に頼む
+	Game::Scene::FrameResources const frameResources{ dx12Context, cmdList, mainWindowRawInput };
+	Lumina::SceneManager sceneManager{};
+	sceneManager.Add<Game::Scene::Title>(frameResources).Initialize(dx12Context, assetMngr);
+	sceneManager.Add<Game::Scene::InGame>(frameResources).Initialize(dx12Context, assetMngr);
+	#if !defined(NDEBUG)
+	sceneManager.RequestChange<Game::Scene::InGame>();		// Debug は InGame から（以前の Game::Scene::Flag = 1）
+	#else
+	sceneManager.RequestChange<Game::Scene::Title>();
+	#endif
+	sceneManager.ApplyChange();
 
 	//Lumina::Editor::EditorLayout editorLayout{};
 
@@ -218,24 +228,8 @@ int32_t WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 		}
 		grassland->Update(dx12Context, *vpInUse, player0.ModelTranslate(), playerRadius);*/
 
-		switch (Game::Scene::Flag) {
-		case 0:
-			scene_Title->Update(
-				std::as_const(dx12Context),
-				std::as_const(cmdList),
-				std::as_const(mainWindowRawInput)
-			);
-			scene_Title->Render(dx12Context, cmdList);
-			break;
-		case 1:
-			scene_InGame->Update(
-				std::as_const(dx12Context),
-				std::as_const(cmdList),
-				std::as_const(mainWindowRawInput)
-			);
-			scene_InGame->Render(dx12Context, cmdList);
-			break;
-		}
+		sceneManager.Update();
+		sceneManager.Render();
 
 		//----	------	------	------	------	----//
 
@@ -266,16 +260,14 @@ int32_t WINAPI WinMain(HINSTANCE, HINSTANCE, LPSTR, int) {
 
 		//----	------	------	------	------	----//
 
-		// タイトルのメニューで Exit を選ぶと Game::Scene::Flag < 0 になる
-		if (Game::Scene::Flag < 0) {
+		// タイトルのメニューの Exit・タイトルでの ESC（設定の画面を開いていないとき）で、シーンが終了を頼む
+		// （InGame の ESC はポーズメニュー）
+		if (sceneManager.IsQuitRequested()) {
 			::SendMessage(mainWindow.Handle(), WM_CLOSE, 0, 0);
 		}
 
-		// ESC で閉じるのはタイトルだけ（InGame の ESC はポーズメニュー）
-		// （タイトルで設定の画面を開いている間は、ESC は「戻る」なので閉じない）
-		if (Game::Scene::Flag == 0 && !Game::Scene::BlockEscapeQuit && keyboard.IsPressed(Lumina::WinApp::KEY::ESC)) {
-			::SendMessage(mainWindow.Handle(), WM_CLOSE, 0, 0);
-		}
+		// シーンの切り替え（頼まれていれば）。このフレームの描画が終わってから
+		sceneManager.ApplyChange();
 	}
 
 	directQueue.SignalAndCPUWait();

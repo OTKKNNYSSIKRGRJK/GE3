@@ -214,14 +214,8 @@ namespace Game::Scene::Impl {
 		[[maybe_unused]] Lumina::DX12::CommandList const& cmdList_,
 		[[maybe_unused]] Lumina::WinApp::RawInput const& input_
 	) {
-		// シーンの切り替え（Start / Exit）はメニュー（UpdateUI）が行う
-
-		// InGame から戻ってきた（ポーズメニューの Return to Title）: Outro を巻き戻し、メニューを黒からのフェードインでやり直す
-		if (HasLeftScene_) {
-			HasLeftScene_ = false;
-			RewindOutro();
-			ResetMenu();
-		}
+		// シーンの切り替え（Start / Exit）はメニュー（UpdateUI）と Outro が SceneManager に頼む。
+		// InGame から戻ってきたときのやり直しは OnEnter（UI.cpp）
 
 		constexpr float twoPi{ std::numbers::pi_v<float> * 2.0f };
 
@@ -651,12 +645,7 @@ namespace Game::Scene::Impl {
 }
 
 namespace Game::Scene {
-	template<>
-	void Title::Update(
-		Lumina::DX12::Context const& dxContext_,
-		Lumina::DX12::CommandList const& cmdList_,
-		Lumina::WinApp::RawInput const& input_
-	) {
-		Impl_->Update(dxContext_, cmdList_, input_);
+	void Title::Update() {
+		Impl_->Update(Frame_.DX12, Frame_.CmdList, Frame_.Input);
 	}
 }

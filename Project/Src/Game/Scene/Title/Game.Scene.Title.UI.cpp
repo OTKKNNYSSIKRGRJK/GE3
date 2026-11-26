@@ -12,6 +12,7 @@ import : Impl;
 
 import Lumina;
 import Game.Scene;
+import Game.Scene.InGame;		// Start → InGame への切り替えを頼む（RequestStartGame）
 import Game.KeyConfigScreen;
 
 #if defined(_DEBUG)
@@ -35,8 +36,11 @@ import Lumina.Utils.ImGui;
 //       → Start：Outro を開始（ロゴ・メニューはフェードインを逆再生して消え、Outro の最後に次のシーンへ。
 //                Game.Scene.Title.Outro.cpp）
 //       → 設定：キー割り当ての画面（Game.KeyConfigScreen）を上に重ねて開く。開いている間はメニューの入力を止める。
-//              ESC か「戻る」で閉じる（ESC でタイトルが閉じないよう、Game::Scene::BlockEscapeQuit を立てる）
-//       → Exit：点滅 → 黒へフェードアウト → Flag = -1（main.cpp がウィンドウを閉じる）
+//              ESC か「戻る」で閉じる（ESC でタイトルが閉じないよう、BlockEscapeQuit_ を立てる）
+//       → Exit：点滅 → 黒へフェードアウト → SceneManager に終了を頼む（main.cpp がウィンドウを閉じる）
+// 状態（FadeIn / Idle / Decided / FadeOut / Done / Outro）は State パターン（Title::MenuState の派生。2026-11-26）。
+//   各状態が自分の Update で次の状態を決め、ChangeMenuState に頼む（Run の中なので、Update が終わってから切り替わる）
+// ESC：設定の画面が開いていなければ、SceneManager に終了を頼む（以前は main.cpp が Game::Scene::Flag を見て判定していた）
 // 並び（2026-11-11）：Start を 1 つ上へ、元の Start の位置に設定、Exit はそのまま（項目 i の Y = FirstY + Spacing × (i − 1)）
 // メニューは Pause / TimeScale の影響を受けない（固定の 1/60 秒で進める）。
 
@@ -226,7 +230,7 @@ namespace Game::Scene::Impl {
 	}
 
 	void Title::ResetMenu() {
-		MenuPhase_ = MenuPhase::FadeIn;
+		ChangeMenuState(std::make_unique<MenuFadeIn>());
 		MenuTimer_ = 0.0f;
 		LogoTimer_ = 0.0f;
 		GlowTimer_ = 0.0f;
@@ -241,6 +245,108 @@ namespace Game::Scene::Impl {
 		PrevKeyUp_ = true;
 		PrevKeyDown_ = true;
 		PrevKeyConfirm_ = true;
+	}
+
+	//////	//////	//////	//////	//////	//////
+	//	シーンの切り替え・終了（SceneManager に頼む）	//
+	//////	//////	//////	//////	//////	//////
+
+	void Title::RequestStartGame() {
+		SceneManager_->RequestChange<Game::Scene::InGame>();	// 切り替えはこのフレームの描画の後（SceneManager::ApplyChange）
+	}
+
+	void Title::RequestQuit() {
+		SceneManager_->RequestQuit();
+	}
+
+	void Title::OnEnter() {
+		// InGame から戻ってきた（ポーズメニューの Return to Title・勝利のあと）: Outro を巻き戻し、メニューを黒からのフェードインでやり直す。
+		// 起動して最初にタイトルに入ったときも呼ばれるが、そのときは Initialize 直後と同じ状態になるだけ
+		RewindOutro();
+		ResetMenu();
+		BlockEscapeQuit_ = false;
+	}
+
+	//////	//////	//////	//////	//////	//////
+	//	メニューの状態（State パターン）			//
+	//////	//////	//////	//////	//////	//////
+
+	void Title::ChangeMenuState(std::unique_ptr<MenuState> next_) {
+		MenuStates_.Change(*this, std::move(next_));
+	}
+
+	void Title::FadeInBehindMenu() {
+		FadeAlpha_ = std::max(FadeAlpha_ - MenuDeltaTime / std::max(MenuStyle_.FadeInDuration, 0.001f), 0.0f);
+	}
+
+	void Title::HandleMenuSelection(MenuInput const& input_) {
+		if (input_.SettingsOpen) { return; }		// 設定の画面を開いている間は選ばない（フェードインはそのまま進む）
+		if (input_.Up) {
+			MenuSelected_ = (MenuSelected_ + NumMenuItems - 1) % NumMenuItems;
+		}
+		if (input_.Down) {
+			MenuSelected_ = (MenuSelected_ + 1) % NumMenuItems;
+		}
+		if (input_.Confirm) {
+			if (MenuSelected_ == 0) {
+				StartOutro(false);	// Start：Outro へ（メニューも MenuOutro になる）
+			}
+			else if (MenuSelected_ == 1) {
+				SettingsScreen_.Open();		// 設定：メニューの上に重ねて開く
+				BlockEscapeQuit_ = true;
+			}
+			else {
+				ChangeMenuState(std::make_unique<MenuDecided>());	// Exit
+			}
+		}
+	}
+
+	void Title::MenuState::Enter(Title& self_) {
+		self_.MenuTimer_ = 0.0f;
+	}
+
+	// 黒から明ける。明けきったら Idle へ。この間も選択・決定は受け付ける
+	void Title::MenuFadeIn::Update(Title& self_, MenuInput const& input_) {
+		self_.FadeAlpha_ = 1.0f - Saturate(self_.MenuTimer_ / std::max(self_.MenuStyle_.FadeInDuration, 0.001f));
+		if (self_.FadeAlpha_ <= 0.0f) {
+			self_.ChangeMenuState(std::make_unique<MenuIdle>());
+		}
+		self_.HandleMenuSelection(input_);		// 決定したら、こちらの頼み（Decided / Outro）が後勝ちで有効
+	}
+
+	void Title::MenuIdle::Update(Title& self_, MenuInput const& input_) {
+		self_.HandleMenuSelection(input_);
+	}
+
+	// 選んだ項目の点滅（見た目は UpdateUI が IsBlinking を見て付ける）。点滅しきったら FadeOut へ
+	void Title::MenuDecided::Update(Title& self_, [[maybe_unused]] MenuInput const& input_) {
+		self_.FadeInBehindMenu();
+		if (self_.MenuTimer_ >= self_.MenuStyle_.BlinkDuration) {
+			self_.ChangeMenuState(std::make_unique<MenuFadeOut>());
+		}
+	}
+
+	void Title::MenuFadeOut::Enter(Title& self_) {
+		MenuState::Enter(self_);
+		self_.FadeOutFrom_ = self_.FadeAlpha_;
+		self_.IntroFadeColor_ = Lumina::Float3{ 0.0f, 0.0f, 0.0f };	// 終了時の暗転は黒
+	}
+
+	// 黒へ。暗転しきったら、選んだ項目に応じて切り替え・終了を頼んで Done へ
+	void Title::MenuFadeOut::Update(Title& self_, [[maybe_unused]] MenuInput const& input_) {
+		float const t{ Saturate(self_.MenuTimer_ / std::max(self_.MenuStyle_.FadeOutDuration, 0.001f)) };
+		self_.FadeAlpha_ = self_.FadeOutFrom_ + (1.0f - self_.FadeOutFrom_) * t;
+		if (t >= 1.0f) {
+			// 0: Start → InGame へ（今は Start は Outro を通るので、ここへ来るのは Exit だけ）/ それ以外: Exit → 終了
+			if (self_.MenuSelected_ == 0) { self_.RequestStartGame(); }
+			else { self_.RequestQuit(); }
+			self_.ChangeMenuState(std::make_unique<MenuDone>());
+		}
+	}
+
+	// Start 決定後の演出中は入力を受け付けない。巻き戻し（RewindOutro）で Idle に戻される
+	void Title::MenuOutro::Update(Title& self_, [[maybe_unused]] MenuInput const& input_) {
+		self_.FadeInBehindMenu();
 	}
 
 	//////	//////	//////	//////	//////	//////
@@ -274,83 +380,29 @@ namespace Game::Scene::Impl {
 		PrevKeyConfirm_ = keyConfirm;
 
 		// 設定の画面：開いている間はそちらに入力を渡し、メニューは動かさない（押した瞬間の前の状態は上で更新済み）。
-		// ESC でタイトルが閉じないよう、開いている間と、閉じたあと ESC を離すまでは main.cpp に知らせる
+		// ESC でタイトルが閉じないよう、開いている間と、閉じたあと ESC を離すまでは BlockEscapeQuit_ を立てておく
 		bool const settingsOpen{ SettingsScreen_.IsOpen() };
 		if (settingsOpen) {
 			SettingsScreen_.Update(input_);
 		}
-		Game::Scene::BlockEscapeQuit = SettingsScreen_.IsOpen() || (Game::Scene::BlockEscapeQuit && keyboard.IsPressed(KEY::ESC));
+		BlockEscapeQuit_ = SettingsScreen_.IsOpen() || (BlockEscapeQuit_ && keyboard.IsPressed(KEY::ESC));
 
 		//----	------	------	------	------	----//
-		// 状態遷移
+		// 状態（今の状態が自分で次の状態を決める）
 
 		MenuTimer_ += dt;
 
-		switch (MenuPhase_) {
-		case MenuPhase::FadeIn:
-		case MenuPhase::Idle:
-			if (MenuPhase_ == MenuPhase::FadeIn) {
-				FadeAlpha_ = 1.0f - Saturate(MenuTimer_ / std::max(style.FadeInDuration, 0.001f));
-				if (FadeAlpha_ <= 0.0f) {
-					MenuPhase_ = MenuPhase::Idle;
-					MenuTimer_ = 0.0f;
-				}
-			}
+		MenuInput const menuInput{
+			.Up = triggeredUp,
+			.Down = triggeredDown,
+			.Confirm = triggeredConfirm,
+			.SettingsOpen = settingsOpen,
+		};
+		MenuStates_.Run(*this, [&](MenuState& state_) { state_.Update(*this, menuInput); });
 
-			if (settingsOpen) { break; }		// 設定の画面を開いている間は選ばない（フェードインはそのまま進む）
-			if (triggeredUp) {
-				MenuSelected_ = (MenuSelected_ + NumMenuItems - 1) % NumMenuItems;
-			}
-			if (triggeredDown) {
-				MenuSelected_ = (MenuSelected_ + 1) % NumMenuItems;
-			}
-			if (triggeredConfirm) {
-				if (MenuSelected_ == 0) {
-					StartOutro(false);	// Start：Outro へ（MenuPhase_ も Outro になる）
-				}
-				else if (MenuSelected_ == 1) {
-					SettingsScreen_.Open();		// 設定：メニューの上に重ねて開く
-					Game::Scene::BlockEscapeQuit = true;
-				}
-				else {
-					MenuPhase_ = MenuPhase::Decided;	// Exit
-					MenuTimer_ = 0.0f;
-				}
-			}
-			break;
-
-		case MenuPhase::Outro:
-			// フェードイン途中で決めた場合も、黒はそのまま明けていく
-			FadeAlpha_ = std::max(FadeAlpha_ - dt / std::max(style.FadeInDuration, 0.001f), 0.0f);
-			break;
-
-		case MenuPhase::Decided:
-			// フェードイン途中で決めた場合も、黒はそのまま明けていく
-			FadeAlpha_ = std::max(FadeAlpha_ - dt / std::max(style.FadeInDuration, 0.001f), 0.0f);
-			if (MenuTimer_ >= style.BlinkDuration) {
-				MenuPhase_ = MenuPhase::FadeOut;
-				MenuTimer_ = 0.0f;
-				FadeOutFrom_ = FadeAlpha_;
-				IntroFadeColor_ = Lumina::Float3{ 0.0f, 0.0f, 0.0f };	// 終了時の暗転は黒
-			}
-			break;
-
-		case MenuPhase::FadeOut:
-			{
-				float const t{ Saturate(MenuTimer_ / std::max(style.FadeOutDuration, 0.001f)) };
-				FadeAlpha_ = FadeOutFrom_ + (1.0f - FadeOutFrom_) * t;
-				if (t >= 1.0f) {
-					MenuPhase_ = MenuPhase::Done;
-					MenuTimer_ = 0.0f;
-					// 0: Start → InGame へ / 1: Exit → main.cpp がウィンドウを閉じる
-					Game::Scene::Flag = (MenuSelected_ == 0) ? 1 : -1;
-				}
-			}
-			break;
-
-		case MenuPhase::Done:
-		default:
-			break;
+		// ESC でタイトル（アプリ）を閉じる。設定の画面を開いている間（と、閉じたあと ESC を離すまで）は閉じない
+		if (!BlockEscapeQuit_ && keyboard.IsPressed(KEY::ESC)) {
+			RequestQuit();
 		}
 
 		//----	------	------	------	------	----//
@@ -370,7 +422,7 @@ namespace Game::Scene::Impl {
 			float const scale{ style.UnselectedScale + (1.0f - style.UnselectedScale) * blend };
 
 			// 決定した項目を点滅
-			bool const isDecidedItem{ (idx == MenuSelected_) && (MenuPhase_ == MenuPhase::Decided) };
+			bool const isDecidedItem{ (idx == MenuSelected_) && MenuStates_.Current().IsBlinking() };
 			if (isDecidedItem) {
 				float const wave{
 					std::cos(std::numbers::pi_v<float> * 2.0f * style.BlinkFrequency * MenuTimer_)
@@ -432,7 +484,7 @@ namespace Game::Scene::Impl {
 					1.0f - Saturate(glow.PulseDepth) * (0.5f + 0.5f * std::cos(std::numbers::pi_v<float> * 2.0f * phase))
 				};
 				// Outro の消え始めに、選んだ項目のグローを強める（消えるにつれて元に戻る）
-				bool const isOutroSelected{ (MenuPhase_ == MenuPhase::Outro) && (idx == 1 + MenuSelected_) };
+				bool const isOutroSelected{ MenuStates_.Current().IsOutro() && (idx == 1 + MenuSelected_) };
 				float const boost{ isOutroSelected ? (1.0f + Outro_.UI.SelectedGlowBoost * outroVisibility) : 1.0f };
 				float const strength{ glow.Enabled ? (glow.Intensity * pulse * source.RGBA().w * boost) : 0.0f };
 
@@ -525,9 +577,8 @@ namespace Game::Scene::Impl {
 		#if defined(_DEBUG)
 		ImGui::Begin("Menu");
 
-		constexpr char const* phaseNames[]{ "FadeIn", "Idle", "Decided", "FadeOut", "Done", "Outro" };
 		constexpr char const* itemNames[NumMenuItems]{ "Start", "Settings", "Exit" };
-		ImGui::Text("Phase: %s  /  Selected: %s%s", phaseNames[static_cast<int>(MenuPhase_)], itemNames[MenuSelected_], SettingsScreen_.IsOpen() ? "  (settings open)" : "");
+		ImGui::Text("Phase: %s  /  Selected: %s%s", MenuStates_.Current().Name(), itemNames[MenuSelected_], SettingsScreen_.IsOpen() ? "  (settings open)" : "");
 		ImGui::BeginDisabled(IsOutroActive());	// Outro 中は「Outro」ウィンドウの Rewind で戻す
 		if (ImGui::Button("Replay (fade in)")) {
 			ResetMenu();
